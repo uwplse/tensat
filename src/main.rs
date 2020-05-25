@@ -84,6 +84,25 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("concatenation-and-pooling-2"     ; "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) " => "(poolmax ?k ?s ?p (concat 1 ?x ?y))"),
 ]}
 
+use pest::iterators::Pair;
+fn parse_exp(e: Pair<Rule>) -> String {
+        match e.as_rule() {
+                Rule::name => e.as_str().to_owned(),
+                Rule::expr => parse_exp(e.into_inner().next().unwrap()),
+                Rule::apply => {
+                        let mut inner_rules = e.into_inner();
+                        let op = parse_exp(inner_rules.next().unwrap());
+                        let args = parse_exp(inner_rules.next().unwrap());
+                        format!("({} {})", op, args)
+                },
+                Rule::args => {
+                        let arg_ss: Vec<_> = e.into_inner().map(parse_exp).collect();
+                        arg_ss.join(" ")
+                },
+                _ => unreachable!()
+        }
+}
+
 fn main() {
         let mut egraph = EGraph::<Model, ()>::default();
         let lhs = "(conv2d 1 1 0 0 \
@@ -98,6 +117,17 @@ fn main() {
         let runner = Runner::default().with_egraph(egraph).run(&rules());
         assert!(!runner.egraph.equivs(&lhs, &rhs).is_empty());
 
-        let successful_parse = EqParser::parse(Rule::eq, "matmul_0(matmul_0(input_1,input_4),input_5)==matmul_0(input_1,matmul_0(input_4,input_5))");
-        println!("{:?}", successful_parse);
+        let eq = EqParser::parse(Rule::eq, "matmul_0(matmul_0(input_1,input_4),input_5)==matmul_0(input_1,matmul_0(input_4,input_5))")
+                .expect("parse error")
+                .next().unwrap();
+        // let eqs = vec![];
+        match eq.as_rule() {
+                Rule::eq => {
+                        let mut inner_rules = eq.into_inner();
+                        let lhs = parse_exp(inner_rules.next().unwrap());
+                        let rhs = parse_exp(inner_rules.next().unwrap());
+                        println!("{} == {}", lhs, rhs);
+                }
+                _ => unreachable!(),
+        }
 }
