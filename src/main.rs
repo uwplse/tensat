@@ -1,5 +1,14 @@
 use egg::{rewrite as rw, *};
 
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+use pest::Parser;
+
+#[derive(Parser)]
+#[grammar = "equation.pest"]
+pub struct EqParser;
+
 define_language! {
     pub enum Model {
         "ewadd"     = Ewadd([Id; 2]),
@@ -88,4 +97,7 @@ fn main() {
 
         let runner = Runner::default().with_egraph(egraph).run(&rules());
         assert!(!runner.egraph.equivs(&lhs, &rhs).is_empty());
+
+        let successful_parse = EqParser::parse(Rule::eq, "matmul_0(matmul_0(input_1,input_4),input_5)==matmul_0(input_1,matmul_0(input_4,input_5))");
+        println!("{:?}", successful_parse);
 }
