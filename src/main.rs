@@ -7,7 +7,7 @@ define_language! {
         "smul"      = Smul([Id; 2]),
         "transpose" = Transpose(Id),
         "matmul"    = Matmul([Id; 2]),
-        "conv"      = Conv([Id; 5]),
+        "conv2d"      = Conv2d([Id; 6]),
         "enlarge"   = Enlarge([Id; 2]),
         "relu"      = Relu(Id),
         "poolavg"   = Poolavg([Id; 4]),
@@ -46,15 +46,15 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("matmul-is-linear-0"              ; "(smul (matmul ?x ?y) ?w) "                               => "(matmul ?x  (smul ?y ?w))"),
         rw!("matmul-is-linear-1"              ; "(matmul ?x (ewadd ?y ?z)) "                              => "(ewadd (matmul ?x ?y) (matmul ?x ?z))"),
         rw!("matmul-and-transpose"            ; "(transpose (matmul ?x ?y)) "                             => "(matmul (transpose ?y)  (transpose ?x))"),
-        rw!("conv-is-bilinear-0"              ; "(conv ?s ?p ?c (smul ?x ?w) ?y) "                        => "(conv ?s ?p ?c ?x (smul ?y ?w))"),
-        rw!("conv-is-bilinear-1"              ; "(smul (conv ?s ?p Anone ?x ?y) ?w) "                     => "(conv ?s ?p Anone (smul ?x ?w) ?y)"),
-        rw!("conv-is-bilinear-2"              ; "(conv ?s ?p Anone ?x (ewadd ?y ?z)) "                    => "(ewadd (conv ?s ?p Anone ?x ?y) (conv ?s ?p Anone ?x ?z))"),
-        rw!("conv-is-bilinear-3"              ; "(conv ?s ?p Anone (ewadd ?x ?y) ?z) "                    => "(ewadd (conv ?s ?p Anone ?x ?z) (conv ?s ?p Anone ?y ?z))"),
-        rw!("enlarge-convolution-kernel"      ; "(conv ?s Psame ?c ?x ?y) "                               => "(conv ?s Psame ?c ?x (enlarge ?k ?y))"),
-        rw!("operator-commutativity-4"        ; "(conv ?s ?p Arelu ?x ?y) "                               => "(relu (conv ?s ?p Anone ?x ?y))"),
+        rw!("conv-is-bilinear-0"              ; "(conv2d ?sx ?sy ?p ?c (smul ?x ?w) ?y) "                        => "(conv2d ?sx ?sy ?p ?c ?x (smul ?y ?w))"),
+        rw!("conv-is-bilinear-1"              ; "(smul (conv2d ?sx ?sy ?p Anone ?x ?y) ?w) "                     => "(conv2d ?sx ?sy ?p Anone (smul ?x ?w) ?y)"),
+        rw!("conv-is-bilinear-2"              ; "(conv2d ?sx ?sy ?p Anone ?x (ewadd ?y ?z)) "                    => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?x ?z))"),
+        rw!("conv-is-bilinear-3"              ; "(conv2d ?sx ?sy ?p Anone (ewadd ?x ?y) ?z) "                    => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?z) (conv2d ?sx ?sy ?p Anone ?y ?z))"),
+        rw!("enlarge-convolution-kernel"      ; "(conv2d ?sx ?sy Psame ?c ?x ?y) "                               => "(conv2d ?sx ?sy Psame ?c ?x (enlarge ?k ?y))"),
+        rw!("operator-commutativity-4"        ; "(conv2d ?sx ?sy ?p Arelu ?x ?y) "                               => "(relu (conv2d ?sx ?sy ?p Anone ?x ?y))"),
         rw!("conv-with-Arelu-applies-relu"    ; "(relu (transpose ?x)) "                                  => "(transpose (relu ?x))"),
-        rw!("pooling-by-conv.-with-Cpool"     ; "(conv ?s ?p Anone ?x (Cpool ?k)) "                       => "(poolavg ?k ?s ?p ?x)"),
-        rw!("identity-kernel"                 ; "(conv 1 Psame Anone ?x (Iconv ?k)) "                     => "?x"),
+        rw!("pooling-by-conv.-with-Cpool"     ; "(conv2d ?sx ?sy ?p Anone ?x (Cpool ?k)) "                       => "(poolavg ?k ?s ?p ?x)"),
+        rw!("identity-kernel"                 ; "(conv2d 1 1 Psame Anone ?x (Iconv ?k)) "                     => "?x"),
         rw!("identity-matrix"                 ; "(matmul ?x   Imatmul ) "                                 => "?x"),
         rw!("ewmul-identity"                  ; "(ewmul ?x Iewmul) "                                      => "?x"),
         rw!("split-definition-0"              ; "(split0 ?a (concat ?a ?x ?y)) "                          => "?x"),
@@ -67,23 +67,25 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("concatenation-and-transpose"     ; "(concat 1 (transpose ?x) (transpose ?y)) "               => "(transpose (concat 0 ?x ?y))"),
         rw!("concatenation-and-matrix-mul.-0" ; "(concat 1 (matmul ?x ?y) (matmul ?x ?z)) "               => "(matmul ?x (concat 1 ?y ?z))"),
         rw!("concatenation-and-matrix-mul.-1" ; "(matmul (concat 1 ?x ?z) (concat 0 ?y ?w)) "             => "(ewadd (matmul ?x ?y) (matmul ?z ?w))"),
-        rw!("concatenation-and-conv.-0"       ; "(concat 0 (conv ?s ?p ?c ?x ?z) (conv ?s ?p ?c ?y ?z)) " => "(conv ?s ?p ?c (concat 0 ?x ?y) ?z)"),
-        rw!("concatenation-and-conv.-1"       ; "(concat 1 (conv ?s ?p ?c ?x ?y) (conv ?s ?p ?c ?x ?z)) " => "(conv ?s ?p ?c ?x (concat 0 ?y ?z))"),
-        rw!("concatenation-and-conv.-2"       ; "(conv ?s ?p Anone (concat 1 ?x ?z) (concat 1 ?y ?w)) "   => "(ewadd (conv ?s ?p Anone ?x ?y) (conv ?s ?p Anone ?z ?w))"),
+        rw!("concatenation-and-conv.-0"       ; "(concat 0 (conv2d ?sx ?sy ?p ?c ?x ?z) (conv2d ?sx ?sy ?p ?c ?y ?z)) " => "(conv2d ?sx ?sy ?p ?c (concat 0 ?x ?y) ?z)"),
+        rw!("concatenation-and-conv.-1"       ; "(concat 1 (conv2d ?sx ?sy ?p ?c ?x ?y) (conv2d ?sx ?sy ?p ?c ?x ?z)) " => "(conv2d ?sx ?sy ?p ?c ?x (concat 0 ?y ?z))"),
+        rw!("concatenation-and-conv.-2"       ; "(conv2d ?sx ?sy ?p Anone (concat 1 ?x ?z) (concat 1 ?y ?w)) "   => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?z ?w))"),
         rw!("concatenation-and-pooling-0"     ; "(concat 1 (poolavg ?k ?s ?p ?x) (poolavg ?k ?s ?p ?y)) " => "(poolavg ?k ?s ?p (concat 1 ?x ?y))"),
         rw!("concatenation-and-pooling-1"     ; "(concat 0 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) " => "(poolmax ?k ?s ?p (concat 0 ?x ?y))"),
         rw!("concatenation-and-pooling-2"     ; "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) " => "(poolmax ?k ?s ?p (concat 1 ?x ?y))"),
 ]}
 
 fn main() {
-        let end = "(matmul (matmul input_1 input_4) input_5)".parse().unwrap();
-        let start = "(matmul input_1 (matmul input_4 input_5))".parse().unwrap();
-        let runner = Runner::default().with_expr(&start).run(&rules());
-        let (egraph, root) = (runner.egraph, runner.roots[0]);
+        let mut egraph = EGraph::<Model, ()>::default();
+        let lhs = "(conv2d 1 1 0 0 \
+         (ewadd i_12 (ewadd i_10 i_11)) \
+         (ewadd i_12 (ewadd i_10 i_11)))".parse().unwrap();
+        let rhs = "(conv2d 1 1 0 0 \
+         (ewadd i_11 (ewadd i_10 i_12)) \
+         (ewadd i_11 (ewadd i_10 i_12)))".parse().unwrap();
+        egraph.add_expr(&lhs);
+        egraph.add_expr(&rhs);
 
-        let mut extractor = Extractor::new(&egraph, AstSize);
-        let (best_cost, best) = extractor.find_best(root);
-
-        println!("Smallest expression is {} with size {}.", best.pretty(80), best_cost);
-        assert!(!egraph.equivs(&start, &end).is_empty());
+        let runner = Runner::default().with_egraph(egraph).run(&rules());
+        assert!(!runner.egraph.equivs(&lhs, &rhs).is_empty());
 }
