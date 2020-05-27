@@ -122,12 +122,9 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
 ]}
 
 
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
 use pest::{Parser, iterators::Pair};
 
-#[derive(Parser)]
+#[derive(pest_derive::Parser)]
 #[grammar = "equation.pest"]
 pub struct EqParser;
 
