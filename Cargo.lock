@@ -56,9 +56,8 @@ dependencies = [
 
 [[package]]
 name = "egg"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c1bf262e60285197a72f5e3caaee779cbec00a0a417210e79c8de87cdae0e47"
+version = "0.4.2-dev"
+source = "git+https://github.com/mwillsey/egg?rev=986bff5c7d2e050e9aa980671c4c7d971c07da6f#986bff5c7d2e050e9aa980671c4c7d971c07da6f"
 dependencies = [
  "indexmap",
  "instant",
@@ -73,8 +72,18 @@ name = "eggo"
 version = "0.1.0"
 dependencies = [
  "egg",
+ "env_logger",
  "pest",
  "pest_derive",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
+dependencies = [
+ "log",
 ]
 
 [[package]]

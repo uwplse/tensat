@@ -23,7 +23,7 @@ define_language! {
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
         Num(i32),
-        Var(String),
+        Var(Symbol),
     }
 }
 
@@ -177,22 +177,35 @@ fn parse_rules(rs_s: &str) -> Vec<(RecExpr<Model>, RecExpr<Model>)> {
         }
 }
 
-fn verify((lhs , rhs): (RecExpr<Model>, RecExpr<Model>)) {
-        println!("VERIFYING");
-        println!("{}={}", lhs.pretty(80), rhs.pretty(80));
-        let mut egraph = EGraph::<Model, ()>::default();
-        egraph.add_expr(&lhs);
-        egraph.add_expr(&rhs);
-        let runner = Runner::default().with_egraph(egraph).run(&rules());
-        println!("{:?}", runner.stop_reason.unwrap());
-        if !runner.egraph.equivs(&lhs, &rhs).is_empty() {
-                println!("VERIFIED");
-        } else {
-                println!("ERROR!");
+type ExprPair = (RecExpr<Model>, RecExpr<Model>);
+
+// returns failed pairs
+fn verify(pairs: &[ExprPair]) -> Vec<ExprPair> {
+        let mut runner = Runner::<Model, (), ()>::default();
+        for (l, r) in pairs {
+                runner = runner.with_expr(l).with_expr(r);
         }
+
+        println!("Running...");
+        let runner = runner.run(&rules());
+        println!("Runner complete!");
+        println!("  Nodes: {}", runner.egraph.total_size());
+        println!("  Classes: {}", runner.egraph.number_of_classes());
+        println!("  Stopped: {:?}", runner.stop_reason.unwrap());
+
+        let mut failed = vec![];
+        for (i, roots) in runner.roots.chunks(2).enumerate() {
+                let eg = &runner.egraph;
+                if eg.find(roots[0]) != eg.find(roots[1]) {
+                        failed.push(pairs[i].clone());
+                }
+        }
+
+        failed
 }
 
 fn main() {
+        env_logger::init();
         let args: Vec<String> = std::env::args().collect();
         let fname = &args[1];
         let rs = std::fs::read_to_string(fname).expect("Something went wrong reading the file");
@@ -210,10 +223,23 @@ fn main() {
         //         _ => unreachable!()
         // }
 
+        println!("Parsing rules...");
+        let initial = parse_rules(&rs);
+        println!("Parsed rules!");
 
-        let rse = parse_rules(&rs);
-        for (i, (l, r)) in rse.into_iter().enumerate() {
-                println!("Rule {}", i);
-                verify((l, r));
+        let mut to_prove = initial.clone();
+        while to_prove.len() > 0 {
+                let n_before = to_prove.len();
+                to_prove = verify(&to_prove);
+                let n_proved = n_before - to_prove.len();
+                println!("Proved {} on this trip", n_proved);
+                if n_proved == 0 {
+                        println!("\nCouldn't prove {} rule(s)", to_prove.len());
+                        for pair in &to_prove {
+                                let i = initial.iter().position(|p| p == pair).unwrap();
+                                println!("  {}: {} => {}", i, pair.0, pair.1);
+                        }
+                        break
+                }
         }
 }
