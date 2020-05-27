@@ -4097,3 +4097,1312 @@ VERIFYING
 (concat 0 (relu input_1) (relu input_2))=(relu (concat 0 input_1 input_2))
 Saturated
 VERIFIED
+Rule 698
+VERIFYING
+(relu input_1)=(split_0 0 (relu (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 699
+VERIFYING
+(relu input_2)=(split_1 0 (relu (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 700
+VERIFYING
+(split_0 0 (transpose (concat 1 input_1 input_2)))=(split_0 1 (transpose (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 701
+VERIFYING
+(split_1 0 (transpose (concat 1 input_1 input_2)))=(split_1 1 (transpose (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 702
+VERIFYING
+(split_0 0 (transpose (concat 1 input_1 input_2)))=(split_0 1 (transpose (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 703
+VERIFYING
+(split_1 0 (transpose (concat 1 input_1 input_2)))=(split_1 1 (transpose (concat 0 input_1 input_2)))
+Saturated
+VERIFIED
+Rule 704
+VERIFYING
+(concat 0 (ewadd input_1 input_2) (ewadd input_4 input_5))=(ewadd (concat 0 input_1 input_4) (concat 0 input_2 input_5))
+NodeLimit(10558)
+VERIFIED
+Rule 705
+VERIFYING
+(concat 0 (ewmul input_1 input_2) (ewmul input_4 input_5))=(ewmul (concat 0 input_1 input_4) (concat 0 input_2 input_5))
+Saturated
+VERIFIED
+Rule 706
+VERIFYING
+(concat 0 (concat 1 input_1 input_2) (concat 1 input_4 input_5))=(concat 1 (concat 0 input_1 input_4) (concat 0 input_2 input_5))
+NodeLimit(10218)
+VERIFIED
+Rule 707
+VERIFYING
+(concat 0 (ewadd input_1 input_2) (ewadd input_4 input_5))=(ewadd (concat 0 input_1 input_5) (concat 0 input_2 input_4))
+NodeLimit(10558)
+VERIFIED
+Rule 708
+VERIFYING
+(concat 0 (ewmul input_1 input_2) (ewmul input_4 input_5))=(ewmul (concat 0 input_1 input_5) (concat 0 input_2 input_4))
+Saturated
+VERIFIED
+Rule 709
+VERIFYING
+(concat 0 (ewadd input_1 input_2) (ewadd input_4 input_5))=(ewadd (concat 0 input_2 input_4) (concat 0 input_1 input_5))
+NodeLimit(10558)
+VERIFIED
+Rule 710
+VERIFYING
+(concat 0 (ewmul input_1 input_2) (ewmul input_4 input_5))=(ewmul (concat 0 input_2 input_4) (concat 0 input_1 input_5))
+Saturated
+VERIFIED
+Rule 711
+VERIFYING
+(concat 0 (ewadd input_1 input_2) (ewadd input_4 input_5))=(ewadd (concat 0 input_2 input_5) (concat 0 input_1 input_4))
+NodeLimit(10558)
+VERIFIED
+Rule 712
+VERIFYING
+(concat 0 (ewmul input_1 input_2) (ewmul input_4 input_5))=(ewmul (concat 0 input_2 input_5) (concat 0 input_1 input_4))
+Saturated
+VERIFIED
+Rule 713
+VERIFYING
+(ewadd (matmul input_1 input_4) (matmul input_2 input_5))=(matmul (concat 1 input_1 input_2) (concat 0 input_4 input_5))
+Saturated
+VERIFIED
+Rule 714
+VERIFYING
+(concat 1 (smul input_7 input_20) (smul input_8 input_20))=(smul (concat 1 input_7 input_8) input_20)
+Saturated
+VERIFIED
+Rule 715
+VERIFYING
+(smul input_7 input_20)=(split_0 1 (smul (concat 1 input_7 input_8) input_20))
+Saturated
+VERIFIED
+Rule 716
+VERIFYING
+(smul input_8 input_20)=(split_1 1 (smul (concat 1 input_7 input_8) input_20))
+Saturated
+VERIFIED
+Rule 717
+VERIFYING
+(concat 1 (relu input_7) (relu input_8))=(relu (concat 1 input_7 input_8))
+Saturated
+VERIFIED
+Rule 718
+VERIFYING
+(conv2d 1 1 0 2 input_7 (Iconv 3 3))=(split_0 1 (relu (concat 1 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 719
+VERIFYING
+(conv2d 1 1 0 2 input_8 (Iconv 3 3))=(split_1 1 (relu (concat 1 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 720
+VERIFYING
+(concat 1 (ewadd input_7 input_8) (ewadd input_8 input_9))=(ewadd (concat 1 input_7 input_8) (concat 1 input_8 input_9))
+NodeLimit(10581)
+VERIFIED
+Rule 721
+VERIFYING
+(concat 1 (ewmul input_7 input_8) (ewmul input_8 input_9))=(ewmul (concat 1 input_7 input_8) (concat 1 input_8 input_9))
+Saturated
+VERIFIED
+Rule 722
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_10) (conv2d 1 1 0 0 input_8 input_11))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_10 input_11))
+Saturated
+VERIFIED
+Rule 723
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_13) (conv2d 1 1 0 0 input_8 input_14))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_13 input_14))
+Saturated
+VERIFIED
+Rule 724
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_16) (conv2d 1 1 0 0 input_8 input_17))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_16 input_17))
+Saturated
+VERIFIED
+Rule 725
+VERIFYING
+(concat 1 (ewadd input_7 input_8) (ewadd input_8 input_9))=(ewadd (concat 1 input_8 input_9) (concat 1 input_7 input_8))
+NodeLimit(10581)
+VERIFIED
+Rule 726
+VERIFYING
+(concat 1 (ewmul input_7 input_8) (ewmul input_8 input_9))=(ewmul (concat 1 input_8 input_9) (concat 1 input_7 input_8))
+Saturated
+VERIFIED
+Rule 727
+VERIFYING
+(relu input_10)=(split_0 1 (relu (concat 1 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 728
+VERIFYING
+(relu input_11)=(split_1 1 (relu (concat 1 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 729
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_10) (conv2d 1 1 0 0 input_8 input_11))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_10 input_11))
+Saturated
+VERIFIED
+Rule 730
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_12 (concat 1 input_10 input_11))
+  (concat 1 input_12 (concat 1 input_10 input_11)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_11 (concat 1 input_10 input_12))
+  (concat 1 input_11 (concat 1 input_10 input_12)))
+NodeLimit(12832)
+VERIFIED
+Rule 731
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_12 (concat 1 input_10 input_11))
+  (concat 1 input_12 (concat 1 input_10 input_11)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_11 (concat 1 input_10 input_12))
+  (concat 1 input_11 (concat 1 input_10 input_12)))
+NodeLimit(12867)
+VERIFIED
+Rule 732
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_12 (concat 1 input_10 input_11))
+  (concat 1 input_12 (concat 1 input_10 input_11)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_10 (concat 1 input_11 input_12))
+  (concat 1 input_10 (concat 1 input_11 input_12)))
+NodeLimit(12740)
+VERIFIED
+Rule 733
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_12 (concat 1 input_10 input_11))
+  (concat 1 input_12 (concat 1 input_10 input_11)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_10 (concat 1 input_11 input_12))
+  (concat 1 input_10 (concat 1 input_11 input_12)))
+NodeLimit(12775)
+VERIFIED
+Rule 734
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_13) (conv2d 1 1 0 0 input_8 input_14))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_13 input_14))
+Saturated
+VERIFIED
+Rule 735
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_15 (concat 1 input_13 input_14))
+  (concat 1 input_15 (concat 1 input_13 input_14)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_14 (concat 1 input_13 input_15))
+  (concat 1 input_14 (concat 1 input_13 input_15)))
+NodeLimit(12832)
+VERIFIED
+Rule 736
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_15 (concat 1 input_13 input_14))
+  (concat 1 input_15 (concat 1 input_13 input_14)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_14 (concat 1 input_13 input_15))
+  (concat 1 input_14 (concat 1 input_13 input_15)))
+NodeLimit(12867)
+VERIFIED
+Rule 737
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_15 (concat 1 input_13 input_14))
+  (concat 1 input_15 (concat 1 input_13 input_14)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_13 (concat 1 input_14 input_15))
+  (concat 1 input_13 (concat 1 input_14 input_15)))
+NodeLimit(12740)
+VERIFIED
+Rule 738
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_15 (concat 1 input_13 input_14))
+  (concat 1 input_15 (concat 1 input_13 input_14)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_13 (concat 1 input_14 input_15))
+  (concat 1 input_13 (concat 1 input_14 input_15)))
+NodeLimit(12775)
+VERIFIED
+Rule 739
+VERIFYING
+(ewadd (conv2d 1 1 0 0 input_7 input_16) (conv2d 1 1 0 0 input_8 input_17))=(conv2d 1 1 0 0 (concat 1 input_7 input_8) (concat 1 input_16 input_17))
+Saturated
+VERIFIED
+Rule 740
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_18 (concat 1 input_16 input_17))
+  (concat 1 input_18 (concat 1 input_16 input_17)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_17 (concat 1 input_16 input_18))
+  (concat 1 input_17 (concat 1 input_16 input_18)))
+NodeLimit(12832)
+VERIFIED
+Rule 741
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_18 (concat 1 input_16 input_17))
+  (concat 1 input_18 (concat 1 input_16 input_17)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_17 (concat 1 input_16 input_18))
+  (concat 1 input_17 (concat 1 input_16 input_18)))
+NodeLimit(12867)
+VERIFIED
+Rule 742
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_18 (concat 1 input_16 input_17))
+  (concat 1 input_18 (concat 1 input_16 input_17)))=(conv2d
+  1
+  1
+  0
+  0
+  (concat 1 input_16 (concat 1 input_17 input_18))
+  (concat 1 input_16 (concat 1 input_17 input_18)))
+NodeLimit(12740)
+VERIFIED
+Rule 743
+VERIFYING
+(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_18 (concat 1 input_16 input_17))
+  (concat 1 input_18 (concat 1 input_16 input_17)))=(conv2d
+  1
+  1
+  0
+  2
+  (concat 1 input_16 (concat 1 input_17 input_18))
+  (concat 1 input_16 (concat 1 input_17 input_18)))
+NodeLimit(12775)
+VERIFIED
+Rule 744
+VERIFYING
+(concat 0 (conv2d 1 1 0 0 input_7 input_10) (conv2d 1 1 0 0 input_8 input_10))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) input_10)
+Saturated
+VERIFIED
+Rule 745
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_10) (conv2d 1 1 0 2 input_8 input_10))=(relu (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_10))
+Saturated
+VERIFIED
+Rule 746
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_10)=(split_0 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_10))
+Saturated
+VERIFIED
+Rule 747
+VERIFYING
+(conv2d 1 1 0 0 input_8 input_10)=(split_1 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_10))
+Saturated
+VERIFIED
+Rule 748
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_10) (conv2d 1 1 0 2 input_8 input_10))=(conv2d 1 1 0 2 (concat 0 input_7 input_8) input_10)
+Saturated
+VERIFIED
+Rule 749
+VERIFYING
+(relu (conv2d 1 1 0 0 input_7 input_10))=(split_0 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_10))
+Saturated
+VERIFIED
+Rule 750
+VERIFYING
+(conv2d 1 1 0 2 input_8 input_10)=(split_1 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_10))
+Saturated
+VERIFIED
+Rule 751
+VERIFYING
+(concat 0 (conv2d 1 1 0 0 input_7 input_13) (conv2d 1 1 0 0 input_8 input_13))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) input_13)
+Saturated
+VERIFIED
+Rule 752
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_13) (conv2d 1 1 0 2 input_8 input_13))=(relu (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_13))
+Saturated
+VERIFIED
+Rule 753
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_13)=(split_0 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_13))
+Saturated
+VERIFIED
+Rule 754
+VERIFYING
+(conv2d 1 1 0 0 input_8 input_13)=(split_1 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_13))
+Saturated
+VERIFIED
+Rule 755
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_13) (conv2d 1 1 0 2 input_8 input_13))=(conv2d 1 1 0 2 (concat 0 input_7 input_8) input_13)
+Saturated
+VERIFIED
+Rule 756
+VERIFYING
+(relu (conv2d 1 1 0 0 input_7 input_13))=(split_0 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_13))
+Saturated
+VERIFIED
+Rule 757
+VERIFYING
+(conv2d 1 1 0 2 input_8 input_13)=(split_1 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_13))
+Saturated
+VERIFIED
+Rule 758
+VERIFYING
+(concat 0 (conv2d 1 1 0 0 input_7 input_16) (conv2d 1 1 0 0 input_8 input_16))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) input_16)
+Saturated
+VERIFIED
+Rule 759
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_16) (conv2d 1 1 0 2 input_8 input_16))=(relu (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_16))
+Saturated
+VERIFIED
+Rule 760
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_16)=(split_0 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_16))
+Saturated
+VERIFIED
+Rule 761
+VERIFYING
+(conv2d 1 1 0 0 input_8 input_16)=(split_1 0 (conv2d 1 1 0 0 (concat 0 input_7 input_8) input_16))
+Saturated
+VERIFIED
+Rule 762
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_16) (conv2d 1 1 0 2 input_8 input_16))=(conv2d 1 1 0 2 (concat 0 input_7 input_8) input_16)
+Saturated
+VERIFIED
+Rule 763
+VERIFYING
+(relu (conv2d 1 1 0 0 input_7 input_16))=(split_0 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_16))
+Saturated
+VERIFIED
+Rule 764
+VERIFYING
+(conv2d 1 1 0 2 input_8 input_16)=(split_1 0 (conv2d 1 1 0 2 (concat 0 input_7 input_8) input_16))
+Saturated
+VERIFIED
+Rule 765
+VERIFYING
+(concat 0 (poolavg 3 3 1 1 0 input_7) (poolavg 3 3 1 1 0 input_8))=(poolavg 3 3 1 1 0 (concat 0 input_7 input_8))
+Saturated
+VERIFIED
+Rule 766
+VERIFYING
+(poolavg 3 3 1 1 0 input_7)=(split_0 0 (poolavg 3 3 1 1 0 (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 767
+VERIFYING
+(poolavg 3 3 1 1 0 input_8)=(split_1 0 (poolavg 3 3 1 1 0 (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 768
+VERIFYING
+(concat 0 (poolmax 3 3 1 1 0 input_7) (poolmax 3 3 1 1 0 input_8))=(poolmax 3 3 1 1 0 (concat 0 input_7 input_8))
+Saturated
+VERIFIED
+Rule 769
+VERIFYING
+(poolmax 3 3 1 1 0 input_7)=(split_0 0 (poolmax 3 3 1 1 0 (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 770
+VERIFYING
+(poolmax 3 3 1 1 0 input_8)=(split_1 0 (poolmax 3 3 1 1 0 (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 771
+VERIFYING
+(concat 0 (poolavg 3 3 1 1 0 input_7) (poolavg 3 3 1 1 0 input_8))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) (Cpool 3 3))
+Saturated
+VERIFIED
+Rule 772
+VERIFYING
+(concat 0 (conv2d 1 1 0 0 input_7 input_13) (conv2d 1 1 0 0 input_8 input_13))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) (enlarge 3 3 input_13))
+Saturated
+VERIFIED
+Rule 773
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_13) (conv2d 1 1 0 2 input_8 input_13))=(conv2d 1 1 0 2 (concat 0 input_7 input_8) (enlarge 3 3 input_13))
+Saturated
+VERIFIED
+Rule 774
+VERIFYING
+(concat 0 (conv2d 1 1 0 0 input_7 input_16) (conv2d 1 1 0 0 input_8 input_16))=(conv2d 1 1 0 0 (concat 0 input_7 input_8) (enlarge 3 3 input_16))
+Saturated
+VERIFIED
+Rule 775
+VERIFYING
+(concat 0 (conv2d 1 1 0 2 input_7 input_16) (conv2d 1 1 0 2 input_8 input_16))=(conv2d 1 1 0 2 (concat 0 input_7 input_8) (enlarge 3 3 input_16))
+Saturated
+VERIFIED
+Rule 776
+VERIFYING
+(concat 0 (smul input_7 input_20) (smul input_8 input_20))=(smul (concat 0 input_7 input_8) input_20)
+Saturated
+VERIFIED
+Rule 777
+VERIFYING
+(smul input_7 input_20)=(split_0 0 (smul (concat 0 input_7 input_8) input_20))
+Saturated
+VERIFIED
+Rule 778
+VERIFYING
+(smul input_8 input_20)=(split_1 0 (smul (concat 0 input_7 input_8) input_20))
+Saturated
+VERIFIED
+Rule 779
+VERIFYING
+(conv2d 1 1 0 2 input_7 (Iconv 3 3))=(split_0 0 (relu (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 780
+VERIFYING
+(conv2d 1 1 0 2 input_8 (Iconv 3 3))=(split_1 0 (relu (concat 0 input_7 input_8)))
+Saturated
+VERIFIED
+Rule 781
+VERIFYING
+(concat 0 (ewadd input_7 input_8) (ewadd input_8 input_9))=(ewadd (concat 0 input_7 input_8) (concat 0 input_8 input_9))
+NodeLimit(11037)
+VERIFIED
+Rule 782
+VERIFYING
+(concat 0 (ewmul input_7 input_8) (ewmul input_8 input_9))=(ewmul (concat 0 input_7 input_8) (concat 0 input_8 input_9))
+Saturated
+VERIFIED
+Rule 783
+VERIFYING
+(concat 0 (ewadd input_7 input_8) (ewadd input_8 input_9))=(ewadd (concat 0 input_8 input_9) (concat 0 input_7 input_8))
+NodeLimit(11037)
+VERIFIED
+Rule 784
+VERIFYING
+(concat 0 (ewmul input_7 input_8) (ewmul input_8 input_9))=(ewmul (concat 0 input_8 input_9) (concat 0 input_7 input_8))
+Saturated
+VERIFIED
+Rule 785
+VERIFYING
+(concat 1 (conv2d 1 1 0 0 input_7 input_10) (conv2d 1 1 0 0 input_7 input_11))=(conv2d 1 1 0 0 input_7 (concat 0 input_10 input_11))
+Saturated
+VERIFIED
+Rule 786
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_10) (conv2d 1 1 0 2 input_7 input_11))=(relu (conv2d 1 1 0 0 input_7 (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 787
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_10)=(split_0 1 (conv2d 1 1 0 0 input_7 (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 788
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_11)=(split_1 1 (conv2d 1 1 0 0 input_7 (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 789
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_10) (conv2d 1 1 0 2 input_7 input_11))=(conv2d 1 1 0 2 input_7 (concat 0 input_10 input_11))
+Saturated
+VERIFIED
+Rule 790
+VERIFYING
+(relu (conv2d 1 1 0 0 input_7 input_10))=(split_0 1 (conv2d 1 1 0 2 input_7 (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 791
+VERIFYING
+(conv2d 1 1 0 2 input_7 input_11)=(split_1 1 (conv2d 1 1 0 2 input_7 (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 792
+VERIFYING
+(relu input_10)=(split_0 0 (relu (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 793
+VERIFYING
+(relu input_11)=(split_1 0 (relu (concat 0 input_10 input_11)))
+Saturated
+VERIFIED
+Rule 794
+VERIFYING
+(concat 1 (conv2d 1 1 0 0 input_7 input_13) (conv2d 1 1 0 0 input_7 input_14))=(conv2d 1 1 0 0 input_7 (concat 0 input_13 input_14))
+Saturated
+VERIFIED
+Rule 795
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_13) (conv2d 1 1 0 2 input_7 input_14))=(relu (conv2d 1 1 0 0 input_7 (concat 0 input_13 input_14)))
+Saturated
+VERIFIED
+Rule 796
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_13)=(split_0 1 (conv2d 1 1 0 0 input_7 (concat 0 input_13 input_14)))
+Saturated
+VERIFIED
+Rule 797
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_14)=(split_1 1 (conv2d 1 1 0 0 input_7 (concat 0 input_13 input_14)))
+Saturated
+VERIFIED
+Rule 798
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_13) (conv2d 1 1 0 2 input_7 input_14))=(conv2d 1 1 0 2 input_7 (concat 0 input_13 input_14))
+Saturated
+VERIFIED
+Rule 799
+VERIFYING
+(relu (conv2d 1 1 0 0 input_7 input_13))=(split_0 1 (conv2d 1 1 0 2 input_7 (concat 0 input_13 input_14)))
+Saturated
+VERIFIED
+Rule 800
+VERIFYING
+(conv2d 1 1 0 2 input_7 input_14)=(split_1 1 (conv2d 1 1 0 2 input_7 (concat 0 input_13 input_14)))
+Saturated
+VERIFIED
+Rule 801
+VERIFYING
+(concat 0 (concat 1 input_13 input_14) (concat 1 input_14 input_15))=(concat 1 (concat 0 input_13 input_14) (concat 0 input_14 input_15))
+NodeLimit(10207)
+VERIFIED
+Rule 802
+VERIFYING
+(concat 1 (conv2d 1 1 0 0 input_7 input_16) (conv2d 1 1 0 0 input_7 input_17))=(conv2d 1 1 0 0 input_7 (concat 0 input_16 input_17))
+Saturated
+VERIFIED
+Rule 803
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_16) (conv2d 1 1 0 2 input_7 input_17))=(relu (conv2d 1 1 0 0 input_7 (concat 0 input_16 input_17)))
+Saturated
+VERIFIED
+Rule 804
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_16)=(split_0 1 (conv2d 1 1 0 0 input_7 (concat 0 input_16 input_17)))
+Saturated
+VERIFIED
+Rule 805
+VERIFYING
+(conv2d 1 1 0 0 input_7 input_17)=(split_1 1 (conv2d 1 1 0 0 input_7 (concat 0 input_16 input_17)))
+Saturated
+VERIFIED
+Rule 806
+VERIFYING
+(concat 1 (conv2d 1 1 0 2 input_7 input_16) (conv2d 1 1 0 2 input_7 input_17))=(conv2d 1 1 0 2 input_7 (concat 0 input_16 input_17))
+Saturated
+VERIFIED
+Rule 807
+VERIFYING
+(matmul input_2 (transpose (smul input_1 input_20)))=(smul (matmul input_2 (transpose input_1)) input_20)
+Saturated
+VERIFIED
+Rule 808
+VERIFYING
+(matmul input_2 (transpose (smul input_1 input_20)))=(matmul (smul input_2 input_20) (transpose input_1))
+Saturated
+VERIFIED
+Rule 809
+VERIFYING
+(transpose (smul input_1 input_20))=(smul (transpose input_1) input_20)
+Saturated
+VERIFIED
+Rule 810
+VERIFYING
+(transpose (ewadd input_1 (smul input_1 input_20)))=(ewadd (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 811
+VERIFYING
+(transpose (ewmul input_1 (smul input_1 input_20)))=(ewmul (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 812
+VERIFYING
+(transpose (smul (smul input_1 input_20) input_20))=(smul (smul (transpose input_1) input_20) input_20)
+Saturated
+VERIFIED
+Rule 813
+VERIFYING
+(transpose (relu (smul input_1 input_20)))=(relu (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 814
+VERIFYING
+(transpose (concat 0 input_1 (smul input_1 input_20)))=(concat 1 (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 815
+VERIFYING
+(transpose (concat 1 input_1 (smul input_1 input_20)))=(concat 0 (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 816
+VERIFYING
+(matmul input_1 (smul Imatmul input_20))=(transpose (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 817
+VERIFYING
+(matmul input_1 (smul Imatmul input_20))=(transpose (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 818
+VERIFYING
+(transpose (relu input_1))=(relu (transpose input_1))
+Saturated
+VERIFIED
+Rule 819
+VERIFYING
+(transpose (ewadd input_1 (relu input_1)))=(ewadd (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 820
+VERIFYING
+(transpose (ewmul input_1 (relu input_1)))=(ewmul (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 821
+VERIFYING
+(transpose (smul (relu input_1) input_20))=(smul (relu (transpose input_1)) input_20)
+Saturated
+VERIFIED
+Rule 822
+VERIFYING
+(transpose (relu (relu input_1)))=(relu (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 823
+VERIFYING
+(transpose (concat 0 input_1 (relu input_1)))=(concat 1 (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 824
+VERIFYING
+(transpose (concat 1 input_1 (relu input_1)))=(concat 0 (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 825
+VERIFYING
+(relu input_1)=(transpose (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 826
+VERIFYING
+(relu input_1)=(transpose (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 827
+VERIFYING
+(transpose (ewadd input_1 input_2))=(ewadd (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 828
+VERIFYING
+(transpose (ewmul input_1 input_2))=(ewmul (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 829
+VERIFYING
+(transpose (concat 0 input_1 input_2))=(concat 1 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 830
+VERIFYING
+(transpose (concat 1 input_1 input_2))=(concat 0 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 831
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 832
+VERIFYING
+(transpose (concat 0 input_1 input_2))=(concat 1 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 833
+VERIFYING
+(transpose (concat 1 input_1 input_2))=(concat 0 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 834
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 835
+VERIFYING
+(transpose (matmul input_2 (transpose input_1)))=(matmul input_1 (transpose input_2))
+Saturated
+VERIFIED
+Rule 836
+VERIFYING
+(transpose (ewadd input_1 input_2))=(ewadd (transpose input_2) (transpose input_1))
+Saturated
+VERIFIED
+Rule 837
+VERIFYING
+(transpose (ewmul input_1 input_2))=(ewmul (transpose input_2) (transpose input_1))
+Saturated
+VERIFIED
+Rule 838
+VERIFYING
+(matmul (transpose (smul input_4 input_20)) input_5)=(smul (matmul (transpose input_4) input_5) input_20)
+Saturated
+VERIFIED
+Rule 839
+VERIFYING
+(matmul (transpose (smul input_4 input_20)) input_5)=(matmul (transpose input_4) (smul input_5 input_20))
+Saturated
+VERIFIED
+Rule 840
+VERIFYING
+(transpose (matmul input_4 (smul input_4 input_20)))=(matmul (transpose input_4) (smul (transpose input_4) input_20))
+Saturated
+VERIFIED
+Rule 841
+VERIFYING
+(transpose (matmul input_4 (smul input_4 input_20)))=(matmul (smul (transpose input_4) input_20) (transpose input_4))
+Saturated
+VERIFIED
+Rule 842
+VERIFYING
+(transpose (matmul (relu input_4) input_4))=(matmul (transpose input_4) (relu (transpose input_4)))
+Saturated
+VERIFIED
+Rule 843
+VERIFYING
+(transpose (matmul input_4 (relu input_4)))=(matmul (relu (transpose input_4)) (transpose input_4))
+Saturated
+VERIFIED
+Rule 844
+VERIFYING
+(concat 1 (smul input_4 input_20) (transpose (smul input_4 input_20)))=(smul (concat 1 input_4 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 845
+VERIFYING
+(concat 1 (relu input_4) (transpose (relu input_4)))=(relu (concat 1 input_4 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 846
+VERIFYING
+(concat 0 (smul input_4 input_20) (transpose (smul input_4 input_20)))=(smul (concat 0 input_4 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 847
+VERIFYING
+(concat 0 (relu input_4) (transpose (relu input_4)))=(relu (concat 0 input_4 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 848
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 849
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 850
+VERIFYING
+(transpose (matmul (transpose input_4) input_5))=(matmul (transpose input_5) input_4)
+Saturated
+VERIFIED
+Rule 851
+VERIFYING
+(matmul Imatmul (transpose input_1))=(transpose input_1)
+Saturated
+VERIFIED
+Rule 852
+VERIFYING
+(matmul input_2 (transpose (smul input_1 input_20)))=(smul (matmul input_2 (transpose input_1)) input_20)
+Saturated
+VERIFIED
+Rule 853
+VERIFYING
+(concat 0 (transpose input_1) (matmul input_2 (transpose input_1)))=(concat 0 (transpose input_1) (matmul input_2 (transpose input_1)))
+Saturated
+VERIFIED
+Rule 854
+VERIFYING
+(matmul (matmul input_2 input_4) (transpose input_1))=(matmul input_2 (matmul input_4 (transpose input_1)))
+Saturated
+VERIFIED
+Rule 855
+VERIFYING
+(concat 1 (transpose input_1) (matmul input_4 (transpose input_1)))=(concat 1 (transpose input_1) (matmul input_4 (transpose input_1)))
+Saturated
+VERIFIED
+Rule 856
+VERIFYING
+(matmul input_2 (transpose (smul input_1 input_20)))=(matmul (smul input_2 input_20) (transpose input_1))
+Saturated
+VERIFIED
+Rule 857
+VERIFYING
+(transpose (smul input_1 input_20))=(smul (transpose input_1) input_20)
+Saturated
+VERIFIED
+Rule 858
+VERIFYING
+(transpose (ewadd input_1 (smul input_1 input_20)))=(ewadd (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 859
+VERIFYING
+(transpose (ewmul input_1 (smul input_1 input_20)))=(ewmul (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 860
+VERIFYING
+(transpose (smul (smul input_1 input_20) input_20))=(smul (smul (transpose input_1) input_20) input_20)
+Saturated
+VERIFIED
+Rule 861
+VERIFYING
+(transpose (relu (smul input_1 input_20)))=(relu (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 862
+VERIFYING
+(transpose (concat 0 input_1 (smul input_1 input_20)))=(concat 1 (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 863
+VERIFYING
+(transpose (concat 1 input_1 (smul input_1 input_20)))=(concat 0 (transpose input_1) (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 864
+VERIFYING
+(matmul input_1 (smul Imatmul input_20))=(transpose (smul (transpose input_1) input_20))
+Saturated
+VERIFIED
+Rule 865
+VERIFYING
+(transpose (relu input_1))=(relu (transpose input_1))
+Saturated
+VERIFIED
+Rule 866
+VERIFYING
+(transpose (ewadd input_1 (relu input_1)))=(ewadd (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 867
+VERIFYING
+(transpose (ewmul input_1 (relu input_1)))=(ewmul (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 868
+VERIFYING
+(transpose (smul (relu input_1) input_20))=(smul (relu (transpose input_1)) input_20)
+Saturated
+VERIFIED
+Rule 869
+VERIFYING
+(transpose (relu (relu input_1)))=(relu (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 870
+VERIFYING
+(transpose (concat 0 input_1 (relu input_1)))=(concat 1 (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 871
+VERIFYING
+(transpose (concat 1 input_1 (relu input_1)))=(concat 0 (transpose input_1) (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 872
+VERIFYING
+(relu input_1)=(transpose (relu (transpose input_1)))
+Saturated
+VERIFIED
+Rule 873
+VERIFYING
+(concat 1 (transpose input_1) (concat 1 input_4 (transpose input_1)))=(concat 1 (transpose input_1) (concat 1 input_4 (transpose input_1)))
+Saturated
+VERIFIED
+Rule 874
+VERIFYING
+(transpose (concat 0 input_1 input_2))=(concat 1 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 875
+VERIFYING
+(transpose (concat 1 input_1 input_2))=(concat 0 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 876
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 877
+VERIFYING
+(matmul input_1 (transpose input_1))=(matmul (transpose (transpose input_1)) (transpose input_1))
+Saturated
+VERIFIED
+Rule 878
+VERIFYING
+(transpose (transpose (smul input_1 input_20)))=(smul (transpose (transpose input_1)) input_20)
+Saturated
+VERIFIED
+Rule 879
+VERIFYING
+(transpose (transpose (relu input_1)))=(relu (transpose (transpose input_1)))
+Saturated
+VERIFIED
+Rule 880
+VERIFYING
+(split_0 0 (transpose (concat 1 input_1 input_2)))=(transpose input_1)
+Saturated
+VERIFIED
+Rule 881
+VERIFYING
+(split_1 0 (transpose (concat 1 input_1 input_2)))=(transpose input_2)
+Saturated
+VERIFIED
+Rule 882
+VERIFYING
+(transpose (ewadd input_1 input_2))=(ewadd (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 883
+VERIFYING
+(transpose (ewmul input_1 input_2))=(ewmul (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 884
+VERIFYING
+(transpose (concat 0 input_1 input_2))=(concat 1 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 885
+VERIFYING
+(transpose (concat 1 input_1 input_2))=(concat 0 (transpose input_1) (transpose input_2))
+Saturated
+VERIFIED
+Rule 886
+VERIFYING
+(split_0 1 (transpose (concat 0 input_1 input_4)))=(transpose input_1)
+Saturated
+VERIFIED
+Rule 887
+VERIFYING
+(split_1 1 (transpose (concat 0 input_1 input_4)))=(transpose input_4)
+Saturated
+VERIFIED
+Rule 888
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 889
+VERIFYING
+(transpose (matmul input_2 (transpose input_1)))=(matmul input_1 (transpose input_2))
+Saturated
+VERIFIED
+Rule 890
+VERIFYING
+(matmul (smul input_1 input_20) (transpose input_2))=(smul (matmul input_1 (transpose input_2)) input_20)
+Saturated
+VERIFIED
+Rule 891
+VERIFYING
+(matmul input_2 (transpose input_1))=(transpose (matmul input_1 (transpose input_2)))
+Saturated
+VERIFIED
+Rule 892
+VERIFYING
+(matmul (smul input_1 input_20) (transpose input_2))=(matmul input_1 (smul (transpose input_2) input_20))
+Saturated
+VERIFIED
+Rule 893
+VERIFYING
+(transpose (ewadd input_1 input_2))=(ewadd (transpose input_2) (transpose input_1))
+Saturated
+VERIFIED
+Rule 894
+VERIFYING
+(transpose (ewmul input_1 input_2))=(ewmul (transpose input_2) (transpose input_1))
+Saturated
+VERIFIED
+Rule 895
+VERIFYING
+(matmul (matmul input_1 (transpose input_4)) (transpose input_4))=(matmul (matmul input_1 (transpose input_4)) (transpose input_4))
+Saturated
+VERIFIED
+Rule 896
+VERIFYING
+(matmul (transpose input_4) (matmul input_5 (transpose input_4)))=(matmul (transpose input_4) (matmul input_5 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 897
+VERIFYING
+(matmul (matmul input_1 (transpose input_4)) input_5)=(matmul input_1 (matmul (transpose input_4) input_5))
+Saturated
+VERIFIED
+Rule 898
+VERIFYING
+(matmul (transpose input_4) (matmul (transpose input_4) input_5))=(matmul (transpose input_4) (matmul (transpose input_4) input_5))
+Saturated
+VERIFIED
+Rule 899
+VERIFYING
+(matmul (transpose input_4) (matmul input_5 input_6))=(matmul (matmul (transpose input_4) input_5) input_6)
+Saturated
+VERIFIED
+Rule 900
+VERIFYING
+(matmul (transpose input_4) (matmul input_5 (transpose input_4)))=(matmul (matmul (transpose input_4) input_5) (transpose input_4))
+Saturated
+VERIFIED
+Rule 901
+VERIFYING
+(matmul (transpose (smul input_4 input_20)) input_5)=(smul (matmul (transpose input_4) input_5) input_20)
+Saturated
+VERIFIED
+Rule 902
+VERIFYING
+(concat 1 (transpose input_4) (matmul (transpose input_4) input_5))=(concat 1 (transpose input_4) (matmul (transpose input_4) input_5))
+Saturated
+VERIFIED
+Rule 903
+VERIFYING
+(concat 0 (transpose input_4) (matmul (transpose input_4) input_5))=(concat 0 (transpose input_4) (matmul (transpose input_4) input_5))
+Saturated
+VERIFIED
+Rule 904
+VERIFYING
+(ewadd (smul input_4 input_20) (transpose (smul input_4 input_20)))=(smul (ewadd input_4 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 905
+VERIFYING
+(ewmul input_5 (transpose (smul input_4 input_20)))=(smul (ewmul input_5 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 906
+VERIFYING
+(matmul (transpose (smul input_4 input_20)) input_5)=(matmul (transpose input_4) (smul input_5 input_20))
+Saturated
+VERIFIED
+Rule 907
+VERIFYING
+(ewmul input_5 (transpose (smul input_4 input_20)))=(ewmul (transpose input_4) (smul input_5 input_20))
+Saturated
+VERIFIED
+Rule 908
+VERIFYING
+(transpose (matmul input_4 (smul input_4 input_20)))=(matmul (transpose input_4) (smul (transpose input_4) input_20))
+Saturated
+VERIFIED
+Rule 909
+VERIFYING
+(transpose (matmul input_4 (smul input_4 input_20)))=(matmul (smul (transpose input_4) input_20) (transpose input_4))
+Saturated
+VERIFIED
+Rule 910
+VERIFYING
+(transpose (matmul (relu input_4) input_4))=(matmul (transpose input_4) (relu (transpose input_4)))
+Saturated
+VERIFIED
+Rule 911
+VERIFYING
+(transpose (matmul input_4 (relu input_4)))=(matmul (relu (transpose input_4)) (transpose input_4))
+Saturated
+VERIFIED
+Rule 912
+VERIFYING
+(concat 1 (smul input_4 input_20) (transpose (smul input_4 input_20)))=(smul (concat 1 input_4 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 913
+VERIFYING
+(concat 1 (relu input_4) (transpose (relu input_4)))=(relu (concat 1 input_4 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 914
+VERIFYING
+(matmul (transpose input_4) (concat 1 input_5 (transpose input_4)))=(matmul (transpose input_4) (concat 1 input_5 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 915
+VERIFYING
+(matmul (concat 0 input_1 (transpose input_4)) (transpose input_4))=(matmul (concat 0 input_1 (transpose input_4)) (transpose input_4))
+Saturated
+VERIFIED
+Rule 916
+VERIFYING
+(concat 0 (transpose input_4) (concat 0 input_1 (transpose input_4)))=(concat 0 (transpose input_4) (concat 0 input_1 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 917
+VERIFYING
+(concat 0 (smul input_4 input_20) (transpose (smul input_4 input_20)))=(smul (concat 0 input_4 (transpose input_4)) input_20)
+Saturated
+VERIFIED
+Rule 918
+VERIFYING
+(concat 0 (relu input_4) (transpose (relu input_4)))=(relu (concat 0 input_4 (transpose input_4)))
+Saturated
+VERIFIED
+Rule 919
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 920
+VERIFYING
+(matmul (transpose input_4) input_4)=(matmul (transpose input_4) (transpose (transpose input_4)))
+Saturated
+VERIFIED
+Rule 921
+VERIFYING
+(transpose (concat 0 input_4 (transpose input_4)))=(concat 1 (transpose input_4) (transpose (transpose input_4)))
+Saturated
+VERIFIED
+Rule 922
+VERIFYING
+(transpose (concat 1 input_4 (transpose input_4)))=(concat 0 (transpose input_4) (transpose (transpose input_4)))
+Saturated
+VERIFIED
+Rule 923
+VERIFYING
+(transpose (matmul input_1 input_4))=(matmul (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 924
+VERIFYING
+(concat 1 (transpose input_4) (transpose input_1))=(concat 1 (transpose input_4) (transpose input_1))
+Saturated
+VERIFIED
+Rule 925
+VERIFYING
+(transpose (matmul (transpose input_4) input_5))=(matmul (transpose input_5) input_4)
+Saturated
+VERIFIED
+Rule 926
+VERIFYING
+(matmul (transpose input_5) (smul input_4 input_20))=(smul (matmul (transpose input_5) input_4) input_20)
+Saturated
+VERIFIED
+Rule 927
+VERIFYING
+(matmul (transpose input_4) input_5)=(transpose (matmul (transpose input_5) input_4))
+Saturated
+VERIFIED
+Rule 928
+VERIFYING
+(transpose (ewadd input_5 (transpose input_4)))=(ewadd input_4 (transpose input_5))
+Saturated
+VERIFIED
+Rule 929
+VERIFYING
+(transpose (ewmul input_5 (transpose input_4)))=(ewmul input_4 (transpose input_5))
+Saturated
+VERIFIED
+Rule 930
+VERIFYING
+(matmul (transpose input_5) (smul input_4 input_20))=(matmul (smul (transpose input_5) input_20) input_4)
+Saturated
+VERIFIED

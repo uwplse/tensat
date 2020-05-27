@@ -11,7 +11,7 @@ define_language! {
         "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
         "poolavg"   = Poolavg([Id; 6]),
-        "poolmax"   = Poolmax([Id; 4]),
+        "poolmax"   = Poolmax([Id; 6]),
         "concat"    = Concat([Id; 3]),
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
@@ -54,7 +54,7 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("operator-commutativity-4"        ; "(conv2d ?sx ?sy ?p 2 ?x ?y) "                                      => "(relu (conv2d ?sx ?sy ?p 0 ?x ?y))"),
         rw!("conv-with-2-applies-relu"    ; "(relu (transpose ?x)) "                                                => "(transpose (relu ?x))"),
         // rw!("pooling-by-conv.-with-Cpool"     ; "(conv2d ?sx ?sy ?p 0 ?x (Cpool ?kx ?ky)) "                              => "(poolavg ?kx ?ky ?sx ?sy ?p ?x)"),
-        rw!("identity-kernel"                 ; "(conv2d 1 1 0 0 ?x (Iconv ?k ?l)) "                               => "?x"),
+        rw!("identity-kernel"                 ; "(conv2d 1 1 0 0 ?x (Iconv ?kx ?ky)) "                               => "?x"),
         rw!("identity-matrix"                 ; "(matmul ?x   Imatmul ) "                                               => "?x"),
         rw!("ewmul-identity"                  ; "(ewmul ?x Iewmul) "                                                    => "?x"),
         rw!("split-definition-0"              ; "(split_0 ?a (concat ?a ?x ?y)) "                                       => "?x"),
@@ -71,8 +71,8 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("concatenation-and-conv.-1"       ; "(concat 1 (conv2d ?sx ?sy ?p ?c ?x ?y) (conv2d ?sx ?sy ?p ?c ?x ?z)) " => "(conv2d ?sx ?sy ?p ?c ?x (concat 0 ?y ?z))"),
         rw!("concatenation-and-conv.-2"       ; "(conv2d ?sx ?sy ?p 0 (concat 1 ?x ?z) (concat 1 ?y ?w)) "          => "(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?z ?w))"),
         rw!("concatenation-and-pooling-0"     ; "(concat 1 (poolavg ?kx ?ky ?sx ?sy ?p ?x) (poolavg ?kx ?ky ?sx ?sy ?p ?y)) "               => "(poolavg ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"),
-        rw!("concatenation-and-pooling-1"     ; "(concat 0 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               => "(poolmax ?k ?s ?p (concat 0 ?x ?y))"),
-        rw!("concatenation-and-pooling-2"     ; "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               => "(poolmax ?k ?s ?p (concat 1 ?x ?y))"),
+        rw!("concatenation-and-pooling-1"     ; "(concat 0 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               => "(poolmax ?kx ?ky ?sx ?sy ?p (concat 0 ?x ?y))"),
+        rw!("concatenation-and-pooling-2"     ; "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               => "(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"),
         // inverse
         rw!("-ewadd-is-associative"            ;"(ewadd (ewadd ?x ?y) ?z)"                                                => "(ewadd ?x (ewadd ?y ?z)) "                                             ),
         rw!("-ewadd-is-commutative"            ;"(ewadd ?y ?x)"                                                           => "(ewadd ?x ?y) "                                                        ),
@@ -117,8 +117,8 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("-concatenation-and-conv.-1"       ;"(conv2d ?sx ?sy ?p ?c ?x (concat 0 ?y ?z))"                              => "(concat 1 (conv2d ?sx ?sy ?p ?c ?x ?y) (conv2d ?sx ?sy ?p ?c ?x ?z)) " ),
         rw!("-concatenation-and-conv.-2"       ;"(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?z ?w))" => "(conv2d ?sx ?sy ?p 0 (concat 1 ?x ?z) (concat 1 ?y ?w)) "          ),
         rw!("-concatenation-and-pooling-0"     ;"(poolavg ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolavg ?kx ?ky ?sx ?sy ?p ?x) (poolavg ?kx ?ky ?sx ?sy ?p ?y)) "               ),
-        rw!("-concatenation-and-pooling-1"     ;"(poolmax ?k ?s ?p (concat 0 ?x ?y))"                                     => "(concat 0 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               ),
-        rw!("-concatenation-and-pooling-2"     ;"(poolmax ?k ?s ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               ),
+        rw!("-concatenation-and-pooling-1"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 0 ?x ?y))"                                     => "(concat 0 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
+        rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
 ]}
 
 
@@ -196,6 +196,21 @@ fn main() {
         let args: Vec<String> = std::env::args().collect();
         let fname = &args[1];
         let rs = std::fs::read_to_string(fname).expect("Something went wrong reading the file");
+
+        // let rs = EqParser::parse(Rule::prog, &rs)
+        //         .expect("parse error")
+        //         .next().unwrap();
+        // match rs.as_rule() {
+        //         Rule::prog => rs
+        //                 .into_inner()
+        //                 .map(|e| {
+        //                        println!("{}", e.as_str());
+        //                 })
+        //                 .collect(),
+        //         _ => unreachable!()
+        // }
+
+
         let rse = parse_rules(&rs);
         for (i, (l, r)) in rse.into_iter().enumerate() {
                 println!("Rule {}", i);
