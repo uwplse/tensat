@@ -3,4 +3,4 @@ expr = { apply | name }
 apply = { name ~ "(" ~ args ~ ")" }
 args = { expr ~ ("," ~ expr)* }
 eq = { expr ~ "==" ~ expr }
-prog = { SOI ~ eq+ ~ EOI }
+prog = { eq+ }

@@ -105,6 +105,31 @@ fn parse_exp(e: Pair<Rule>) -> String {
         }
 }
 
+fn parse_eq(e: Pair<Rule>) -> (RecExpr<Model>, RecExpr<Model>) {
+        match e.as_rule() {
+                Rule::eq => {
+                        let mut inner_rules = e.into_inner();
+                        let lhs = parse_exp(inner_rules.next().unwrap());
+                        let rhs = parse_exp(inner_rules.next().unwrap());
+                        (lhs.parse().unwrap(), rhs.parse().unwrap())
+                }
+                _ => unreachable!(),
+        }
+}
+
+fn parse_rules(rs_s: &str) -> Vec<(RecExpr<Model>, RecExpr<Model>)> {
+        let rs = EqParser::parse(Rule::prog, rs_s)
+                .expect("parse error")
+                .next().unwrap();
+        match rs.as_rule() {
+                Rule::prog => rs
+                        .into_inner()
+                        .map(parse_eq)
+                        .collect(),
+                _ => unreachable!()
+        }
+}
+
 fn main() {
         let mut egraph = EGraph::<Model, ()>::default();
         let lhs = "(conv2d 1 1 0 0 \
@@ -119,18 +144,9 @@ fn main() {
         let runner = Runner::default().with_egraph(egraph).run(&rules());
         assert!(!runner.egraph.equivs(&lhs, &rhs).is_empty());
 
-        let eq = EqParser::parse(
-                Rule::eq,
-                "matmul(matmul(input_1,input_4),input_5)==matmul(input_1,matmul(input_4,input_5))")
-                .expect("parse error")
-                .next().unwrap();
-        match eq.as_rule() {
-                Rule::eq => {
-                        let mut inner_rules = eq.into_inner();
-                        let lhs = parse_exp(inner_rules.next().unwrap());
-                        let rhs = parse_exp(inner_rules.next().unwrap());
-                        println!("{} == {}", lhs, rhs);
-                }
-                _ => unreachable!(),
+        let rs = "matmul(matmul(input_1,input_4),input_5)==matmul(input_1,matmul(input_4,input_5))matmul(matmul(input_1,input_4),matmul(input_5,input_6))==matmul(matmul(input_1,matmul(input_4,input_5)),input_6)matmul(concat(0,input_4,matmul(input_1,input_4)),input_5)==concat(0,matmul(input_4,input_5),matmul(input_1,matmul(input_4,input_5)))matmul(matmul(matmul(input_1,input_4),input_5),input_5)==matmul(input_1,matmul(matmul(input_4,input_5),input_5))matmul(matmul(input_1,input_4),matmul(input_5,input_6))==matmul(input_1,matmul(matmul(input_4,input_5),input_6))ewadd(matmul(input_1,input_4),matmul(matmul(input_1,input_4),input_5))==matmul(input_1,ewadd(input_4,matmul(input_4,input_5)))matmul(ewadd(input_1,matmul(input_1,input_4)),input_5)==matmul(input_1,ewadd(input_5,matmul(input_4,input_5)))";
+        let rse = parse_rules(rs);
+        for (l, r) in rse {
+                println!("{}={}", l.pretty(20), r.pretty(20));
         }
 }
