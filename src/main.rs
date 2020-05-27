@@ -8,18 +8,18 @@ define_language! {
         "transpose" = Transpose(Id),
         "matmul"    = Matmul([Id; 2]),
         "conv2d"    = Conv2d([Id; 6]),
-        "enlarge"   = Enlarge([Id; 2]),
+        "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
-        "poolavg"   = Poolavg([Id; 4]),
+        "poolavg"   = Poolavg([Id; 6]),
         "poolmax"   = Poolmax([Id; 4]),
         "concat"    = Concat([Id; 3]),
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
-        "Cpool"     = Cpool(Id),
-        "Iconv"     = Iconv(Id),
-        "Anone"     = Anone,
-        "Arelu"     = Arelu,
-        "Psame"     = Psame,
+        "Cpool"     = Cpool([Id; 2]),
+        "Iconv"     = Iconv([Id; 2]),
+        // Anone = 0
+        // Arelu = 2
+        // Psame = 0
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
         Num(i32),
@@ -47,14 +47,14 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("matmul-is-linear-1"              ; "(matmul ?x (ewadd ?y ?z)) "                                            => "(ewadd (matmul ?x ?y) (matmul ?x ?z))"),
         rw!("matmul-and-transpose"            ; "(transpose (matmul ?x ?y)) "                                           => "(matmul (transpose ?y)  (transpose ?x))"),
         rw!("conv-is-bilinear-0"              ; "(conv2d ?sx ?sy ?p ?c (smul ?x ?w) ?y) "                               => "(conv2d ?sx ?sy ?p ?c ?x (smul ?y ?w))"),
-        rw!("conv-is-bilinear-1"              ; "(smul (conv2d ?sx ?sy ?p Anone ?x ?y) ?w) "                            => "(conv2d ?sx ?sy ?p Anone (smul ?x ?w) ?y)"),
-        rw!("conv-is-bilinear-2"              ; "(conv2d ?sx ?sy ?p Anone ?x (ewadd ?y ?z)) "                           => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?x ?z))"),
-        rw!("conv-is-bilinear-3"              ; "(conv2d ?sx ?sy ?p Anone (ewadd ?x ?y) ?z) "                           => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?z) (conv2d ?sx ?sy ?p Anone ?y ?z))"),
-        rw!("enlarge-convolution-kernel"      ; "(conv2d ?sx ?sy Psame ?c ?x ?y) "                                      => "(conv2d ?sx ?sy Psame ?c ?x (enlarge ?k ?y))"),
-        rw!("operator-commutativity-4"        ; "(conv2d ?sx ?sy ?p Arelu ?x ?y) "                                      => "(relu (conv2d ?sx ?sy ?p Anone ?x ?y))"),
-        rw!("conv-with-Arelu-applies-relu"    ; "(relu (transpose ?x)) "                                                => "(transpose (relu ?x))"),
-        rw!("pooling-by-conv.-with-Cpool"     ; "(conv2d ?sx ?sy ?p Anone ?x (Cpool ?k)) "                              => "(poolavg ?k ?s ?p ?x)"),
-        rw!("identity-kernel"                 ; "(conv2d 1 1 Psame Anone ?x (Iconv ?k)) "                               => "?x"),
+        rw!("conv-is-bilinear-1"              ; "(smul (conv2d ?sx ?sy ?p 0 ?x ?y) ?w) "                            => "(conv2d ?sx ?sy ?p 0 (smul ?x ?w) ?y)"),
+        rw!("conv-is-bilinear-2"              ; "(conv2d ?sx ?sy ?p 0 ?x (ewadd ?y ?z)) "                           => "(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?x ?z))"),
+        rw!("conv-is-bilinear-3"              ; "(conv2d ?sx ?sy ?p 0 (ewadd ?x ?y) ?z) "                           => "(ewadd (conv2d ?sx ?sy ?p 0 ?x ?z) (conv2d ?sx ?sy ?p 0 ?y ?z))"),
+        //rw!("enlarge-convolution-kernel"      ; "(conv2d ?sx ?sy 0 ?c ?x ?y) "                                      => "(conv2d ?sx ?sy 0 ?c ?x (enlarge ?kx ?ky ?y))"),
+        rw!("operator-commutativity-4"        ; "(conv2d ?sx ?sy ?p 2 ?x ?y) "                                      => "(relu (conv2d ?sx ?sy ?p 0 ?x ?y))"),
+        rw!("conv-with-2-applies-relu"    ; "(relu (transpose ?x)) "                                                => "(transpose (relu ?x))"),
+        // rw!("pooling-by-conv.-with-Cpool"     ; "(conv2d ?sx ?sy ?p 0 ?x (Cpool ?kx ?ky)) "                              => "(poolavg ?kx ?ky ?sx ?sy ?p ?x)"),
+        rw!("identity-kernel"                 ; "(conv2d 1 1 0 0 ?x (Iconv ?k ?l)) "                               => "?x"),
         rw!("identity-matrix"                 ; "(matmul ?x   Imatmul ) "                                               => "?x"),
         rw!("ewmul-identity"                  ; "(ewmul ?x Iewmul) "                                                    => "?x"),
         rw!("split-definition-0"              ; "(split_0 ?a (concat ?a ?x ?y)) "                                       => "?x"),
@@ -69,8 +69,8 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("concatenation-and-matrix-mul.-1" ; "(matmul (concat 1 ?x ?z) (concat 0 ?y ?w)) "                           => "(ewadd (matmul ?x ?y) (matmul ?z ?w))"),
         rw!("concatenation-and-conv.-0"       ; "(concat 0 (conv2d ?sx ?sy ?p ?c ?x ?z) (conv2d ?sx ?sy ?p ?c ?y ?z)) " => "(conv2d ?sx ?sy ?p ?c (concat 0 ?x ?y) ?z)"),
         rw!("concatenation-and-conv.-1"       ; "(concat 1 (conv2d ?sx ?sy ?p ?c ?x ?y) (conv2d ?sx ?sy ?p ?c ?x ?z)) " => "(conv2d ?sx ?sy ?p ?c ?x (concat 0 ?y ?z))"),
-        rw!("concatenation-and-conv.-2"       ; "(conv2d ?sx ?sy ?p Anone (concat 1 ?x ?z) (concat 1 ?y ?w)) "          => "(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?z ?w))"),
-        rw!("concatenation-and-pooling-0"     ; "(concat 1 (poolavg ?k ?s ?p ?x) (poolavg ?k ?s ?p ?y)) "               => "(poolavg ?k ?s ?p (concat 1 ?x ?y))"),
+        rw!("concatenation-and-conv.-2"       ; "(conv2d ?sx ?sy ?p 0 (concat 1 ?x ?z) (concat 1 ?y ?w)) "          => "(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?z ?w))"),
+        rw!("concatenation-and-pooling-0"     ; "(concat 1 (poolavg ?kx ?ky ?sx ?sy ?p ?x) (poolavg ?kx ?ky ?sx ?sy ?p ?y)) "               => "(poolavg ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"),
         rw!("concatenation-and-pooling-1"     ; "(concat 0 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               => "(poolmax ?k ?s ?p (concat 0 ?x ?y))"),
         rw!("concatenation-and-pooling-2"     ; "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               => "(poolmax ?k ?s ?p (concat 1 ?x ?y))"),
         // inverse
@@ -91,14 +91,14 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("-matmul-is-linear-1"              ;"(ewadd (matmul ?x ?y) (matmul ?x ?z))"                                   => "(matmul ?x (ewadd ?y ?z)) "                                            ),
         rw!("-matmul-and-transpose"            ;"(matmul (transpose ?y)  (transpose ?x))"                                 => "(transpose (matmul ?x ?y)) "                                           ),
         rw!("-conv-is-bilinear-0"              ;"(conv2d ?sx ?sy ?p ?c ?x (smul ?y ?w))"                                  => "(conv2d ?sx ?sy ?p ?c (smul ?x ?w) ?y) "                               ),
-        rw!("-conv-is-bilinear-1"              ;"(conv2d ?sx ?sy ?p Anone (smul ?x ?w) ?y)"                               => "(smul (conv2d ?sx ?sy ?p Anone ?x ?y) ?w) "                            ),
-        rw!("-conv-is-bilinear-2"              ;"(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?x ?z))" => "(conv2d ?sx ?sy ?p Anone ?x (ewadd ?y ?z)) "                           ),
-        rw!("-conv-is-bilinear-3"              ;"(ewadd (conv2d ?sx ?sy ?p Anone ?x ?z) (conv2d ?sx ?sy ?p Anone ?y ?z))" => "(conv2d ?sx ?sy ?p Anone (ewadd ?x ?y) ?z) "                           ),
-        rw!("-enlarge-convolution-kernel"      ;"(conv2d ?sx ?sy Psame ?c ?x (enlarge ?k ?y))"                            => "(conv2d ?sx ?sy Psame ?c ?x ?y) "                                      ),
-        rw!("-operator-commutativity-4"        ;"(relu (conv2d ?sx ?sy ?p Anone ?x ?y))"                                  => "(conv2d ?sx ?sy ?p Arelu ?x ?y) "                                      ),
-        rw!("-conv-with-Arelu-applies-relu"    ;"(transpose (relu ?x))"                                                   => "(relu (transpose ?x)) "                                                ),
-        rw!("-pooling-by-conv.-with-Cpool"     ;"(poolavg ?k ?s ?p ?x)"                                                   => "(conv2d ?sx ?sy ?p Anone ?x (Cpool ?k)) "                              ),
-        // rw!("-identity-kernel"                 ;"?x"                                                                      => "(conv2d 1 1 Psame Anone ?x (Iconv ?k)) "                               ),
+        rw!("-conv-is-bilinear-1"              ;"(conv2d ?sx ?sy ?p 0 (smul ?x ?w) ?y)"                               => "(smul (conv2d ?sx ?sy ?p 0 ?x ?y) ?w) "                            ),
+        rw!("-conv-is-bilinear-2"              ;"(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?x ?z))" => "(conv2d ?sx ?sy ?p 0 ?x (ewadd ?y ?z)) "                           ),
+        rw!("-conv-is-bilinear-3"              ;"(ewadd (conv2d ?sx ?sy ?p 0 ?x ?z) (conv2d ?sx ?sy ?p 0 ?y ?z))" => "(conv2d ?sx ?sy ?p 0 (ewadd ?x ?y) ?z) "                           ),
+        rw!("-enlarge-convolution-kernel"      ;"(conv2d ?sx ?sy 0 ?c ?x (enlarge ?kx ?ky ?y))"                            => "(conv2d ?sx ?sy 0 ?c ?x ?y) "                                      ),
+        rw!("-operator-commutativity-4"        ;"(relu (conv2d ?sx ?sy ?p 0 ?x ?y))"                                  => "(conv2d ?sx ?sy ?p 2 ?x ?y) "                                      ),
+        rw!("-conv-with-2-applies-relu"    ;"(transpose (relu ?x))"                                                   => "(relu (transpose ?x)) "                                                ),
+        rw!("-pooling-by-conv.-with-Cpool"     ;"(poolavg ?kx ?ky ?sx ?sy ?p ?x)"                                                   => "(conv2d ?sx ?sy ?p 0 ?x (Cpool ?kx ?ky)) "                              ),
+        // rw!("-identity-kernel"                 ;"?x"                                                                      => "(conv2d 1 1 0 0 ?x (Iconv ?k)) "                               ),
         rw!("-identity-matrix"                 ;"?x"                                                                      => "(matmul ?x   Imatmul ) "                                               ),
         rw!("-ewmul-identity"                  ;"?x"                                                                      => "(ewmul ?x Iewmul) "                                                    ),
         // rw!("-split-definition-00"              ;"?x"                                                                      => "(split_0 1 (concat 1 ?x ?y)) "                                       ),
@@ -115,8 +115,8 @@ pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
         rw!("-concatenation-and-matrix-mul.-1" ;"(ewadd (matmul ?x ?y) (matmul ?z ?w))"                                   => "(matmul (concat 1 ?x ?z) (concat 0 ?y ?w)) "                           ),
         rw!("-concatenation-and-conv.-0"       ;"(conv2d ?sx ?sy ?p ?c (concat 0 ?x ?y) ?z)"                              => "(concat 0 (conv2d ?sx ?sy ?p ?c ?x ?z) (conv2d ?sx ?sy ?p ?c ?y ?z)) " ),
         rw!("-concatenation-and-conv.-1"       ;"(conv2d ?sx ?sy ?p ?c ?x (concat 0 ?y ?z))"                              => "(concat 1 (conv2d ?sx ?sy ?p ?c ?x ?y) (conv2d ?sx ?sy ?p ?c ?x ?z)) " ),
-        rw!("-concatenation-and-conv.-2"       ;"(ewadd (conv2d ?sx ?sy ?p Anone ?x ?y) (conv2d ?sx ?sy ?p Anone ?z ?w))" => "(conv2d ?sx ?sy ?p Anone (concat 1 ?x ?z) (concat 1 ?y ?w)) "          ),
-        rw!("-concatenation-and-pooling-0"     ;"(poolavg ?k ?s ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolavg ?k ?s ?p ?x) (poolavg ?k ?s ?p ?y)) "               ),
+        rw!("-concatenation-and-conv.-2"       ;"(ewadd (conv2d ?sx ?sy ?p 0 ?x ?y) (conv2d ?sx ?sy ?p 0 ?z ?w))" => "(conv2d ?sx ?sy ?p 0 (concat 1 ?x ?z) (concat 1 ?y ?w)) "          ),
+        rw!("-concatenation-and-pooling-0"     ;"(poolavg ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolavg ?kx ?ky ?sx ?sy ?p ?x) (poolavg ?kx ?ky ?sx ?sy ?p ?y)) "               ),
         rw!("-concatenation-and-pooling-1"     ;"(poolmax ?k ?s ?p (concat 0 ?x ?y))"                                     => "(concat 0 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               ),
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?k ?s ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?k ?s ?p ?x) (poolmax ?k ?s ?p ?y)) "               ),
 ]}
@@ -185,14 +185,20 @@ fn verify((lhs , rhs): (RecExpr<Model>, RecExpr<Model>)) {
         egraph.add_expr(&rhs);
         let runner = Runner::default().with_egraph(egraph).run(&rules());
         println!("{:?}", runner.stop_reason.unwrap());
-        assert!(!runner.egraph.equivs(&lhs, &rhs).is_empty());
-        println!("VERIFIED");
+        if !runner.egraph.equivs(&lhs, &rhs).is_empty() {
+                println!("VERIFIED");
+        } else {
+                println!("ERROR!");
+        }
 }
 
 fn main() {
-        let rs = "matmul(matmul(input_1,input_4),input_5)==matmul(input_1,matmul(input_4,input_5))matmul(matmul(input_1,input_4),matmul(input_5,input_6))==matmul(matmul(input_1,matmul(input_4,input_5)),input_6)matmul(concat(0,input_4,matmul(input_1,input_4)),input_5)==concat(0,matmul(input_4,input_5),matmul(input_1,matmul(input_4,input_5)))matmul(matmul(matmul(input_1,input_4),input_5),input_5)==matmul(input_1,matmul(matmul(input_4,input_5),input_5))matmul(matmul(input_1,input_4),matmul(input_5,input_6))==matmul(input_1,matmul(matmul(input_4,input_5),input_6))ewadd(matmul(input_1,input_4),matmul(matmul(input_1,input_4),input_5))==matmul(input_1,ewadd(input_4,matmul(input_4,input_5)))matmul(ewadd(input_1,matmul(input_1,input_4)),input_5)==matmul(input_1,ewadd(input_5,matmul(input_4,input_5)))";
-        let rse = parse_rules(rs);
-        for (l, r) in rse {
+        let args: Vec<String> = std::env::args().collect();
+        let fname = &args[1];
+        let rs = std::fs::read_to_string(fname).expect("Something went wrong reading the file");
+        let rse = parse_rules(&rs);
+        for (i, (l, r)) in rse.into_iter().enumerate() {
+                println!("Rule {}", i);
                 verify((l, r));
         }
 }
