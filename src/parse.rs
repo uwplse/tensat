@@ -24,7 +24,7 @@ pub fn parse_exp(e: Pair<Rule>) -> String {
     }
 }
 
-pub fn parse_eq(e: Pair<Rule>) -> (RecExpr<Model>, RecExpr<Model>) {
+pub fn parse_eq(e: Pair<Rule>) -> (RecExpr<Mdl>, RecExpr<Mdl>) {
     match e.as_rule() {
         Rule::eq => {
             let mut inner_rules = e.into_inner();
@@ -36,7 +36,7 @@ pub fn parse_eq(e: Pair<Rule>) -> (RecExpr<Model>, RecExpr<Model>) {
     }
 }
 
-pub fn parse_rules(rs_s: &str) -> Vec<(RecExpr<Model>, RecExpr<Model>)> {
+pub fn parse_rules(rs_s: &str) -> Vec<(RecExpr<Mdl>, RecExpr<Mdl>)> {
     let rs = EqParser::parse(Rule::prog, rs_s)
         .expect("parse error")
         .next()

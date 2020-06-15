@@ -1,7 +1,13 @@
 use tamago::{parse::*, verify::*};
 
 fn main() {
-    prove_taso_rules()
+  use tamago::model::*;
+  use tamago::rewrites::*;
+  use egg::*;
+  
+  let mut runner = Runner::<Mdl, TensorAnalysis, ()>::default();
+  let runner = runner.run(&rules()[..]);
+  runner.egraph.dot().to_svg("target/tamago.svg").unwrap();
 }
 
 fn prove_taso_rules() {

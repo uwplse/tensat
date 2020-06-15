@@ -8,10 +8,10 @@ pub mod verify {
     use crate::rewrites::*;
     use egg::*;
 
-    type ExprPair = (RecExpr<Model>, RecExpr<Model>);
+    type ExprPair = (RecExpr<Mdl>, RecExpr<Mdl>);
     // returns failed pairs
     pub fn verify(pairs: &[ExprPair]) -> Vec<ExprPair> {
-        let mut runner = Runner::<Model, (), ()>::default();
+        let mut runner = Runner::<Mdl, TensorAnalysis, ()>::default();
         for (l, r) in pairs {
             runner = runner.with_expr(l).with_expr(r);
         }

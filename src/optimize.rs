@@ -1,7 +1,7 @@
 use crate::{model::*, rewrites::*};
 use egg::*;
 
-pub fn optimize(e: &RecExpr<Model>) -> RecExpr<Model> {
+pub fn optimize(e: &RecExpr<Mdl>) -> RecExpr<Mdl> {
     let runner = Runner::default().with_expr(e).run(&rules());
     let (egraph, root) = (runner.egraph, runner.roots[0]);
     let mut extractor = Extractor::new(&egraph, Cost);
@@ -9,9 +9,9 @@ pub fn optimize(e: &RecExpr<Model>) -> RecExpr<Model> {
 }
 
 struct Cost;
-impl CostFunction<Model> for Cost {
+impl CostFunction<Mdl> for Cost {
     type Cost = (f64, Vec<usize>);
-    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Model, mut costs: C) -> Self::Cost {
+    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
         let children_sizes = enode.fold(vec![], |mut sizes, id| {
             sizes.push(costs(id).1);
             sizes
@@ -26,16 +26,16 @@ impl CostFunction<Model> for Cost {
 }
 
 struct Layout;
-fn layouts(_e: &Model) -> Vec<Layout> {
+fn layouts(_e: &Mdl) -> Vec<Layout> {
     todo!()
 }
 
 impl Cost {
     fn run_time(
-        _e: &Model,
+        _e: &Mdl,
         _layout: Layout,
         _sizes: &[Vec<usize>],
-    ) -> <Cost as CostFunction<Model>>::Cost {
+    ) -> <Cost as CostFunction<Mdl>>::Cost {
         todo!()
     }
 }

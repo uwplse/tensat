@@ -10,7 +10,8 @@ use root::taso::*;
 use egg::*;
 
 define_language! {
-    pub enum Model {
+    pub enum Mdl {
+        "input"     = Inpt([Id; 2]),
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -37,10 +38,10 @@ define_language! {
 }
 
 #[derive(Default)]
-struct TensorAnalysis;
+pub struct TensorAnalysis;
 
 #[derive(Debug)]
-struct Tnsr {
+pub struct Tnsr {
   cost: f32,
   graph: *mut Graph,
   meta: TensorHandle,
@@ -56,7 +57,7 @@ struct Tnsr {
 //       graph.new_input(v.len() as i32, v.as_ptr())
 // }
 
-impl Analysis<Model> for TensorAnalysis {
+impl Analysis<Mdl> for TensorAnalysis {
   type Data = Tnsr;
 
   fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
@@ -66,10 +67,10 @@ impl Analysis<Model> for TensorAnalysis {
     } else { false }
   }
 
-  fn make(egraph: &EGraph<Model, Self>, enode: &Model) -> Self::Data {
+  fn make(egraph: &EGraph<Mdl, Self>, enode: &Mdl) -> Self::Data {
     let x = |i: &Id| &egraph[*i].data;
     match enode {
-      Model::Matmul([a, b]) => {
+      Mdl::Matmul([a, b]) => {
           let g = x(a).graph;
           let t_a = x(a).meta;
           let t_b = x(b).meta;
@@ -79,7 +80,7 @@ impl Analysis<Model> for TensorAnalysis {
             Tnsr {cost : (*(*mm).op.ptr).runtime, graph : g, meta : mm}
           }
         },
-      Model::Relu(a) => {
+      Mdl::Relu(a) => {
           let g = x(a).graph;
           let t_a = x(a).meta;
 
@@ -88,7 +89,17 @@ impl Analysis<Model> for TensorAnalysis {
             Tnsr {cost : (*(*relu).op.ptr).runtime, graph : g, meta : relu}
           }
         },
-      Model::Concat([a, b, c]) => {
+      Mdl::Inpt([a, b]) => {
+          let g = x(b).graph;
+          // let t_a = x(a).meta;
+          // TODO deal with non tensors
+
+          unsafe { // very unsafe sketchy af
+            let inp = g.as_mut().unwrap().new_input(2, vec![64, 1024].as_ptr());
+            Tnsr {cost : 0.0, graph : g, meta : inp}
+          }
+        },
+      Mdl::Concat([a, b, c]) => {
           let g = x(b).graph;
           // let t_a = x(a).meta;
           // TODO deal with non tensors
@@ -100,7 +111,7 @@ impl Analysis<Model> for TensorAnalysis {
             Tnsr {cost : (*(*cat).op.ptr).runtime, graph : g, meta : cat}
           }
         },
-      // Model::Split_0([a, b, c]) => {
+      // Mdl::Split_0([a, b, c]) => {
       //     let g = x(b).graph;
       //     // let t_a = x(a).meta;
       //     // TODO deal with non tensors
@@ -119,7 +130,7 @@ impl Analysis<Model> for TensorAnalysis {
 //       graph.new_input(v.len() as i32, v.as_ptr())
 // }
  
-  fn modify(egraph: &mut EGraph<Model, Self>, id: Id) {
+  fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
     todo!()
   }
 }

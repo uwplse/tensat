@@ -3,7 +3,7 @@ use egg::{rewrite as rw, *};
 
 // TODO each rule should also have a reverse for optimization
 #[rustfmt::skip]
-pub fn rules() -> Vec<Rewrite<Model, ()>> { vec![
+pub fn rules() -> Vec<Rewrite<Mdl, TensorAnalysis>> { vec![
         rw!("ewadd-is-associative"            ; "(ewadd ?x (ewadd ?y ?z)) "                                             => "(ewadd (ewadd ?x ?y) ?z)"),
         rw!("ewadd-is-commutative"            ; "(ewadd ?x ?y) "                                                        => "(ewadd ?y ?x)"),
         rw!("ewmul-is-associative"            ; "(ewmul ?x (ewmul ?y ?z)) "                                             => "(ewmul (ewmul ?x ?y) ?z)"),
