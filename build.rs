@@ -21,6 +21,7 @@ fn main() {
         .header("wrapper.h")
         .clang_args(&["-x", "c++", "-std=c++11"])
         .whitelist_type("taso::Graph")
+        .whitelist_type("taso::Tensor")
         .opaque_type("std::.*")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
