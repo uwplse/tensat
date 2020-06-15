@@ -1,5 +1,5 @@
 [package]
-name = "eggo"
+name = "tamago"
 version = "0.1.0"
 authors = ["Remy Wang <remywang@uw.edu>"]
 edition = "2018"
@@ -10,7 +10,11 @@ edition = "2018"
 env_logger = { version =  "0.7", default_features = false }
 pest = "2.0"
 pest_derive = "2.0"
+rand = "0.7"
 
 [dependencies.egg]
 git = "https://github.com/mwillsey/egg"
 rev = "986bff5c7d2e050e9aa980671c4c7d971c07da6f"
+
+[build-dependencies]
+bindgen = "0.54.0"

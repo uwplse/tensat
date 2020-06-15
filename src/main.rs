@@ -1,4 +1,4 @@
-use eggo::{parse::*, verify::*};
+use tamago::{parse::*, verify::*};
 
 fn main() {
     prove_taso_rules()
