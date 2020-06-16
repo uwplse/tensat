@@ -5,7 +5,7 @@ both the graph transformation verifier and the optimizer; the former is complete
 the latter is in progress. 
 
 ## development
-tamago builds on TASO, so it has the same hardware requirement as TASO. Essentially
+Tamago builds on TASO, so it has the same hardware requirement as TASO. Essentially
 this means you need GPU and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/). 
 You need the TASO runtime (with its dependencies), rust and 
 [rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
