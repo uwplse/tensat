@@ -6,7 +6,8 @@ the latter is in progress.
 
 ## development
 Tamago builds on TASO, so it has the same hardware requirement as TASO. This essentially
-means you need GPUs and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/). 
+means you need GPUs and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/) 
+(if you just want to run the verifier, you don't need GPUs and the regular docker works). 
 You need the TASO runtime (with its dependencies), rust and 
 [rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
 [`Dockerfile`](docker/Dockerfile) sets this all up for you. `cd` to `/docker` and 
