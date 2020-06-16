@@ -1,3 +1,3 @@
-# tamago 
-<img src="tamago.png" alt="tamago" width="100"/>
+# 🍳 tamago 
+
 Re-implementation of the TASO compiler using equality saturation. 
