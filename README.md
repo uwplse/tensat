@@ -15,9 +15,9 @@ docs, and note that its c++ support is primitive.
 The verifier re-implements TASO's [verify.py](https://github.com/jiazhihao/TASO/blob/master/verify/verify.py). 
 It takes a list of 
 transformation rules to be checked and populates an EGraph with the expressions from
-theses rules. Then it iteratively applies the axioms, checking if all rules are verified
+these rules. Then it iteratively applies the axioms, checking if all rules are verified
 after each round. If so it stops, indicating success; otherwise it continues until the 
-EGraph saturates. If there are still un-verified rules after saturation, then we can 
+EGraph saturates. If there are still un-verified rules after saturation, we can 
 conclude those rules are unsound w.r.t. the axioms. This strategy is faster (~30x in
 our simple experiments) than naively
 verifying rule-by-rule, because the equality proofs of many rules may overlap, and each
@@ -38,5 +38,5 @@ after saturation. However this extraction still achieves some degree of TASO's j
 of graph and layout. 
 
 To run the optimizer, uncomment `optimize()` in `main.rs/main()`, comment out
-`prove_taso_rules()`, `cd` to project root and execute `cargo run`. The optimzer implementation
-is in progress. 
+`prove_taso_rules()`, `cd` to project root and execute `cargo run`. This will panic as the
+optimzer implementation is in progress. 
