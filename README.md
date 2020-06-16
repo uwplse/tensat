@@ -7,7 +7,10 @@ the latter is in progress.
 ## development
 You need the TASO runtime (with its dependencies), rust and 
 [rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
-[`Dockerfile`](Dockerfile) sets this all up for you. We recommend perusing the
+[`Dockerfile`](docker/Dockerfile) sets this all up for you. Execute `docker build --tag tamago:0.1 .`
+to build the image, then run with `./run_docker.sh`. 
+
+We recommend perusing the
 `rust-bindgen` [guide](https://rust-lang.github.io/rust-bindgen/) and related 
 docs, and note that its c++ support is primitive. 
 
