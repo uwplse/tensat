@@ -15,7 +15,7 @@ our simple experiments) than naively
 verifying rule-by-rule, because the equality proofs of many rules may overlap, and each
 EClass may contain expressions from many different rules. 
 
-To run the verifier, uncomment `prove_taso_rules` in `main.rs/main()`, comment out
+To run the verifier, uncomment `prove_taso_rules()` in `main.rs/main()`, comment out
 `optimize()`, `cd` to project root and execute `cargo run --release taso_rules.txt`.
 The `--release` flag turns on rust optimizations.
 
@@ -27,6 +27,10 @@ infrastructure for maintaining metadata like dimensions and strides, as well as 
 function that directly executes DL operators. Currently we adopt a simple greedy extraction
 after saturation. However this extraction still achieves some degree of TASO's joint-optimization
 of graph and layout. 
+
+To run the optimizer, uncomment `optimize()` in `main.rs/main()`, comment out
+`prove_taso_rules()`, `cd` to project root and execute `cargo run`. The optimzer implementation
+is in progress. 
 
 ## development
 You need the TASO runtime (with its dependencies), rust and 
