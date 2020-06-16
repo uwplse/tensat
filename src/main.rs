@@ -1,6 +1,11 @@
 use tamago::{parse::*, verify::*};
 
 fn main() {
+    prove_taso_rules();
+    // optimize();
+}
+
+fn optimize() {
   use tamago::model::*;
   use tamago::rewrites::*;
   use egg::*;

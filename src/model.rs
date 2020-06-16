@@ -144,9 +144,6 @@ impl Analysis<Mdl> for TensorAnalysis {
       other => {println!("{:?}", other); todo!()}
     }
   }
-// unsafe fn new_i(graph: &mut Graph, v: Vec<i32>) -> *mut Tensor {
-//       graph.new_input(v.len() as i32, v.as_ptr())
-// }
  
   fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
   }
