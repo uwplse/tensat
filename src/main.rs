@@ -1,8 +1,8 @@
 use tamago::{parse::*, verify::*};
 
 fn main() {
-    prove_taso_rules();
-    // optimize();
+    // prove_taso_rules();
+    optimize();
 }
 
 fn optimize() {

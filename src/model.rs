@@ -27,6 +27,7 @@ define_language! {
         "split_1"   = Split1([Id; 2]),
         "Cpool"     = Cpool([Id; 2]),
         "Iconv"     = Iconv([Id; 2]),
+        // NOTE refer to TASO for the const values
         // Anone = 0
         // Arelu = 2
         // Psame = 0
@@ -44,6 +45,8 @@ pub struct TensorAnalysis {
 impl Default for TensorAnalysis {
   fn default() -> Self {
     unsafe {
+      // NOTE Box heap-allocates, otherwise any pointer from
+      // C++ may be dangling
       let mut graph = Box::new(Graph::new());
       Graph_Graph(&mut *graph);
       TensorAnalysis { graph: std::cell::RefCell::new(graph) }
@@ -56,16 +59,6 @@ pub struct Tnsr {
   cost: f32,
   meta: TensorHandle,
 }
-
-// unsafe fn new_w(graph: &mut Graph, mut v: Vec<i32>, rng: &mut impl Rng) -> *mut Tensor {
-//       let vol = v.iter().product();
-//       let data: Vec<f32> = (0..vol).map(|_| rng.gen()).collect();
-//       graph.new_weight(v.len() as i32, v.as_ptr(), data.as_ptr())
-// }
-// 
-// unsafe fn new_i(graph: &mut Graph, v: Vec<i32>) -> *mut Tensor {
-//       graph.new_input(v.len() as i32, v.as_ptr())
-// }
 
 impl Analysis<Mdl> for TensorAnalysis {
   type Data = Tnsr;
@@ -81,28 +74,31 @@ impl Analysis<Mdl> for TensorAnalysis {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
-      Mdl::Matmul([a, b]) => {
-          let t_a = x(a).meta;
-          let t_b = x(b).meta;
+      // Mdl::Matmul([a, b]) => {
+      //     let t_a = x(a).meta;
+      //     let t_b = x(b).meta;
 
-          unsafe { // very unsafe sketchy af
-            let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
-            Tnsr {cost : (*(*mm).op.ptr).runtime, meta : mm}
-          }
-        },
-      Mdl::Relu(a) => {
-          let t_a = x(a).meta;
+      //     unsafe { // very unsafe sketchy
+      //       let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
+      //       Tnsr {cost : (*(*mm).op.ptr).runtime, meta : mm}
+      //     }
+      //   },
+      // Mdl::Relu(a) => {
+      //     let t_a = x(a).meta;
 
-          unsafe { // very unsafe sketchy af
-            let relu = g.relu(t_a, true);
-            Tnsr {cost : (*(*relu).op.ptr).runtime, meta : relu}
-          }
-        },
+      //     unsafe { // very unsafe sketchy
+      //       let relu = g.relu(t_a, true);
+      //       Tnsr {cost : (*(*relu).op.ptr).runtime, meta : relu}
+      //     }
+      //   },
+      // HACK this is so to get an example working
       Mdl::Inpt([a, b]) => {
           // let t_a = x(a).meta;
-          // TODO deal with non tensors
+          // TODO deal with non tensors e.g. scalars
 
-          unsafe { // very unsafe sketchy af
+          unsafe { // very unsafe sketchy
+            // NOTE all this just to pass ownership
+            // to C++, not sure if necessary
             let mut dims = vec![64, 1024];
             dims.shrink_to_fit();
             assert!(dims.len() == dims.capacity());
@@ -113,38 +109,27 @@ impl Analysis<Mdl> for TensorAnalysis {
             Tnsr {cost : 0.0, meta : inp}
           }
         },
-      Mdl::Concat([a, b, c]) => {
-          // let t_a = x(a).meta;
-          // TODO deal with non tensors
-          let t_b = x(b).meta;
-          let t_c = x(c).meta;
+      //Mdl::Concat([a, b, c]) => {
+      //    // let t_a = x(a).meta;
+      //    let t_b = x(b).meta;
+      //    let t_c = x(c).meta;
 
-          unsafe { // very unsafe sketchy af
-            let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
-            Tnsr {cost : (*(*cat).op.ptr).runtime, meta : cat}
-          }
-        },
+      //    unsafe { // very unsafe sketchy
+      //      let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
+      //      Tnsr {cost : (*(*cat).op.ptr).runtime, meta : cat}
+      //    }
+      //  },
+      // HACK this is here to get an example working
       Mdl::Num(_n) => {
-          unsafe { // very unsafe sketchy af
+          unsafe { // very unsafe sketchy
             Tnsr { cost : 0.0, meta : std::ptr::null_mut() }
           }
         },
-      // Mdl::Split_0([a, b, c]) => {
-      //     let g = x(b).graph;
-      //     // let t_a = x(a).meta;
-      //     // TODO deal with non tensors
-      //     let t_b = x(b).meta;
-      //     let t_c = x(c).meta;
-
-      //     unsafe { // very unsafe sketchy af
-      //       let cat = g.as_mut().unwrap().split(1, 2, vec![t_b, t_c].as_ptr());
-      //       Tnsr {cost : (*(*cat).op.ptr).runtime, graph : g, meta : cat}
-      //     }
-      //   },
       other => {println!("{:?}", other); todo!()}
     }
   }
  
+  // TODO may not need modify to do anything?
   fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
   }
 }

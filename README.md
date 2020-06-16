@@ -15,7 +15,9 @@ our simple experiments) than naively
 verifying rule-by-rule, because the equality proofs of many rules may overlap, and each
 EClass may contain expressions from many different rules. 
 
-To run the verifier, `cd` to project root and execute `cargo run --release taso_rules.txt`
+To run the verifier, uncomment `prove_taso_rules` in `main.rs/main()`, comment out
+`optimize()`, `cd` to project root and execute `cargo run --release taso_rules.txt`.
+The `--release` flag turns on rust optimizations.
 
 ## the optimizer
 The optimizer replaces TASO's backtracking search with equality saturation. It directly 
