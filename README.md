@@ -1,5 +1,6 @@
 # tamago <img src="eggsushi.png" alt="egg sushi" height="40" align="left"/>
-Re-implementation of the TASO compiler using equality saturation. Tamago implements
+Re-implementation of the [TASO compiler](https://github.com/jiazhihao/TASO) 
+using [equality saturation](https://mwillsey.com/papers/egg/). Tamago implements
 both the graph transformation verifier and the optimizer; the former is complete while
 the latter is in progress. 
 
@@ -27,7 +28,8 @@ To run the verifier, uncomment `prove_taso_rules()` in `main.rs/main()`, comment
 The `--release` flag turns on rust optimizations.
 
 ## the optimizer
-The optimizer replaces TASO's backtracking search with equality saturation. It directly 
+The optimizer replaces TASO's [backtracking search](https://cs.stanford.edu/~padon/taso-sosp19.pdf)
+with equality saturation. It directly 
 uses the axioms as rewrite rules to drive the optimization, eliminating the need to
 synthesize and verify a seperate set of transformation rules. It leverages TASO's
 infrastructure for maintaining metadata like dimensions and strides, as well as TASO's cost
