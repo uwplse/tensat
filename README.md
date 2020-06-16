@@ -15,6 +15,8 @@ our simple experiments) than naively
 verifying rule-by-rule, because the equality proofs of many rules may overlap, and each
 EClass may contain expressions from many different rules. 
 
+To run the verifier, `cd` to project root and execute `cargo run --release taso_rules.txt`
+
 ## the optimizer
 The optimizer replaces TASO's backtracking search with equality saturation. It directly 
 uses the axioms as rewrite rules to drive the optimization, eliminating the need to
