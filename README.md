@@ -19,7 +19,7 @@ docs, and note that its c++ support is primitive.
 ## the verifier
 The verifier re-implements TASO's [verify.py](https://github.com/jiazhihao/TASO/blob/master/verify/verify.py). 
 It takes a list of 
-transformation rules to be checked and populates an EGraph with the expressions from
+transformation rules to be checked and populates an EGraph with the expressions in
 these rules. Then it iteratively applies the axioms, checking if all rules are verified
 after each round. If so it stops, indicating success; otherwise it continues until the 
 EGraph saturates. If there are still un-verified rules after saturation, we can 
