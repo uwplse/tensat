@@ -3,6 +3,13 @@ Re-implementation of the TASO compiler using equality saturation. Tamago impleme
 both the graph transformation verifier and the optimizer; the former is complete while
 the latter is in progress. 
 
+## development
+You need the TASO runtime (with its dependencies), rust and 
+[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
+[`Dockerfile`](Dockerfile) sets this all up for you. We recommend perusing the
+`rust-bindgen` [guide](https://rust-lang.github.io/rust-bindgen/) and related 
+docs, and note that its c++ support is primitive. 
+
 ## the verifier
 The verifier re-implements TASO's [verify.py](https://github.com/jiazhihao/TASO/blob/master/verify/verify.py). 
 It takes a list of 
@@ -31,10 +38,3 @@ of graph and layout.
 To run the optimizer, uncomment `optimize()` in `main.rs/main()`, comment out
 `prove_taso_rules()`, `cd` to project root and execute `cargo run`. The optimzer implementation
 is in progress. 
-
-## development
-You need the TASO runtime (with its dependencies), rust and 
-[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
-[`Dockerfile`](Dockerfile) sets this all up for you. We recommend perusing the
-`rust-bindgen` [guide](https://rust-lang.github.io/rust-bindgen/) and related 
-docs, and note that its c++ support is primitive. 
