@@ -10,7 +10,8 @@ transformation rules to be checked and populates an EGraph with the expressions 
 theses rules. Then it iteratively applies the axioms, checking if all rules are verified
 after each round. If so it stops, indicating success; otherwise it continues until the 
 EGraph saturates. If there are still un-verified rules after saturation, then we can 
-conclude those rules are unsound w.r.t. the axioms. This strategy is faster than naively
+conclude those rules are unsound w.r.t. the axioms. This strategy is faster (~30x in
+our simple experiments than naively
 verifying rule-by-rule, because the equality proofs of many rules may overlap, and each
 EClass may contain expressions from many different rules. 
 
