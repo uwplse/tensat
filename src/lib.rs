@@ -11,26 +11,27 @@ pub mod verify {
     type ExprPair = (RecExpr<Mdl>, RecExpr<Mdl>);
     // returns failed pairs
     pub fn verify(pairs: &[ExprPair]) -> Vec<ExprPair> {
-        let mut runner = Runner::<Mdl, TensorAnalysis, ()>::default();
-        for (l, r) in pairs {
-            runner = runner.with_expr(l).with_expr(r);
-        }
+        todo!()
+        // let mut runner = Runner::<Mdl, TensorAnalysis, ()>::default();
+        // for (l, r) in pairs {
+        //     runner = runner.with_expr(l).with_expr(r);
+        // }
 
-        println!("Running...");
-        let runner = runner.run(&rules());
-        println!("Runner complete!");
-        println!("  Nodes: {}", runner.egraph.total_size());
-        println!("  Classes: {}", runner.egraph.number_of_classes());
-        println!("  Stopped: {:?}", runner.stop_reason.unwrap());
+        // println!("Running...");
+        // let runner = runner.run(&rules());
+        // println!("Runner complete!");
+        // println!("  Nodes: {}", runner.egraph.total_size());
+        // println!("  Classes: {}", runner.egraph.number_of_classes());
+        // println!("  Stopped: {:?}", runner.stop_reason.unwrap());
 
-        let mut failed = vec![];
-        for (i, roots) in runner.roots.chunks(2).enumerate() {
-            let eg = &runner.egraph;
-            if eg.find(roots[0]) != eg.find(roots[1]) {
-                failed.push(pairs[i].clone());
-            }
-        }
+        // let mut failed = vec![];
+        // for (i, roots) in runner.roots.chunks(2).enumerate() {
+        //     let eg = &runner.egraph;
+        //     if eg.find(roots[0]) != eg.find(roots[1]) {
+        //         failed.push(pairs[i].clone());
+        //     }
+        // }
 
-        failed
+        // failed
     }
 }

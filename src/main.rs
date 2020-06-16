@@ -5,8 +5,8 @@ fn main() {
   use tamago::rewrites::*;
   use egg::*;
   
-  let mut runner = Runner::<Mdl, TensorAnalysis, ()>::default();
-  let runner = runner.run(&rules()[..]);
+  let start = "(input 0 0)".parse().unwrap();
+  let runner = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start).run(&rules()[..]);
   runner.egraph.dot().to_svg("target/tamago.svg").unwrap();
 }
 

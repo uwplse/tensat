@@ -37,13 +37,23 @@ define_language! {
     }
 }
 
-#[derive(Default)]
-pub struct TensorAnalysis;
+pub struct TensorAnalysis {
+  graph: std::cell::RefCell<Graph>
+}
+
+impl Default for TensorAnalysis {
+  fn default() -> Self {
+    unsafe {
+      let mut graph = Graph::new();
+      Graph_Graph(&mut graph);
+      TensorAnalysis { graph: std::cell::RefCell::new(graph) }
+    } 
+  } 
+}
 
 #[derive(Debug)]
 pub struct Tnsr {
   cost: f32,
-  graph: *mut Graph,
   meta: TensorHandle,
 }
 
@@ -69,46 +79,54 @@ impl Analysis<Mdl> for TensorAnalysis {
 
   fn make(egraph: &EGraph<Mdl, Self>, enode: &Mdl) -> Self::Data {
     let x = |i: &Id| &egraph[*i].data;
+    let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
       Mdl::Matmul([a, b]) => {
-          let g = x(a).graph;
           let t_a = x(a).meta;
           let t_b = x(b).meta;
 
           unsafe { // very unsafe sketchy af
-            let mm = g.as_mut().unwrap().matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
-            Tnsr {cost : (*(*mm).op.ptr).runtime, graph : g, meta : mm}
+            let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
+            Tnsr {cost : (*(*mm).op.ptr).runtime, meta : mm}
           }
         },
       Mdl::Relu(a) => {
-          let g = x(a).graph;
           let t_a = x(a).meta;
 
           unsafe { // very unsafe sketchy af
-            let relu = g.as_mut().unwrap().relu(t_a, true);
-            Tnsr {cost : (*(*relu).op.ptr).runtime, graph : g, meta : relu}
+            let relu = g.relu(t_a, true);
+            Tnsr {cost : (*(*relu).op.ptr).runtime, meta : relu}
           }
         },
       Mdl::Inpt([a, b]) => {
-          let g = x(b).graph;
           // let t_a = x(a).meta;
           // TODO deal with non tensors
 
           unsafe { // very unsafe sketchy af
-            let inp = g.as_mut().unwrap().new_input(2, vec![64, 1024].as_ptr());
-            Tnsr {cost : 0.0, graph : g, meta : inp}
+            let mut dims = vec![64, 1024];
+            dims.shrink_to_fit();
+            assert!(dims.len() == dims.capacity());
+            let ptr = dims.as_mut_ptr();
+            std::mem::forget(ptr);
+
+            let inp = g.new_input(2, ptr);
+            Tnsr {cost : 0.0, meta : inp}
           }
         },
       Mdl::Concat([a, b, c]) => {
-          let g = x(b).graph;
           // let t_a = x(a).meta;
           // TODO deal with non tensors
           let t_b = x(b).meta;
           let t_c = x(c).meta;
 
           unsafe { // very unsafe sketchy af
-            let cat = g.as_mut().unwrap().concat(1, 2, vec![t_b, t_c].as_ptr());
-            Tnsr {cost : (*(*cat).op.ptr).runtime, graph : g, meta : cat}
+            let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
+            Tnsr {cost : (*(*cat).op.ptr).runtime, meta : cat}
+          }
+        },
+      Mdl::Num(_n) => {
+          unsafe { // very unsafe sketchy af
+            Tnsr { cost : 0.0, meta : std::ptr::null_mut() }
           }
         },
       // Mdl::Split_0([a, b, c]) => {
@@ -131,6 +149,5 @@ impl Analysis<Mdl> for TensorAnalysis {
 // }
  
   fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
-    todo!()
   }
 }
