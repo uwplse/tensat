@@ -38,14 +38,14 @@ define_language! {
 }
 
 pub struct TensorAnalysis {
-  graph: std::cell::RefCell<Graph>
+  graph: std::cell::RefCell<Box<Graph>>
 }
 
 impl Default for TensorAnalysis {
   fn default() -> Self {
     unsafe {
-      let mut graph = Graph::new();
-      Graph_Graph(&mut graph);
+      let mut graph = Box::new(Graph::new());
+      Graph_Graph(&mut *graph);
       TensorAnalysis { graph: std::cell::RefCell::new(graph) }
     } 
   } 
@@ -141,7 +141,7 @@ impl Analysis<Mdl> for TensorAnalysis {
       //       Tnsr {cost : (*(*cat).op.ptr).runtime, graph : g, meta : cat}
       //     }
       //   },
-      _ => todo!()
+      other => {println!("{:?}", other); todo!()}
     }
   }
 // unsafe fn new_i(graph: &mut Graph, v: Vec<i32>) -> *mut Tensor {
