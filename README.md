@@ -1,4 +1,4 @@
-# tamago <img src="img/tmg.png" alt="tamagotchi" height="40" align="left"/>
+# tamago <img src="img/tmg.png" alt="tamagotchi" height="48" align="left"/>
 Re-implementation of the [TASO compiler](https://github.com/jiazhihao/TASO) 
 using [equality saturation](https://mwillsey.com/papers/egg/). Tamago implements
 both the graph transformation verifier and the optimizer; the former is complete while
