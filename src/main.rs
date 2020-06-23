@@ -1,18 +1,36 @@
 use tamago::{parse::*, verify::*};
+use std::time::{Duration, Instant};
 
 fn main() {
-    prove_taso_rules();
-    // optimize();
+    //prove_taso_rules();
+    optimize();
+    // test
+    // testtest
 }
 
 fn optimize() {
-  use tamago::model::*;
-  use tamago::rewrites::*;
-  use egg::*;
-  
-  let start = "(input 0 0)".parse().unwrap();
-  let runner = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start).run(&rules()[..]);
-  runner.egraph.dot().to_svg("target/tamago.svg").unwrap();
+    use tamago::model::*;
+    use tamago::rewrites::*;
+    use egg::*;
+    use std::env::*;
+    use std::fs::*;
+
+    env_logger::init();
+    let file = args().nth(1).expect("Pls supply example graph file.");
+    let input_graph = read_to_string(file).expect("Something went wrong reading the file");
+
+    let start = input_graph.parse().unwrap();
+    let start_time = Instant::now();
+    let runner = Runner::<Mdl, (), ()>::default().with_expr(&start).run(&rules()[..]);
+    let duration = start_time.elapsed();
+
+    println!("Runner complete!");
+    println!("  Nodes: {}", runner.egraph.total_size());
+    println!("  Classes: {}", runner.egraph.number_of_classes());
+    println!("  Stopped: {:?}", runner.stop_reason.unwrap());
+    println!("  Time taken: {:?}", duration);
+
+    runner.egraph.dot().to_svg("target/tamago.svg").unwrap();
 }
 
 fn prove_taso_rules() {

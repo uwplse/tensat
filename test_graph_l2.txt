@@ -1,0 +1,1 @@
+(relu (ewadd (conv2d 1 1 0 0 (conv2d 1 1 0 2 (relu (ewadd (conv2d 1 1 0 0 (conv2d 1 1 0 2 input_1 w4) w5) (conv2d 1 1 0 2 input_1 w6))) w1) w3) (conv2d 1 1 0 2 (relu (ewadd (conv2d 1 1 0 0 (conv2d 1 1 0 2 input_1 w4) w5) (conv2d 1 1 0 2 input_1 w6))) w2)))
