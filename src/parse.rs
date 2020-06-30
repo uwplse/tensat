@@ -30,6 +30,7 @@ pub fn parse_eq(e: Pair<Rule>) -> (RecExpr<Mdl>, RecExpr<Mdl>) {
             let mut inner_rules = e.into_inner();
             let lhs = parse_exp(inner_rules.next().unwrap());
             let rhs = parse_exp(inner_rules.next().unwrap());
+            println!("(not (= {} {}))", lhs, rhs);
             (lhs.parse().unwrap(), rhs.parse().unwrap())
         }
         _ => unreachable!(),
