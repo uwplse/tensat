@@ -4,7 +4,7 @@ use egg::*;
 // NOTE this optimizer needs to be hooked to the Analysis
 
 pub fn optimize(e: &RecExpr<Mdl>) -> RecExpr<Mdl> {
-    let runner: Runner<Mdl, TensorAnalysis, ()> = Runner::default().with_expr(e).run(&rules());
+    let runner: Runner<Mdl, (), ()> = Runner::default().with_expr(e).run(&rules());
     let (egraph, root) = (runner.egraph, runner.roots[0]);
     let mut extractor = Extractor::new(&egraph, Cost);
     extractor.find_best(root).1

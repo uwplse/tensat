@@ -15,6 +15,3 @@ rand = "0.7"
 [dependencies.egg]
 git = "https://github.com/mwillsey/egg"
 rev = "986bff5c7d2e050e9aa980671c4c7d971c07da6f"
-
-[build-dependencies]
-bindgen = "0.54.0"

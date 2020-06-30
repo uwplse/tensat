@@ -11,7 +11,7 @@ fn optimize() {
   use egg::*;
   
   let start = "(input 0 0)".parse().unwrap();
-  let runner = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start).run(&rules()[..]);
+  let runner = Runner::<Mdl, (), ()>::default().with_expr(&start).run(&rules()[..]);
   runner.egraph.dot().to_svg("target/tamago.svg").unwrap();
 }
 
