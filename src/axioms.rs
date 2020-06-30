@@ -1024,4 +1024,4 @@
 (not (= (transpose (ewmul input_5 (transpose input_4))) (ewmul input_4 (transpose input_5))))
 (not (= (matmul (transpose input_5) (smul input_4 input_20)) (matmul (smul (transpose input_5) input_20) input_4)))))
 
-(check-sat)
+(check-sat-using (then simplify solve-eqs smt))
