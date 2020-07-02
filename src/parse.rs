@@ -46,3 +46,31 @@ pub fn parse_rules(rs_s: &str) -> Vec<(RecExpr<Mdl>, RecExpr<Mdl>)> {
         _ => unreachable!(),
     }
 }
+
+pub fn convert_eq(e: Pair<Rule>) -> String {
+    match e.as_rule() {
+        Rule::eq => {
+            let mut inner_rules = e.into_inner();
+            let lhs = parse_exp(inner_rules.next().unwrap());
+            let rhs = parse_exp(inner_rules.next().unwrap());
+            let eq_str = format!("{}=>{}", lhs, rhs);
+            str::replace(&eq_str, "input", "?input")
+        }
+        _ => unreachable!(),
+    }
+}
+
+pub fn parse_and_convert(rs_s: &str) -> String {
+    let rs = EqParser::parse(Rule::prog, rs_s)
+        .expect("parse error")
+        .next()
+        .unwrap();
+    match rs.as_rule() {
+        Rule::prog => {
+            let converted_rules : Vec<String> = rs.into_inner().map(convert_eq).collect();
+            let joined = converted_rules.join("\n");
+            joined
+        }
+        _ => unreachable!(),
+    }
+}

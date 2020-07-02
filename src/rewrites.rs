@@ -97,3 +97,16 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("-concatenation-and-pooling-1"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 0 ?x ?y))"                                     => "(concat 0 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
 ]}
+
+pub fn rules_from_str<A: Analysis<Mdl>>(rs: Vec<&str>) -> Vec<Rewrite<Mdl, A>> {
+    let mut rule_vec = Vec::new();
+    for (pos, rule) in rs.iter().enumerate() {
+        //println!("{:?}", rule);
+        let eqn: Vec<&str> = rule.split("=>").collect();
+        let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
+        let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
+        let rule_name = format!("rule{}", pos);
+        rule_vec.push(rw!(rule_name; lhs => rhs));
+    }
+    return rule_vec;
+}
