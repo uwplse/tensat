@@ -9,7 +9,7 @@ use root::taso::*;
 
 use egg::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum DataType {
   Name,
   Scalar,

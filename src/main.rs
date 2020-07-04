@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 
 fn main() {
     //prove_taso_rules();
-    //optimize();
+    optimize();
     //convert_rw_rules();
-    test();
+    //test();
 }
 
 fn convert_rw_rules() {

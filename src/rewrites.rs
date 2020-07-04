@@ -98,7 +98,7 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
 ]}
 
-pub fn rules_from_str<A: Analysis<Mdl>>(rs: Vec<&str>) -> Vec<Rewrite<Mdl, A>> {
+pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
     for (pos, rule) in rs.iter().enumerate() {
         //println!("{:?}", rule);
@@ -108,7 +108,7 @@ pub fn rules_from_str<A: Analysis<Mdl>>(rs: Vec<&str>) -> Vec<Rewrite<Mdl, A>> {
         let rule_name = format!("rule{}", pos);
         rule_vec.push(rw!(rule_name; lhs => { CheckApply {pat: rhs} }));
     }
-    return rule_vec;
+    rule_vec
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,11 +130,12 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
     }
 
     fn vars(&self) -> Vec<Var> {
-        Pattern::vars(self.pat)
+        //Pattern::vars(self.pat)
+        self.pat.vars()
     }
 }
 
-
+/*
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
     egraph: &mut EGraph<Mdl, Analysis<Mdl>>,
@@ -181,3 +182,4 @@ fn check_pat(
     trace!("result: {:?}", result);
     result
 }
+*/
