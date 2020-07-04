@@ -61,7 +61,7 @@ impl Default for TensorAnalysis {
   } 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ValTnsr {
   dtype: DataType,
   val: i32,

@@ -106,7 +106,78 @@ pub fn rules_from_str<A: Analysis<Mdl>>(rs: Vec<&str>) -> Vec<Rewrite<Mdl, A>> {
         let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
         let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
         let rule_name = format!("rule{}", pos);
-        rule_vec.push(rw!(rule_name; lhs => rhs));
+        rule_vec.push(rw!(rule_name; lhs => { CheckApply {pat: rhs} }));
     }
     return rule_vec;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct CheckApply {
+    pat: Pattern<Mdl>,
+}
+
+
+impl Applier<Mdl, TensorAnalysis> for CheckApply {
+    fn apply_one(&self, egraph: &mut EGraph<Mdl, TensorAnalysis>, matched_id: Id, subst: &Subst) -> Vec<Id> {
+        vec![]
+        /*
+        if check_pat(self.pat.ast.as_ref(), egraph, subst) {
+            self.pat.apply_one(egraph, matched_id, subst)
+        } else {
+            vec![]
+        }
+        */
+    }
+
+    fn vars(&self) -> Vec<Var> {
+        Pattern::vars(self.pat)
+    }
+}
+
+
+fn check_pat(
+    pat: &[ENodeOrVar<Mdl>],
+    egraph: &mut EGraph<Mdl, Analysis<Mdl>>,
+    subst: &Subst,
+) -> (bool, bool, Id, TensorAnalysis::Data) {
+    trace!("check_pat {:2?} {:?}", pat, subst);
+
+    let result = match pat.last().unwrap() {
+        ENodeOrVar::Var(w) => {
+            let cid = subst[*w];
+            let meta_data = egraph[*cid].data;
+            (true, true, cid, meta_data)
+        },
+        ENodeOrVar::ENode(e) => {
+            let children = e.children();
+            let results = children.map(|child| check_pat(&pat[..child as usize + 1], egraph, subst)).collect();
+            
+            let mut violated = false;
+            for res in results {
+                if !res[0] {
+                    violated = true;
+                }
+            }
+            if violated {
+                (false, false, 0, TensorAnalysis::Data.default())
+            } else {
+                let mut all_in = true;
+                for res in results {
+                    if !res[1] {
+                        all_in = false;
+                    }
+                }
+                if all_in {
+                    // Construct enode, check if in egraph
+                    // if so, read metadata and return
+                    // else, compute metadata
+                } else {
+                    // compute metadata
+                }
+            }
+        }
+    };
+
+    trace!("result: {:?}", result);
+    result
 }
