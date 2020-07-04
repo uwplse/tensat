@@ -3,8 +3,9 @@ use std::time::{Duration, Instant};
 
 fn main() {
     //prove_taso_rules();
-    optimize();
+    //optimize();
     //convert_rw_rules();
+    test();
 }
 
 fn convert_rw_rules() {
@@ -18,6 +19,25 @@ fn convert_rw_rules() {
     let converted = parse_and_convert(&taso_rules);
 
     write("converted.txt", converted).expect("Unable to write file");
+}
+
+
+fn test() {
+    use tamago::model::*;
+    use tamago::rewrites::*;
+    use egg::*;
+    use std::env::*;
+    use std::fs::*;
+
+    env_logger::init();
+    let file = args().nth(1).expect("Pls supply example graph file.");
+    let input_graph = read_to_string(file).expect("Something went wrong reading the file");
+    let start = input_graph.parse().unwrap();
+
+    let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
+        .with_expr(&start);
+
+    println!("  Nodes: {}", runner.egraph.total_size());
 }
 
 fn optimize() {
@@ -49,7 +69,7 @@ fn optimize() {
     let start = input_graph.parse().unwrap();
     let start_time = Instant::now();
     //let runner = Runner::<Mdl, (), ()>::default().with_expr(&start).run(&rules()[..]);
-    let runner = Runner::<Mdl, (), ()>::default()
+    let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_time_limit(ten_seconds)
         .with_iter_limit(1000)
         .with_expr(&start)

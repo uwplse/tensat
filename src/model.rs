@@ -9,9 +9,16 @@ use root::taso::*;
 
 use egg::*;
 
+#[derive(Debug, PartialEq)]
+enum DataType {
+  Name,
+  Scalar,
+  Tnsr,
+}
+
 define_language! {
     pub enum Mdl {
-        "input"     = Inpt([Id; 2]),
+        "input"     = Inpt([Id; 5]),
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -55,60 +62,75 @@ impl Default for TensorAnalysis {
 }
 
 #[derive(Debug)]
-pub struct Tnsr {
-  cost: f32,
+pub struct ValTnsr {
+  dtype: DataType,
+  val: i32,
   meta: TensorHandle,
 }
 
 impl Analysis<Mdl> for TensorAnalysis {
-  type Data = Tnsr;
+  type Data = ValTnsr;
 
   fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-    if to.cost > from.cost {
+    /*if to.cost > from.cost {
       *to = from;
       true
-    } else { false }
+    } else { false }*/
+    *to = from;
+    true
   }
 
   fn make(egraph: &EGraph<Mdl, Self>, enode: &Mdl) -> Self::Data {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
-      // Mdl::Matmul([a, b]) => {
-      //     let t_a = x(a).meta;
-      //     let t_b = x(b).meta;
+      Mdl::Matmul([a, b]) => {
+        assert!(x(a).dtype == DataType::Tnsr);
+        assert!(x(b).dtype == DataType::Tnsr);
+        let t_a = x(a).meta;
+        let t_b = x(b).meta;
 
-      //     unsafe { // very unsafe sketchy
-      //       let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
-      //       Tnsr {cost : (*(*mm).op.ptr).runtime, meta : mm}
-      //     }
-      //   },
-      // Mdl::Relu(a) => {
-      //     let t_a = x(a).meta;
+        unsafe {
+          let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
+          let r_cost = (*(*mm).op.ptr).runtime;
+          println!("Cost of matmul is {}", r_cost);
+          Self::Data {dtype : DataType::Tnsr, val : 0, meta : mm}
+        }
+      },
+      Mdl::Relu(a) => {
+        assert!(x(a).dtype == DataType::Tnsr);
+        let t_a = x(a).meta;
 
-      //     unsafe { // very unsafe sketchy
-      //       let relu = g.relu(t_a, true);
-      //       Tnsr {cost : (*(*relu).op.ptr).runtime, meta : relu}
-      //     }
-      //   },
-      // HACK this is so to get an example working
-      Mdl::Inpt([a, b]) => {
-          // let t_a = x(a).meta;
-          // TODO deal with non tensors e.g. scalars
+        unsafe {
+          let relu = g.relu(t_a, true);
+          let r_cost = (*(*relu).op.ptr).runtime;
+          println!("Cost of relu is {}", r_cost);
+          Self::Data {dtype : DataType::Tnsr, val : 0, meta : relu}
+        }
+      },
+      
+      Mdl::Inpt([name, dim1, dim2, dim3, dim4]) => {
+        assert!(x(name).dtype == DataType::Name);
+        assert!(x(dim1).dtype == DataType::Scalar);
+        assert!(x(dim2).dtype == DataType::Scalar);
+        assert!(x(dim3).dtype == DataType::Scalar);
+        assert!(x(dim4).dtype == DataType::Scalar);
 
-          unsafe { // very unsafe sketchy
-            // NOTE all this just to pass ownership
-            // to C++, not sure if necessary
-            let mut dims = vec![64, 1024];
-            dims.shrink_to_fit();
-            assert!(dims.len() == dims.capacity());
-            let ptr = dims.as_mut_ptr();
-            std::mem::forget(ptr);
+        unsafe { // very unsafe sketchy
+          // NOTE all this just to pass ownership
+          // to C++, not sure if necessary
+          let mut dims = vec![x(dim1).val, x(dim2).val, x(dim3).val, x(dim4).val];
+          dims.shrink_to_fit();
+          assert!(dims.len() == dims.capacity());
+          let ptr = dims.as_mut_ptr();
+          std::mem::forget(ptr);
 
-            let inp = g.new_input(2, ptr);
-            Tnsr {cost : 0.0, meta : inp}
-          }
-        },
+          let inp = g.new_input(4, ptr);
+          let r_cost = (*(*inp).op.ptr).runtime;
+          println!("Cost of input is {}", r_cost);
+          Self::Data {dtype : DataType::Tnsr, val : 0, meta : inp}
+        }
+      },
       //Mdl::Concat([a, b, c]) => {
       //    // let t_a = x(a).meta;
       //    let t_b = x(b).meta;
@@ -116,15 +138,18 @@ impl Analysis<Mdl> for TensorAnalysis {
 
       //    unsafe { // very unsafe sketchy
       //      let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
-      //      Tnsr {cost : (*(*cat).op.ptr).runtime, meta : cat}
+      //      Self::Data {cost : (*(*cat).op.ptr).runtime, meta : cat}
       //    }
       //  },
-      // HACK this is here to get an example working
+      
       Mdl::Num(_n) => {
-          unsafe { // very unsafe sketchy
-            Tnsr { cost : 0.0, meta : std::ptr::null_mut() }
-          }
-        },
+        Self::Data { dtype : DataType::Scalar, val : *_n, meta : std::ptr::null_mut() }
+      },
+
+      Mdl::Var(_s) => {
+        Self::Data { dtype : DataType::Name, val : 0, meta : std::ptr::null_mut() }
+      },
+
       other => {println!("{:?}", other); todo!()}
     }
   }
