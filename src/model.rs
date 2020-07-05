@@ -10,10 +10,16 @@ use root::taso::*;
 use egg::*;
 
 #[derive(Debug, PartialEq, Clone)]
-enum DataType {
+pub enum DataType {
   Name,
   Scalar,
   Tnsr,
+}
+
+impl Default for DataType {
+    fn default() -> Self {
+        DataType::Name
+    }
 }
 
 define_language! {
@@ -46,7 +52,7 @@ define_language! {
 }
 
 pub struct TensorAnalysis {
-  graph: std::cell::RefCell<Box<Graph>>
+  pub graph: std::cell::RefCell<Box<Graph>>
 }
 
 impl Default for TensorAnalysis {
@@ -63,9 +69,15 @@ impl Default for TensorAnalysis {
 
 #[derive(Debug, Clone)]
 pub struct ValTnsr {
-  dtype: DataType,
-  val: i32,
-  meta: TensorHandle,
+  pub dtype: DataType,
+  pub val: i32,
+  pub meta: TensorHandle,
+}
+
+impl Default for ValTnsr {
+  fn default() -> Self {
+    ValTnsr { meta: std::ptr::null_mut(), ..Default::default()}
+  }
 }
 
 impl Analysis<Mdl> for TensorAnalysis {

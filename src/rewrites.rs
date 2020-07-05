@@ -119,14 +119,11 @@ struct CheckApply {
 
 impl Applier<Mdl, TensorAnalysis> for CheckApply {
     fn apply_one(&self, egraph: &mut EGraph<Mdl, TensorAnalysis>, matched_id: Id, subst: &Subst) -> Vec<Id> {
-        vec![]
-        /*
-        if check_pat(self.pat.ast.as_ref(), egraph, subst) {
+        if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
             self.pat.apply_one(egraph, matched_id, subst)
         } else {
             vec![]
         }
-        */
     }
 
     fn vars(&self) -> Vec<Var> {
@@ -135,51 +132,85 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
     }
 }
 
-/*
+type TData = <TensorAnalysis as Analysis<Mdl>>::Data;
+
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
-    egraph: &mut EGraph<Mdl, Analysis<Mdl>>,
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
     subst: &Subst,
-) -> (bool, bool, Id, TensorAnalysis::Data) {
-    trace!("check_pat {:2?} {:?}", pat, subst);
-
-    let result = match pat.last().unwrap() {
+) -> (bool, Option<Id>, TData) {
+    match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
             let cid = subst[*w];
-            let meta_data = egraph[*cid].data;
-            (true, true, cid, meta_data)
+            let meta_data = egraph[cid].data.clone();
+            return (true, Some(cid), meta_data);
         },
         ENodeOrVar::ENode(e) => {
             let children = e.children();
-            let results = children.map(|child| check_pat(&pat[..child as usize + 1], egraph, subst)).collect();
+            let results: Vec<(bool, Option<Id>, TData)> = children.iter().map(|child| check_pat(&pat[..(*child) as usize + 1], egraph, subst)).collect();
             
             let mut violated = false;
-            for res in results {
-                if !res[0] {
+            for res in &results {
+                if !res.0 {
                     violated = true;
                 }
             }
             if violated {
-                (false, false, 0, TensorAnalysis::Data.default())
+                let default_data: TData = Default::default();
+                return (false, None, default_data);
             } else {
                 let mut all_in = true;
-                for res in results {
-                    if !res[1] {
+                for res in &results {
+                    let is_in = match res.1 {
+                        Some(_) => true,
+                        None => false,
+                    };
+                    if !is_in {
                         all_in = false;
                     }
                 }
                 if all_in {
                     // Construct enode, check if in egraph
-                    // if so, read metadata and return
+                    let mut new_e = e.clone();
+                    let new_e_ch = new_e.children_mut();
+                    for (i, res) in results.iter().enumerate() {
+                        new_e_ch[i] = res.1.unwrap();
+                    }
+                    let looked = egraph.lookup(new_e);
+                    match looked {
+                        Some(id) => return (true, looked, egraph[id].data.clone()),
+                        None => (),
+                    };
                     // else, compute metadata
-                } else {
-                    // compute metadata
                 }
+                // compute metadata
+                let mut g = egraph.analysis.graph.borrow_mut();
+                let result = match e {
+                    Mdl::Num(_n) => {
+                        let meta_data = TData { dtype : DataType::Scalar, val : *_n, meta : std::ptr::null_mut() };
+                        (true, None, meta_data)
+                    },
+                    Mdl::Var(_s) => {
+                        let meta_data = TData { dtype : DataType::Name, val : 0, meta : std::ptr::null_mut() };
+                        (true, None, meta_data)
+                    },
+                    Mdl::Inpt([_name, _dim1, _dim2, _dim3, _dim4]) => {
+                        let mut dims = vec![results[1].2.val, results[2].2.val, results[3].2.val, results[4].2.val];
+                        dims.shrink_to_fit();
+                        assert!(dims.len() == dims.capacity());
+                        let ptr = dims.as_mut_ptr();
+                        unsafe {
+                            std::mem::forget(ptr);
+                            let inp = g.new_input(4, ptr);
+                            let meta_data = TData {dtype : DataType::Tnsr, val : 0, meta : inp};
+                            (true, None, meta_data)
+                        }
+                    },
+                    other => {println!("{:?}", other); todo!()}
+                };
+                return result;
             }
         }
     };
-
-    trace!("result: {:?}", result);
-    result
 }
-*/
+
