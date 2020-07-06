@@ -33,4 +33,23 @@ pub mod verify {
 
         failed
     }
+
+    pub fn verify_nb(pairs: &[ExprPair]) {
+        for (l, r) in pairs {
+            let mut runner = Runner::<Mdl, (), ()>::default();
+            runner = runner.with_expr(l).with_expr(r);
+            let res = runner.with_hook(|runner| {
+                let eg = &runner.egraph;
+                if eg.find(runner.roots[0]) == eg.find(runner.roots[1]) {
+                    Err("proven eq".to_string())
+                } else {
+                    Ok(())
+                }
+            }).run(&rules());
+            assert!({
+                let eg = &res.egraph;
+                eg.find(res.roots[0]) == eg.find(res.roots[1])
+            })
+        }
+    }
 }
