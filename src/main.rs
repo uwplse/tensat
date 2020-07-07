@@ -84,6 +84,8 @@ fn optimize() {
 
     let (egraph, root) = (runner.egraph, runner.roots[0]);
 
+    egraph.dot().to_svg("target/tamago.svg").unwrap();
+
     let mut extractor = Extractor::new(&egraph, AstSize);
     let start_time = Instant::now();
     let (best_cost, best) = extractor.find_best(root);
@@ -97,8 +99,6 @@ fn optimize() {
 
     let runner_start = Runner::<Mdl, (), ()>::default().with_expr(&start);
     runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
-
-    //egraph.dot().to_svg("target/tamago.svg").unwrap();
 }
 
 fn prove_taso_rules() {

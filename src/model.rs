@@ -9,16 +9,16 @@ use root::taso::*;
 
 use egg::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum DataType {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DataKind {
   Name,
   Scalar,
   Tnsr,
 }
 
-impl Default for DataType {
+impl Default for DataKind {
     fn default() -> Self {
-        DataType::Name
+        DataKind::Name
     }
 }
 
@@ -69,7 +69,7 @@ impl Default for TensorAnalysis {
 
 #[derive(Debug, Clone)]
 pub struct ValTnsr {
-  pub dtype: DataType,
+  pub dtype: DataKind,
   pub val: i32,
   pub meta: TensorHandle,
 }
@@ -97,8 +97,8 @@ impl Analysis<Mdl> for TensorAnalysis {
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
       Mdl::Matmul([a, b]) => {
-        assert!(x(a).dtype == DataType::Tnsr);
-        assert!(x(b).dtype == DataType::Tnsr);
+        assert!(x(a).dtype == DataKind::Tnsr);
+        assert!(x(b).dtype == DataKind::Tnsr);
         let t_a = x(a).meta;
         let t_b = x(b).meta;
 
@@ -106,27 +106,27 @@ impl Analysis<Mdl> for TensorAnalysis {
           let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
           let r_cost = (*(*mm).op.ptr).runtime;
           println!("Cost of matmul is {}", r_cost);
-          Self::Data {dtype : DataType::Tnsr, val : 0, meta : mm}
+          Self::Data {dtype : DataKind::Tnsr, val : 0, meta : mm}
         }
       },
       Mdl::Relu(a) => {
-        assert!(x(a).dtype == DataType::Tnsr);
+        assert!(x(a).dtype == DataKind::Tnsr);
         let t_a = x(a).meta;
 
         unsafe {
           let relu = g.relu(t_a, true);
           let r_cost = (*(*relu).op.ptr).runtime;
           println!("Cost of relu is {}", r_cost);
-          Self::Data {dtype : DataType::Tnsr, val : 0, meta : relu}
+          Self::Data {dtype : DataKind::Tnsr, val : 0, meta : relu}
         }
       },
       
       Mdl::Inpt([name, dim1, dim2, dim3, dim4]) => {
-        assert!(x(name).dtype == DataType::Name);
-        assert!(x(dim1).dtype == DataType::Scalar);
-        assert!(x(dim2).dtype == DataType::Scalar);
-        assert!(x(dim3).dtype == DataType::Scalar);
-        assert!(x(dim4).dtype == DataType::Scalar);
+        assert!(x(name).dtype == DataKind::Name);
+        assert!(x(dim1).dtype == DataKind::Scalar);
+        assert!(x(dim2).dtype == DataKind::Scalar);
+        assert!(x(dim3).dtype == DataKind::Scalar);
+        assert!(x(dim4).dtype == DataKind::Scalar);
 
         unsafe { // very unsafe sketchy
           // NOTE all this just to pass ownership
@@ -140,7 +140,7 @@ impl Analysis<Mdl> for TensorAnalysis {
           let inp = g.new_input(4, ptr);
           let r_cost = (*(*inp).op.ptr).runtime;
           println!("Cost of input is {}", r_cost);
-          Self::Data {dtype : DataType::Tnsr, val : 0, meta : inp}
+          Self::Data {dtype : DataKind::Tnsr, val : 0, meta : inp}
         }
       },
       //Mdl::Concat([a, b, c]) => {
@@ -155,11 +155,11 @@ impl Analysis<Mdl> for TensorAnalysis {
       //  },
       
       Mdl::Num(_n) => {
-        Self::Data { dtype : DataType::Scalar, val : *_n, meta : std::ptr::null_mut() }
+        Self::Data { dtype : DataKind::Scalar, val : *_n, meta : std::ptr::null_mut() }
       },
 
       Mdl::Var(_s) => {
-        Self::Data { dtype : DataType::Name, val : 0, meta : std::ptr::null_mut() }
+        Self::Data { dtype : DataKind::Name, val : 0, meta : std::ptr::null_mut() }
       },
 
       other => {println!("{:?}", other); todo!()}

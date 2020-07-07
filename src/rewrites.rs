@@ -1,5 +1,6 @@
 use crate::model::*;
 use egg::{rewrite as rw, *};
+use root::taso::*;
 
 // TODO egg now provides bidirectional rules whic should cut down
 // this list in half. 
@@ -132,7 +133,23 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
     }
 }
 
-type TData = <TensorAnalysis as Analysis<Mdl>>::Data;
+struct TData {
+  pub dtype: DataKind,
+  pub val: i32,
+  pub tnsr: Option<Tensor>,
+}
+
+impl Default for TData {
+  fn default() -> Self {
+    TData { tnsr: None, ..Default::default()}
+  }
+}
+
+impl PartialEq for Op {
+    fn eq(&self, other: &Self) -> bool {
+        self.guid == other.guid && self.ptr == other.ptr
+    }
+}
 
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
@@ -142,8 +159,15 @@ fn check_pat(
     match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
             let cid = subst[*w];
-            let meta_data = egraph[cid].data.clone();
-            return (true, Some(cid), meta_data);
+            //let meta_data = egraph[cid].data.clone();
+            unsafe {
+                let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
+                    TData {dtype: egraph[cid].data.dtype, val: egraph[cid].data.val, tnsr: Some((*egraph[cid].data.meta).clone())}
+                } else {
+                    TData {dtype: egraph[cid].data.dtype, val: egraph[cid].data.val, tnsr: None}
+                };
+                return (true, Some(cid), t_data);
+            }
         },
         ENodeOrVar::ENode(e) => {
             let children = e.children();
@@ -178,7 +202,16 @@ fn check_pat(
                     }
                     let looked = egraph.lookup(new_e);
                     match looked {
-                        Some(id) => return (true, looked, egraph[id].data.clone()),
+                        Some(id) => {
+                            unsafe {
+                                let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
+                                    TData {dtype: egraph[id].data.dtype, val: egraph[id].data.val, tnsr: Some((*egraph[id].data.meta).clone())}
+                                } else {
+                                    TData {dtype: egraph[id].data.dtype, val: egraph[id].data.val, tnsr: None}
+                                };
+                                return (true, looked, t_data)
+                            }
+                        } 
                         None => (),
                     };
                     // else, compute metadata
@@ -187,12 +220,12 @@ fn check_pat(
                 let mut g = egraph.analysis.graph.borrow_mut();
                 let result = match e {
                     Mdl::Num(_n) => {
-                        let meta_data = TData { dtype : DataType::Scalar, val : *_n, meta : std::ptr::null_mut() };
-                        (true, None, meta_data)
+                        let t_data = TData { dtype : DataKind::Scalar, val : *_n, tnsr : None };
+                        (true, None, t_data)
                     },
                     Mdl::Var(_s) => {
-                        let meta_data = TData { dtype : DataType::Name, val : 0, meta : std::ptr::null_mut() };
-                        (true, None, meta_data)
+                        let t_data = TData { dtype : DataKind::Name, val : 0, tnsr : None };
+                        (true, None, t_data)
                     },
                     Mdl::Inpt([_name, _dim1, _dim2, _dim3, _dim4]) => {
                         let mut dims = vec![results[1].2.val, results[2].2.val, results[3].2.val, results[4].2.val];
@@ -202,8 +235,25 @@ fn check_pat(
                         unsafe {
                             std::mem::forget(ptr);
                             let inp = g.new_input(4, ptr);
-                            let meta_data = TData {dtype : DataType::Tnsr, val : 0, meta : inp};
-                            (true, None, meta_data)
+                            let t_data = TData {dtype : DataKind::Tnsr, val : 0, tnsr : Some(*inp)};
+                            (true, None, t_data)
+                        }
+                    },
+                    Mdl::Relu(_a) => {
+                        let a_t_data = &results[0].2;
+                        assert!(a_t_data.dtype == DataKind::Tnsr);
+                        let t_a = a_t_data.tnsr.unwrap();
+
+                        unsafe {
+                            let op = (*g.model).get_or_create_activation(t_a, OpType_OP_RELU, true);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                (true, None, t_data)
+                            }
                         }
                     },
                     other => {println!("{:?}", other); todo!()}
