@@ -27,4 +27,8 @@ RUN mkdir /usr/tamago && cd /usr
 
 RUN wget https://www2.graphviz.org/Packages/stable/portable_source/graphviz-2.44.0.tar.gz && tar -xvf graphviz-2.44.0.tar.gz && cd graphviz-2.44.0 && ./configure && make && make install
 
+# RUN apt-get install texinfo
+# RUN cd /usr && wget "http://ftp.gnu.org/gnu/gdb/gdb-7.11.tar.gz" && tar -xvzf gdb-7.11.tar.gz && cd gdb-7.11 && mkdir build && cd build && ./configure && make & make install
+# 
+
 WORKDIR /usr/tamago
