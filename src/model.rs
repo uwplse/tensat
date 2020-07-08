@@ -6,6 +6,8 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 use rand::prelude::*;
 use root::taso::*;
+use std::convert::TryInto;
+use std::time::{Duration, Instant};
 
 use egg::*;
 
@@ -30,7 +32,7 @@ define_language! {
         "smul"      = Smul([Id; 2]),
         "transpose" = Transpose(Id),
         "matmul"    = Matmul([Id; 2]),
-        "conv2d"    = Conv2d([Id; 6]),
+        "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
         "poolavg"   = Poolavg([Id; 6]),
@@ -97,11 +99,15 @@ impl Analysis<Mdl> for TensorAnalysis {
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
       Mdl::Matmul([a, b]) => {
+        // Check types
         assert!(x(a).dtype == DataKind::Tnsr);
         assert!(x(b).dtype == DataKind::Tnsr);
+
+        // Get arguments
         let t_a = x(a).meta;
         let t_b = x(b).meta;
 
+        // Create tensorhandle and get metadata
         unsafe {
           let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
           let r_cost = (*(*mm).op.ptr).runtime;
@@ -109,6 +115,57 @@ impl Analysis<Mdl> for TensorAnalysis {
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : mm}
         }
       },
+
+      Mdl::Conv2d([stride_h, stride_w, pad, act, inpt, wght]) => {
+        // Check types
+        assert!(x(stride_h).dtype == DataKind::Scalar);
+        assert!(x(stride_w).dtype == DataKind::Scalar);
+        assert!(x(pad).dtype == DataKind::Scalar);
+        assert!(x(act).dtype == DataKind::Scalar);
+        assert!(x(inpt).dtype == DataKind::Tnsr);
+        assert!(x(wght).dtype == DataKind::Tnsr);
+
+        // Get arguments
+        let t_inpt = x(inpt).meta;
+        let t_wght = x(wght).meta;
+        let strideH = x(stride_h).val;
+        let strideW = x(stride_w).val;
+        let padding: PaddingMode = x(pad).val.try_into().unwrap();
+        let activation: ActiMode = x(act).val.try_into().unwrap();
+
+        // Create tensorhandle and get metadata
+        unsafe {
+          //let start_time = Instant::now();
+          let res = g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation);
+          //let duration = start_time.elapsed();
+          //println!("  Time taken get conv: {:?}", duration); 
+          let r_cost = (*(*res).op.ptr).runtime;
+          println!("Cost of conv2d is {}", r_cost);
+          Self::Data {dtype : DataKind::Tnsr, val : 0, meta : res}
+        }
+      },
+
+      Mdl::Ewadd([a, b]) => {
+        // Check types
+        assert!(x(a).dtype == DataKind::Tnsr);
+        assert!(x(b).dtype == DataKind::Tnsr);
+
+        // Get arguments
+        let t_a = x(a).meta;
+        let t_b = x(b).meta;
+
+        // Create tensorhandle and get metadata
+        unsafe {
+          //let start_time = Instant::now();
+          let res = g.element(OpType_OP_EW_ADD, t_a, t_b);
+          //let duration = start_time.elapsed();
+          //println!("  Time taken get ele: {:?}", duration);
+          let r_cost = (*(*res).op.ptr).runtime;
+          println!("Cost of ewadd is {}", r_cost);
+          Self::Data {dtype : DataKind::Tnsr, val : 0, meta : res}
+        }
+      },
+
       Mdl::Relu(a) => {
         assert!(x(a).dtype == DataKind::Tnsr);
         let t_a = x(a).meta;

@@ -37,6 +37,8 @@ fn test() {
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_expr(&start);
 
+    runner.egraph.dot().to_svg("target/start.svg").unwrap();
+
     println!("  Nodes: {}", runner.egraph.total_size());
 }
 
@@ -68,7 +70,6 @@ fn optimize() {
 
     let start = input_graph.parse().unwrap();
     let start_time = Instant::now();
-    //let runner = Runner::<Mdl, (), ()>::default().with_expr(&start).run(&rules()[..]);
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_time_limit(ten_seconds)
         .with_iter_limit(1000)

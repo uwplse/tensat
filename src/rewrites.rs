@@ -1,6 +1,8 @@
 use crate::model::*;
 use egg::{rewrite as rw, *};
 use root::taso::*;
+use std::convert::TryInto;
+use std::time::{Duration, Instant};
 
 // TODO egg now provides bidirectional rules whic should cut down
 // this list in half. 
@@ -128,7 +130,6 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
     }
 
     fn vars(&self) -> Vec<Var> {
-        //Pattern::vars(self.pat)
         self.pat.vars()
     }
 }
@@ -141,7 +142,7 @@ struct TData {
 
 impl Default for TData {
   fn default() -> Self {
-    TData { tnsr: None, ..Default::default()}
+    TData { tnsr: None, val: Default::default(), dtype: Default::default()}
   }
 }
 
@@ -159,7 +160,6 @@ fn check_pat(
     match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
             let cid = subst[*w];
-            //let meta_data = egraph[cid].data.clone();
             unsafe {
                 let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
                     TData {dtype: egraph[cid].data.dtype, val: egraph[cid].data.val, tnsr: Some((*egraph[cid].data.meta).clone())}
@@ -223,10 +223,12 @@ fn check_pat(
                         let t_data = TData { dtype : DataKind::Scalar, val : *_n, tnsr : None };
                         (true, None, t_data)
                     },
+
                     Mdl::Var(_s) => {
                         let t_data = TData { dtype : DataKind::Name, val : 0, tnsr : None };
                         (true, None, t_data)
                     },
+
                     Mdl::Inpt([_name, _dim1, _dim2, _dim3, _dim4]) => {
                         let mut dims = vec![results[1].2.val, results[2].2.val, results[3].2.val, results[4].2.val];
                         dims.shrink_to_fit();
@@ -239,6 +241,7 @@ fn check_pat(
                             (true, None, t_data)
                         }
                     },
+
                     Mdl::Relu(_a) => {
                         let a_t_data = &results[0].2;
                         assert!(a_t_data.dtype == DataKind::Tnsr);
@@ -256,6 +259,77 @@ fn check_pat(
                             }
                         }
                     },
+
+                    Mdl::Conv2d([_stride_h, _stride_w, _pad, _act, _inpt, _wght]) => {
+                        // Check types
+                        let _stride_h_data = &results[0].2;
+                        let _stride_w_data = &results[1].2;
+                        let _pad_data = &results[2].2;
+                        let _act_data = &results[3].2;
+                        let _inpt_data = &results[4].2;
+                        let _wght_data = &results[5].2;
+                        assert!(_stride_h_data.dtype == DataKind::Scalar);
+                        assert!(_stride_w_data.dtype == DataKind::Scalar);
+                        assert!(_pad_data.dtype == DataKind::Scalar);
+                        assert!(_act_data.dtype == DataKind::Scalar);
+                        assert!(_inpt_data.dtype == DataKind::Tnsr);
+                        assert!(_wght_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_inpt = _inpt_data.tnsr.unwrap();
+                        let t_wght = _wght_data.tnsr.unwrap();
+                        let strideH = _stride_h_data.val;
+                        let strideW = _stride_w_data.val;
+                        let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+                        let activation: ActiMode = _act_data.val.try_into().unwrap();
+
+                        // Try creating op
+                        unsafe {
+                            //let start_time = Instant::now();
+                            let op = (*g.model).get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
+                            //let duration = start_time.elapsed();
+                            //println!("  Time taken getc conv: {:?}", duration);
+                            if op == Op_INVALID_OP {
+                                println!("Invalid op in conv2d");
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                (true, None, t_data)
+                            }
+                        }
+                    },
+
+                    Mdl::Ewadd([_a, _b]) => {
+                        // Check types
+                        let _a_data = &results[0].2;
+                        let _b_data = &results[1].2;
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+                        
+                        // Try creating op
+                        unsafe {
+                            //let start_time = Instant::now();
+                            let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, &t_a, &t_b);
+                            //let duration = start_time.elapsed();
+                            //println!("  Time taken getc ele: {:?}", duration);
+                            if op == Op_INVALID_OP {
+                                println!("Invalid op in ewadd");
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                (true, None, t_data)
+                            }
+                        }
+                    },
+
                     other => {println!("{:?}", other); todo!()}
                 };
                 return result;
