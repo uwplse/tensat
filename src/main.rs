@@ -1,5 +1,12 @@
 use tamago::{parse::*, verify::*};
 use std::time::{Duration, Instant};
+use tamago::model::*;
+use tamago::rewrites::*;
+use tamago::optimize::*;
+use egg::*;
+use std::env::*;
+use std::fs::*;
+use std::time::*;
 
 fn main() {
     //prove_taso_rules();
@@ -9,9 +16,6 @@ fn main() {
 }
 
 fn convert_rw_rules() {
-    use std::env::*;
-    use std::fs::*;
-
     env_logger::init();
     let file = args().nth(1).expect("Pls supply taso rules file.");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
@@ -23,12 +27,6 @@ fn convert_rw_rules() {
 
 
 fn test() {
-    use tamago::model::*;
-    use tamago::rewrites::*;
-    use egg::*;
-    use std::env::*;
-    use std::fs::*;
-
     env_logger::init();
     let file = args().nth(1).expect("Pls supply example graph file.");
     let input_graph = read_to_string(file).expect("Something went wrong reading the file");
@@ -43,15 +41,9 @@ fn test() {
 }
 
 fn optimize() {
-    use tamago::model::*;
-    use tamago::rewrites::*;
-    use tamago::optimize::*;
-    use egg::*;
-    use std::env::*;
-    use std::fs::*;
-    use std::time::*;
-
     env_logger::init();
+
+    // Reading input graph and rules
     let file = args().nth(1).expect("Pls supply example graph file.");
     let input_graph = read_to_string(file).expect("Something went wrong reading the file");
 
@@ -67,13 +59,15 @@ fn optimize() {
     let rules = rules_from_str(selected_rules);*/
     let rules = rules_from_str(split_rules);
 
-    let ten_seconds = Duration::new(100, 0);
+    // Run saturation
+    let time_limit = Duration::new(100, 0);
+    let iter_limit = 100;
 
     let start = input_graph.parse().unwrap();
     let start_time = Instant::now();
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(ten_seconds)
-        .with_iter_limit(1000)
+        .with_time_limit(time_limit)
+        .with_iter_limit(iter_limit)
         .with_expr(&start)
         .run(&rules[..]);
     let duration = start_time.elapsed();
@@ -84,12 +78,12 @@ fn optimize() {
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
 
+    // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
-
     egraph.dot().to_svg("target/tamago.svg").unwrap();
 
+    // Run extraction
     let tnsr_cost = TensorCost {egraph: &egraph};
-
     let start_time = Instant::now();
     let mut extractor = Extractor::new(&egraph, tnsr_cost);
     let (best_cost, best) = extractor.find_best(root);
@@ -99,17 +93,28 @@ fn optimize() {
     println!("  Time taken: {:?}", duration);
     println!("  Best cost: {:?}", best_cost);
 
-    let runner_ext = Runner::<Mdl, (), ()>::default().with_expr(&best);
+    // Evaluation starting and extracted graph runtime, save graphs
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
     runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
+    let time_ext = get_full_graph_runtime(&runner_ext);
+    println!("Extracted graph runtime: {}", time_ext);
 
-    let runner_start = Runner::<Mdl, (), ()>::default().with_expr(&start);
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
+    let time_start = get_full_graph_runtime(&runner_start);
+    println!("Start graph runtime: {}", time_start);
 }
 
-fn prove_taso_rules() {
-    use std::env::*;
-    use std::fs::*;
 
+fn get_full_graph_runtime(runner: &Runner::<Mdl, TensorAnalysis, ()>) -> f32 {
+    let mut g = runner.egraph.analysis.graph.borrow_mut();
+    unsafe {
+        g.run()
+    }
+}
+
+
+fn prove_taso_rules() {
     env_logger::init();
     let file = args().nth(1).expect("Pls supply taso rules file.");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
