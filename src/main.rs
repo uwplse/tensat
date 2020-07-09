@@ -45,6 +45,7 @@ fn test() {
 fn optimize() {
     use tamago::model::*;
     use tamago::rewrites::*;
+    use tamago::optimize::*;
     use egg::*;
     use std::env::*;
     use std::fs::*;
@@ -87,13 +88,16 @@ fn optimize() {
 
     egraph.dot().to_svg("target/tamago.svg").unwrap();
 
-    let mut extractor = Extractor::new(&egraph, AstSize);
+    let tnsr_cost = TensorCost {egraph: &egraph};
+
     let start_time = Instant::now();
+    let mut extractor = Extractor::new(&egraph, tnsr_cost);
     let (best_cost, best) = extractor.find_best(root);
     let duration = start_time.elapsed();
 
     println!("Extractor complete!");
     println!("  Time taken: {:?}", duration);
+    println!("  Best cost: {:?}", best_cost);
 
     let runner_ext = Runner::<Mdl, (), ()>::default().with_expr(&best);
     runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();

@@ -4,7 +4,7 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-use rand::prelude::*;
+//use rand::prelude::*;
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
