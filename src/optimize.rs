@@ -5,20 +5,42 @@ use root::taso::*;
 use std::time::{Duration, Instant};
 
 
+/// Custom struct implementing our cost function
+///
+/// # Fields
+/// 
+/// - `egraph`: egraph, for getting metadata
 pub struct TensorCost<'a> {
     pub egraph: &'a EGraph<Mdl, TensorAnalysis>
 }
 
 impl CostFunction<Mdl> for TensorCost<'_> {
     type Cost = f32;
+    /// Getting total cost for the subtree rooted at enode. See egg::CostFunction
+    /// trait for more information on interface.
     fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
         let self_cost = get_self_cost(self.egraph, enode);
         enode.fold(self_cost, |sum, id| sum + costs(id))
     }
 }
 
+
+/// Gets cost for the enode itself.
+///
+/// This function gets the cost by calling TASO's get_or_create_{some_op}() 
+/// functions with the tensor information stored in metadata. TASO side stores
+/// hashmaps for OpBase objects. So here TASO side will simply lookup previously
+/// created ops (with previously measured runtime). 
+///
+/// # Parameters
+///
+/// - `egraph`: E-graph of interest
+/// - `enode`: enode to get cost for
+///
+/// # Returns
+///
+/// Cost for this enode.
 fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
-    // Get the cost for this node
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {

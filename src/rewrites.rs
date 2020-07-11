@@ -114,13 +114,46 @@ pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     rule_vec
 }
 
+/// Struct for passing results in the recursive function check_pat
+///
+/// Similar as ValTnsr for TensorAnalysis, but with tnsr being the object 
+/// rather than pointer, to make memory working correctly with recursive 
+/// function.
+struct TData {
+  pub dtype: DataKind,
+  pub val: i32,
+  pub tnsr: Option<Tensor>,
+}
+
+impl Default for TData {
+  fn default() -> Self {
+    TData { tnsr: None, val: Default::default(), dtype: Default::default()}
+  }
+}
+
+
+impl PartialEq for Op {
+    fn eq(&self, other: &Self) -> bool {
+        self.guid == other.guid && self.ptr == other.ptr
+    }
+}
+
+
+/// Custom struct implementing the Applier trait, checking the new nodes to 
+/// construct are all valid before actually apply.
+///
+/// # Fields
+/// 
+/// - `pat`: the pattern of the right hand side of the rewrite rule, the one 
+///          to be constructed.
 #[derive(Debug, Clone, PartialEq)]
 struct CheckApply {
     pat: Pattern<Mdl>,
 }
 
-
 impl Applier<Mdl, TensorAnalysis> for CheckApply {
+    /// Apply the pattern once. Check the new nodes are valid before actually 
+    /// apply. See Applier trait in egg for more information.
     fn apply_one(&self, egraph: &mut EGraph<Mdl, TensorAnalysis>, matched_id: Id, subst: &Subst) -> Vec<Id> {
         if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
             self.pat.apply_one(egraph, matched_id, subst)
@@ -134,24 +167,27 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
     }
 }
 
-struct TData {
-  pub dtype: DataKind,
-  pub val: i32,
-  pub tnsr: Option<Tensor>,
-}
 
-impl Default for TData {
-  fn default() -> Self {
-    TData { tnsr: None, val: Default::default(), dtype: Default::default()}
-  }
-}
-
-impl PartialEq for Op {
-    fn eq(&self, other: &Self) -> bool {
-        self.guid == other.guid && self.ptr == other.ptr
-    }
-}
-
+/// Check if all the new nodes to create in the pattern is valid.
+///
+/// This function does the checking recursively.
+///
+/// # Parameters
+///
+/// - `pat`: the AST representation of the pattern. See egg::Pattern for more info
+/// - `egraph`: E-graph of interest
+/// - `subst`: mapping variable to eclass ID. See egg::Subst for more info.
+///
+/// # Returns
+///
+/// A tuple of (bool, Option<Id>, TData) where
+///
+/// - bool: true if the nodes in this pattern are all valid
+/// - Option<Id>: if the root node of this pattern (pat.last()) is in egraph, 
+///     then it is the Id of that eclass. Otherwise None
+/// - TData: The TData for the root node of this pattern. This is read from
+///     egraph if the root node is in egraph, otherwise constructed by calling
+///     TASO functions.
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
     egraph: &mut EGraph<Mdl, TensorAnalysis>,
@@ -159,6 +195,7 @@ fn check_pat(
 ) -> (bool, Option<Id>, TData) {
     match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
+            // The root node is a variable, then use subst to get metadata from egraph
             let cid = subst[*w];
             unsafe {
                 let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
@@ -170,9 +207,11 @@ fn check_pat(
             }
         },
         ENodeOrVar::ENode(e) => {
+            // The root is an enode. Recursively get checking results from its children
             let children = e.children();
             let results: Vec<(bool, Option<Id>, TData)> = children.iter().map(|child| check_pat(&pat[..(*child) as usize + 1], egraph, subst)).collect();
             
+            // Check if any children contains invalid nodes
             let mut violated = false;
             for res in &results {
                 if !res.0 {
@@ -183,6 +222,7 @@ fn check_pat(
                 let default_data: TData = Default::default();
                 return (false, None, default_data);
             } else {
+                // Check if all children are in egraph
                 let mut all_in = true;
                 for res in &results {
                     let is_in = match res.1 {
@@ -203,6 +243,7 @@ fn check_pat(
                     let looked = egraph.lookup(new_e);
                     match looked {
                         Some(id) => {
+                            // Get metadata from egraph
                             unsafe {
                                 let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
                                     TData {dtype: egraph[id].data.dtype, val: egraph[id].data.val, tnsr: Some((*egraph[id].data.meta).clone())}
@@ -214,9 +255,8 @@ fn check_pat(
                         } 
                         None => (),
                     };
-                    // else, compute metadata
                 }
-                // compute metadata
+                // root node not in egraph, compute metadata
                 let mut g = egraph.analysis.graph.borrow_mut();
                 let result = match e {
                     Mdl::Num(_n) => {
