@@ -6,10 +6,6 @@ use std::time::{Duration, Instant};
 
 
 /// Custom struct implementing our cost function
-///
-/// # Fields
-/// 
-/// - `egraph`: egraph, for getting metadata
 pub struct TensorCost<'a> {
     pub egraph: &'a EGraph<Mdl, TensorAnalysis>
 }

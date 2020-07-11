@@ -141,13 +141,10 @@ impl PartialEq for Op {
 
 /// Custom struct implementing the Applier trait, checking the new nodes to 
 /// construct are all valid before actually apply.
-///
-/// # Fields
-/// 
-/// - `pat`: the pattern of the right hand side of the rewrite rule, the one 
-///          to be constructed.
 #[derive(Debug, Clone, PartialEq)]
 struct CheckApply {
+    /// the pattern of the right hand side of the rewrite rule, the one 
+    /// to be constructed.
     pat: Pattern<Mdl>,
 }
 

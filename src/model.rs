@@ -56,16 +56,13 @@ impl Default for DataKind {
 }
 
 /// Metadata struct for TensorAnalysis
-///
-/// # Fields
-///
-/// - `dtype`: The data type of this eclass, can be a name/scalar/tensor
-/// - `val`: The value of this eclass if it is a scalar type
-/// - `meta`: The pointer to the tensor if it is a tensor type
 #[derive(Debug, Clone)]
 pub struct ValTnsr {
+  /// The data type of this eclass, can be a name/scalar/tensor
   pub dtype: DataKind,
+  /// The value of this eclass if it is a scalar type
   pub val: i32,
+  /// The pointer to the tensor if it is a tensor type
   pub meta: TensorHandle,
 }
 
@@ -81,11 +78,8 @@ impl Default for ValTnsr {
 /// In this analysis, it calls functions on the TASO side (e.g. graph.matmul())
 /// to create (or get) new ops/nodes and stores pointers to the output tensors.
 /// TASO will measure and store the runtime cost when creating a new op/node.
-///
-/// # Fields
-///
-/// - `graph`: Points to the graph object on the TASO side
 pub struct TensorAnalysis {
+  /// Points to the graph object on the TASO side
   pub graph: std::cell::RefCell<Box<Graph>>
 }
 
