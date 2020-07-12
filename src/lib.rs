@@ -2,6 +2,8 @@ pub mod model;
 pub mod optimize;
 pub mod parse;
 pub mod rewrites;
+pub mod input;
+pub mod resnet50;
 
 pub mod verify {
     use crate::model::*;

@@ -13,7 +13,7 @@ use egg::*;
 
 define_language! {
     pub enum Mdl {
-        "input"     = Inpt([Id; 5]),
+        "input"     = Input([Id; 5]),
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -191,7 +191,7 @@ impl Analysis<Mdl> for TensorAnalysis {
         }
       },
       
-      Mdl::Inpt([name, dim1, dim2, dim3, dim4]) => {
+      Mdl::Input([name, dim1, dim2, dim3, dim4]) => {
         assert!(x(name).dtype == DataKind::Name);
         assert!(x(dim1).dtype == DataKind::Scalar);
         assert!(x(dim2).dtype == DataKind::Scalar);

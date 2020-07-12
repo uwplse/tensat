@@ -7,12 +7,13 @@ use egg::*;
 use std::env::*;
 use std::fs::*;
 use std::time::*;
+use tamago::resnet50;
 
 fn main() {
     //prove_taso_rules();
-    optimize();
+    //optimize();
     //convert_rw_rules();
-    //test();
+    test();
 }
 
 fn convert_rw_rules() {
@@ -28,16 +29,10 @@ fn convert_rw_rules() {
 
 fn test() {
     env_logger::init();
-    let file = args().nth(1).expect("Pls supply example graph file.");
-    let input_graph = read_to_string(file).expect("Something went wrong reading the file");
-    let start = input_graph.parse().unwrap();
+    
+    let start = resnet50::get_resnet50();
 
-    let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_expr(&start);
-
-    runner.egraph.dot().to_svg("target/start.svg").unwrap();
-
-    println!("  Nodes: {}", runner.egraph.total_size());
+    println!("{:?}", start);
 }
 
 

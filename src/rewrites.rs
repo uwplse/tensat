@@ -266,7 +266,7 @@ fn check_pat(
                         (true, None, t_data)
                     },
 
-                    Mdl::Inpt([_name, _dim1, _dim2, _dim3, _dim4]) => {
+                    Mdl::Input([_name, _dim1, _dim2, _dim3, _dim4]) => {
                         let mut dims = vec![results[1].2.val, results[2].2.val, results[3].2.val, results[4].2.val];
                         dims.shrink_to_fit();
                         assert!(dims.len() == dims.capacity());
