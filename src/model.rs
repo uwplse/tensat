@@ -11,6 +11,14 @@ use std::time::{Duration, Instant};
 
 use egg::*;
 
+pub const PSAME: i32 = 0;
+pub const PVALID: i32 = 1;
+
+pub const ACTNONE: i32 = 0;
+pub const ACTSIGMOID: i32 = 1;
+pub const ACTRELU: i32 = 2;
+pub const ACTTANH: i32 = 3;
+
 define_language! {
     pub enum Mdl {
         "input"     = Input([Id; 5]),
@@ -123,8 +131,8 @@ impl Analysis<Mdl> for TensorAnalysis {
         // Create tensorhandle and get metadata
         unsafe {
           let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
-          let r_cost = (*(*mm).op.ptr).runtime;
-          println!("Cost of matmul is {}", r_cost);
+          //let r_cost = (*(*mm).op.ptr).runtime;
+          //println!("Cost of matmul is {}", r_cost);
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : mm}
         }
       },
@@ -152,8 +160,8 @@ impl Analysis<Mdl> for TensorAnalysis {
           let res = g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation);
           //let duration = start_time.elapsed();
           //println!("  Time taken get conv: {:?}", duration); 
-          let r_cost = (*(*res).op.ptr).runtime;
-          println!("Cost of conv2d is {}", r_cost);
+          //let r_cost = (*(*res).op.ptr).runtime;
+          //println!("Cost of conv2d is {}", r_cost);
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : res}
         }
       },
@@ -173,8 +181,8 @@ impl Analysis<Mdl> for TensorAnalysis {
           let res = g.element(OpType_OP_EW_ADD, t_a, t_b);
           //let duration = start_time.elapsed();
           //println!("  Time taken get ele: {:?}", duration);
-          let r_cost = (*(*res).op.ptr).runtime;
-          println!("Cost of ewadd is {}", r_cost);
+          //let r_cost = (*(*res).op.ptr).runtime;
+          //println!("Cost of ewadd is {}", r_cost);
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : res}
         }
       },
@@ -185,8 +193,8 @@ impl Analysis<Mdl> for TensorAnalysis {
 
         unsafe {
           let relu = g.relu(t_a, true);
-          let r_cost = (*(*relu).op.ptr).runtime;
-          println!("Cost of relu is {}", r_cost);
+          //let r_cost = (*(*relu).op.ptr).runtime;
+          //println!("Cost of relu is {}", r_cost);
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : relu}
         }
       },
@@ -208,8 +216,8 @@ impl Analysis<Mdl> for TensorAnalysis {
           std::mem::forget(ptr);
 
           let inp = g.new_input(4, ptr);
-          let r_cost = (*(*inp).op.ptr).runtime;
-          println!("Cost of input is {}", r_cost);
+          //let r_cost = (*(*inp).op.ptr).runtime;
+          //println!("Cost of input is {}", r_cost);
           Self::Data {dtype : DataKind::Tnsr, val : 0, meta : inp}
         }
       },

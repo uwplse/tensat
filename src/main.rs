@@ -32,7 +32,8 @@ fn test() {
     
     let start = resnet50::get_resnet50();
 
-    println!("{:?}", start);
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
 }
 
 
@@ -46,8 +47,12 @@ fn optimize() {
     env_logger::init();
 
     // Reading input graph and rules
+    /*
     let file = args().nth(1).expect("Pls supply example graph file.");
     let input_graph = read_to_string(file).expect("Something went wrong reading the file");
+    let start = input_graph.parse().unwrap();
+    */
+    let start = resnet50::get_resnet50();
 
     let file_rules = args().nth(2).expect("Pls supply rewrite rules file.");
     let rw_rules = read_to_string(file_rules).expect("Something went wrong reading the rule file");
@@ -63,9 +68,8 @@ fn optimize() {
 
     // Run saturation
     let time_limit = Duration::new(100, 0);
-    let iter_limit = 100;
+    let iter_limit = 10;
 
-    let start = input_graph.parse().unwrap();
     let start_time = Instant::now();
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_time_limit(time_limit)
