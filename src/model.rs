@@ -11,19 +11,6 @@ use std::time::{Duration, Instant};
 
 use egg::*;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum DataKind {
-  Name,
-  Scalar,
-  Tnsr,
-}
-
-impl Default for DataKind {
-    fn default() -> Self {
-        DataKind::Name
-    }
-}
-
 define_language! {
     pub enum Mdl {
         "input"     = Inpt([Id; 5]),
@@ -53,7 +40,46 @@ define_language! {
     }
 }
 
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DataKind {
+  Name,
+  Scalar,
+  Tnsr,
+}
+
+
+impl Default for DataKind {
+    fn default() -> Self {
+        DataKind::Name
+    }
+}
+
+/// Metadata struct for TensorAnalysis
+#[derive(Debug, Clone)]
+pub struct ValTnsr {
+  /// The data type of this eclass, can be a name/scalar/tensor
+  pub dtype: DataKind,
+  /// The value of this eclass if it is a scalar type
+  pub val: i32,
+  /// The pointer to the tensor if it is a tensor type
+  pub meta: TensorHandle,
+}
+
+
+impl Default for ValTnsr {
+  fn default() -> Self {
+    ValTnsr { meta: std::ptr::null_mut(), ..Default::default()}
+  }
+}
+
+/// Struct for metadata analysis
+///
+/// In this analysis, it calls functions on the TASO side (e.g. graph.matmul())
+/// to create (or get) new ops/nodes and stores pointers to the output tensors.
+/// TASO will measure and store the runtime cost when creating a new op/node.
 pub struct TensorAnalysis {
+  /// Points to the graph object on the TASO side
   pub graph: std::cell::RefCell<Box<Graph>>
 }
 
@@ -69,31 +95,18 @@ impl Default for TensorAnalysis {
   } 
 }
 
-#[derive(Debug, Clone)]
-pub struct ValTnsr {
-  pub dtype: DataKind,
-  pub val: i32,
-  pub meta: TensorHandle,
-}
-
-impl Default for ValTnsr {
-  fn default() -> Self {
-    ValTnsr { meta: std::ptr::null_mut(), ..Default::default()}
-  }
-}
 
 impl Analysis<Mdl> for TensorAnalysis {
   type Data = ValTnsr;
 
+  /// Merges two metadata when two eclasses are merged. Because the useful
+  /// parts of the metadata of two equivalent eclasses are always the same,
+  /// we don't need to change
   fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-    /*if to.cost > from.cost {
-      *to = from;
-      true
-    } else { false }*/
-    *to = from;
-    true
+    false
   }
 
+  // Constructs metadata for a new enode, using TASO side functions for tensors.
   fn make(egraph: &EGraph<Mdl, Self>, enode: &Mdl) -> Self::Data {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
@@ -185,7 +198,7 @@ impl Analysis<Mdl> for TensorAnalysis {
         assert!(x(dim3).dtype == DataKind::Scalar);
         assert!(x(dim4).dtype == DataKind::Scalar);
 
-        unsafe { // very unsafe sketchy
+        unsafe {
           // NOTE all this just to pass ownership
           // to C++, not sure if necessary
           let mut dims = vec![x(dim1).val, x(dim2).val, x(dim3).val, x(dim4).val];
@@ -223,7 +236,7 @@ impl Analysis<Mdl> for TensorAnalysis {
     }
   }
  
-  // TODO may not need modify to do anything?
+  // Not needed to modify anything
   fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {
   }
 }

@@ -40,6 +40,13 @@ fn test() {
     println!("  Nodes: {}", runner.egraph.total_size());
 }
 
+
+/// Main procedure to run optimization
+///
+/// Reads input graph and rewrite rules from files specified as command line
+/// arguments; runs saturation with TensorAnalysis dealing with metadata; runs
+/// greedy extraction with TensorCost getting the cost per node/op; evaluates
+/// full graph runtime of the starting graph and extracted graph.
 fn optimize() {
     env_logger::init();
 
