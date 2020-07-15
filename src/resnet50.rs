@@ -1,18 +1,6 @@
 use crate::{model::*, input::*};
 use egg::*;
 
-#[derive(Default)]
-struct NameGen {
-    count: i32,
-}
-
-impl NameGen {
-    fn get_name(&mut self) -> String {
-        let name = format!("w{}", self.count);
-        self.count += 1;
-        name
-    }
-}
 
 fn resnet_block(graph: &mut GraphConverter, mut input: Id, strides: (i32, i32), out_channels: i32, input_dim_1: i32, name_gen: &mut NameGen) -> Id {
     let w1 = graph.new_input(&name_gen.get_name(), out_channels, input_dim_1, 1, 1);
@@ -29,10 +17,13 @@ fn resnet_block(graph: &mut GraphConverter, mut input: Id, strides: (i32, i32), 
     graph.relu(t)
 }
 
+/// Gets the RecExpr of a resnet50 model
 pub fn get_resnet50() -> RecExpr<Mdl> {
+    // Step 1: create a GraphConverter instance, and a NameGen to generate new names
     let mut graph = GraphConverter::default();
     let mut name_gen = NameGen::default();
 
+    // Step 2: define the graph, in a TF/Pytorch like style
     let input = graph.new_input("input_1", 1, 64, 56, 56);
     let mut t = input;
     let mut input_dim_1 = 64;
@@ -64,5 +55,6 @@ pub fn get_resnet50() -> RecExpr<Mdl> {
         strides = (1,1);
     }
 
+    // Step 3: get the RexExpr
     graph.get_rec_expr()
 }

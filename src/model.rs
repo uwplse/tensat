@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use egg::*;
 
+// Operator parameters, value matches the TASO side
 pub const PSAME: i32 = 0;
 pub const PVALID: i32 = 1;
 
@@ -32,7 +33,7 @@ define_language! {
         "relu"      = Relu(Id),
         "poolavg"   = Poolavg([Id; 6]),
         "poolmax"   = Poolmax([Id; 6]),
-        "concat"    = Concat([Id; 3]),
+        "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
         "Cpool"     = Cpool([Id; 2]),

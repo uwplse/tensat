@@ -11,9 +11,9 @@ use tamago::resnet50;
 
 fn main() {
     //prove_taso_rules();
-    //optimize();
+    optimize();
     //convert_rw_rules();
-    test();
+    //test();
 }
 
 fn convert_rw_rules() {
@@ -52,9 +52,10 @@ fn optimize() {
     let input_graph = read_to_string(file).expect("Something went wrong reading the file");
     let start = input_graph.parse().unwrap();
     */
+    
     let start = resnet50::get_resnet50();
 
-    let file_rules = args().nth(2).expect("Pls supply rewrite rules file.");
+    let file_rules = args().nth(1).expect("Pls supply rewrite rules file.");
     let rw_rules = read_to_string(file_rules).expect("Something went wrong reading the rule file");
     let split_rules: Vec<&str> = rw_rules.split("\n").collect();
 

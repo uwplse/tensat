@@ -2,6 +2,12 @@ use crate::model::*;
 use egg::*;
 use std::collections::HashMap;
 
+
+/// Struct for converting a model specified using our Rust interface to RecExpr
+///
+/// The RecExpr is growed on the fly when member functions are called. Uses a 
+/// Hashmap to store the map of scalar nodes to their index into the RexExpr to
+/// avoid replication.
 #[derive(Default)]
 pub struct GraphConverter {
     rec_expr: RecExpr<Mdl>,
@@ -10,11 +16,14 @@ pub struct GraphConverter {
 
 
 impl GraphConverter {
-
+    /// Gets the RexExpr after graph is constructed
     pub fn get_rec_expr(&self) -> RecExpr<Mdl> {
         self.rec_expr.clone()
     }
     
+    /// Takes in the parameters for the new input, construct the node in RexExpr,
+    /// return the Id (index) of this input node in the RecExpr. This is the 
+    /// pattern for all these op functions.
     pub fn new_input(&mut self, name: &str, dim1: i32, dim2: i32, dim3: i32, dim4: i32) -> Id {
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
@@ -47,6 +56,7 @@ impl GraphConverter {
         self.rec_expr.add(add_node)
     }
 
+    /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
     fn _get_or_add_val(&mut self, val: i32) -> Id {
         match self.scalar_map.get(&val) {
             Some(id) => *id,
@@ -59,4 +69,21 @@ impl GraphConverter {
         }
     }
 
+}
+
+
+/// Struct for generate new names for weight tensors in the model
+///
+/// Generates names like w1, w2... 
+#[derive(Default)]
+pub struct NameGen {
+    count: i32,
+}
+
+impl NameGen {
+    pub fn get_name(&mut self) -> String {
+        let name = format!("w{}", self.count);
+        self.count += 1;
+        name
+    }
 }
