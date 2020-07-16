@@ -27,13 +27,13 @@ define_language! {
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
         "transpose" = Transpose(Id),
-        "matmul"    = Matmul([Id; 2]),
+        "matmul"    = Matmul([Id; 3]), // activation, input1, input2
         "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
         "poolavg"   = Poolavg([Id; 6]),
         "poolmax"   = Poolmax([Id; 6]),
-        "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2
+        "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
         "Cpool"     = Cpool([Id; 2]),
@@ -121,18 +121,20 @@ impl Analysis<Mdl> for TensorAnalysis {
         let x = |i: &Id| &egraph[*i].data;
         let mut g = egraph.analysis.graph.borrow_mut();
         match enode {
-            Mdl::Matmul([a, b]) => {
+            Mdl::Matmul([act, a, b]) => {
                 // Check types
+                assert!(x(act).dtype == DataKind::Scalar);
                 assert!(x(a).dtype == DataKind::Tnsr);
                 assert!(x(b).dtype == DataKind::Tnsr);
 
                 // Get arguments
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
+                let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
+                    let mm = g.matmul(t_a, t_b, activation);
                     //let r_cost = (*(*mm).op.ptr).runtime;
                     //println!("Cost of matmul is {}", r_cost);
                     Self::Data {
@@ -201,6 +203,31 @@ impl Analysis<Mdl> for TensorAnalysis {
                 }
             }
 
+            Mdl::Ewmul([a, b]) => {
+                // Check types
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_a = x(a).meta;
+                let t_b = x(b).meta;
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    //let start_time = Instant::now();
+                    let res = g.element(OpType_OP_EW_MUL, t_a, t_b);
+                    //let duration = start_time.elapsed();
+                    //println!("  Time taken get ele: {:?}", duration);
+                    //let r_cost = (*(*res).op.ptr).runtime;
+                    //println!("Cost of ewadd is {}", r_cost);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        meta: res,
+                    }
+                }
+            }
+
             Mdl::Relu(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
@@ -243,16 +270,32 @@ impl Analysis<Mdl> for TensorAnalysis {
                     }
                 }
             }
-            //Mdl::Concat([a, b, c]) => {
-            //    // let t_a = x(a).meta;
-            //    let t_b = x(b).meta;
-            //    let t_c = x(c).meta;
 
-            //    unsafe { // very unsafe sketchy
-            //      let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
-            //      Self::Data {cost : (*(*cat).op.ptr).runtime, meta : cat}
-            //    }
-            //  },
+            Mdl::Concat([axis, ndim, a, b]) => {
+                // Check types
+                assert!(x(axis).dtype == DataKind::Scalar);
+                assert!(x(ndim).dtype == DataKind::Scalar);
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_a = x(a).meta;
+                let t_b = x(b).meta;
+                let axis_val = x(axis).val;
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    let cat = g.concat(axis_val, 2, vec![t_a, t_b].as_ptr());
+                    //let r_cost = (*(*mm).op.ptr).runtime;
+                    //println!("Cost of matmul is {}", r_cost);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        meta: cat,
+                    }
+                }
+            }
+
             Mdl::Num(_n) => Self::Data {
                 dtype: DataKind::Scalar,
                 val: *_n,

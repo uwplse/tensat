@@ -110,6 +110,86 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             }
         }
 
+        Mdl::Ewmul([_a, _b]) => {
+            // Check types
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get arguments
+                let t_a = _a_data.meta;
+                let t_b = _b_data.meta;
+
+                // Get op
+                //let start_time = Instant::now();
+                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
+                //let duration = start_time.elapsed();
+                //println!("  Time taken getc ele: {:?}", duration);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Matmul([_act, _a, _b]) => {
+            // Check types
+            let _act_data = x(_act);
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_act_data.dtype == DataKind::Scalar);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get arguments
+                let t_a = *_a_data.meta;
+                let t_b = *_b_data.meta;
+                let activation: ActiMode = _act_data.val.try_into().unwrap();
+
+                // Get op
+                //let start_time = Instant::now();
+                let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
+                //let duration = start_time.elapsed();
+                //println!("  Time taken getc conv: {:?}", duration);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Concat([_axis, _ndim, _a, _b]) => {
+            // Check types
+            let _axis_data = x(_axis);
+            let _ndim_data = x(_ndim);
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_axis_data.dtype == DataKind::Scalar);
+            assert!(_ndim_data.dtype == DataKind::Scalar);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get arguments
+                let t_a = *_a_data.meta;
+                let t_b = *_b_data.meta;
+                let axis = _axis_data.val;
+                let ndim = _ndim_data.val;
+
+                // Pass ownership to C++
+                let mut inputs = vec![t_a, t_b];
+                inputs.shrink_to_fit();
+                assert!(inputs.len() == inputs.capacity());
+                let ptr = inputs.as_mut_ptr();
+                std::mem::forget(ptr);
+
+                // Get op
+                let needCopy = vec![false, false].as_mut_ptr();
+                let op = (*g.model).get_or_create_concat(axis, 2, ptr, needCopy);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
         other => {
             println!("Get cost not implemented for: {:?}", other);
             0.0

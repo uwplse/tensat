@@ -1,13 +1,16 @@
 use clap::{App, Arg};
 use egg::*;
+use std::collections::HashMap;
 use std::env::*;
 use std::fs::*;
 use std::time::*;
 use std::time::{Duration, Instant};
+use tamago::benchnet;
 use tamago::model::*;
 use tamago::optimize::*;
 use tamago::resnet50;
 use tamago::rewrites::*;
+use tamago::testnet;
 use tamago::{parse::*, verify::*};
 
 fn main() {
@@ -73,6 +76,10 @@ fn test(matches: clap::ArgMatches) {
 
     let start = resnet50::get_resnet50();
 
+    //let start = resnet50::get_resnet50();
+    let start = testnet::get_testnet();
+
+    let start_time = Instant::now();
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     println!("Runner complete!");
     runner_start
@@ -115,7 +122,7 @@ fn optimize(matches: clap::ArgMatches) {
     let rules = rules_from_str(split_rules);
 
     // Run saturation
-    let time_limit = Duration::new(100, 0);
+    let time_limit = Duration::new(10, 0);
     let iter_limit = 10;
 
     let start_time = Instant::now();
@@ -148,6 +155,15 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Best cost: {:?}", best_cost);
 
     // Evaluation starting and extracted graph runtime, save graphs
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    runner_start
+        .egraph
+        .dot()
+        .to_svg("target/start.svg")
+        .unwrap();
+    let time_start = get_full_graph_runtime(&runner_start);
+    println!("Start graph runtime: {}", time_start);
+
     let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
     runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     let time_ext = get_full_graph_runtime(&runner_ext);

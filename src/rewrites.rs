@@ -375,7 +375,6 @@ fn check_pat(
                             //let duration = start_time.elapsed();
                             //println!("  Time taken getc conv: {:?}", duration);
                             if op == Op_INVALID_OP {
-                                println!("Invalid op in conv2d");
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
                             } else {
@@ -408,7 +407,6 @@ fn check_pat(
                             //let duration = start_time.elapsed();
                             //println!("  Time taken getc ele: {:?}", duration);
                             if op == Op_INVALID_OP {
-                                println!("Invalid op in ewadd");
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
                             } else {
@@ -419,6 +417,123 @@ fn check_pat(
                                     tnsr: Some(t),
                                 };
                                 (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Ewmul([_a, _b]) => {
+                        // Check types
+                        let _a_data = &results[0].2;
+                        let _b_data = &results[1].2;
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+
+                        // Try creating op
+                        unsafe {
+                            //let start_time = Instant::now();
+                            let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, &t_a, &t_b);
+                            //let duration = start_time.elapsed();
+                            //println!("  Time taken getc ele: {:?}", duration);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Matmul([_act, _a, _b]) => {
+                        // Check types
+                        let _act_data = &results[0].2;
+                        let _a_data = &results[1].2;
+                        let _b_data = &results[2].2;
+                        assert!(_act_data.dtype == DataKind::Scalar);
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+                        let activation: ActiMode = _act_data.val.try_into().unwrap();
+
+                        // Try creating op
+                        unsafe {
+                            //let start_time = Instant::now();
+                            let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
+                            //let duration = start_time.elapsed();
+                            //println!("  Time taken getc ele: {:?}", duration);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Concat([_axis, _ndim, _a, _b]) => {
+                        // Check types
+                        let _axis_data = &results[0].2;
+                        let _ndim_data = &results[1].2;
+                        let _a_data = &results[2].2;
+                        let _b_data = &results[3].2;
+                        assert!(_axis_data.dtype == DataKind::Scalar);
+                        assert!(_ndim_data.dtype == DataKind::Scalar);
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+                        let axis = _axis_data.val;
+                        let ndim = _ndim_data.val;
+
+                        // Try creating op
+                        unsafe {
+                            // Check tensor ndim
+                            if t_a.numDim != ndim || t_b.numDim != ndim {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                // Pass ownership to C++
+                                let mut inputs = vec![t_a, t_b];
+                                inputs.shrink_to_fit();
+                                assert!(inputs.len() == inputs.capacity());
+                                let ptr = inputs.as_mut_ptr();
+                                std::mem::forget(inputs);
+
+                                let needCopy = vec![false, false].as_mut_ptr();
+                                let op = (*g.model).get_or_create_concat(axis, 2, ptr, needCopy);
+
+                                if op == Op_INVALID_OP {
+                                    let default_data: TData = Default::default();
+                                    (false, None, default_data)
+                                } else {
+                                    let t = (*op.ptr).outputs[0].clone();
+                                    let t_data = TData {
+                                        dtype: DataKind::Tnsr,
+                                        val: 0,
+                                        tnsr: Some(t),
+                                    };
+                                    (true, None, t_data)
+                                }
                             }
                         }
                     }
