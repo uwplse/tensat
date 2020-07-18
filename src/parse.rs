@@ -67,7 +67,7 @@ pub fn parse_and_convert(rs_s: &str) -> String {
         .unwrap();
     match rs.as_rule() {
         Rule::prog => {
-            let converted_rules : Vec<String> = rs.into_inner().map(convert_eq).collect();
+            let converted_rules: Vec<String> = rs.into_inner().map(convert_eq).collect();
             let joined = converted_rules.join("\n");
             joined
         }

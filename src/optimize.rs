@@ -1,13 +1,12 @@
 use crate::{model::*, rewrites::*};
 use egg::*;
-use std::convert::TryInto;
 use root::taso::*;
+use std::convert::TryInto;
 use std::time::{Duration, Instant};
-
 
 /// Custom struct implementing our cost function
 pub struct TensorCost<'a> {
-    pub egraph: &'a EGraph<Mdl, TensorAnalysis>
+    pub egraph: &'a EGraph<Mdl, TensorAnalysis>,
 }
 
 impl CostFunction<Mdl> for TensorCost<'_> {
@@ -20,13 +19,12 @@ impl CostFunction<Mdl> for TensorCost<'_> {
     }
 }
 
-
 /// Gets cost for the enode itself.
 ///
-/// This function gets the cost by calling TASO's get_or_create_{some_op}() 
+/// This function gets the cost by calling TASO's get_or_create_{some_op}()
 /// functions with the tensor information stored in metadata. TASO side stores
 /// hashmaps for OpBase objects. So here TASO side will simply lookup previously
-/// created ops (with previously measured runtime). 
+/// created ops (with previously measured runtime).
 ///
 /// # Parameters
 ///
@@ -53,7 +51,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
-        },
+        }
 
         Mdl::Conv2d([_stride_h, _stride_w, _pad, _act, _inpt, _wght]) => {
             // Check types
@@ -81,14 +79,14 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
 
                 // Get op
                 //let start_time = Instant::now();
-                let op = (*g.model).get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
+                let op = (*g.model)
+                    .get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
                 //let duration = start_time.elapsed();
                 //println!("  Time taken getc conv: {:?}", duration);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
-        },
-
+        }
 
         Mdl::Ewadd([_a, _b]) => {
             // Check types
@@ -101,7 +99,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 // Get arguments
                 let t_a = _a_data.meta;
                 let t_b = _b_data.meta;
-            
+
                 // Get op
                 //let start_time = Instant::now();
                 let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
@@ -110,12 +108,12 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
-        },
+        }
 
         other => {
             println!("Get cost not implemented for: {:?}", other);
             0.0
-        },
+        }
     }
 }
 
