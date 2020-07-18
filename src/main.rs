@@ -38,6 +38,13 @@ fn main() {
                 .help("Provide a file with rewrite rules"),
         )
         .arg(
+            Arg::with_name("out_file")
+                .short("o")
+                .long("out_file")
+                .takes_value(true)
+                .help("Provide a output file name"),
+        )
+        .arg(
             Arg::with_name("model_file")
                 .short("f")
                 .long("model_file")
@@ -64,11 +71,12 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
     let file = matches
         .value_of("rules")
         .expect("Pls supply taso rules file.");
+    let outf = matches.value_of("out_file").unwrap_or("converted.txt");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
 
     let converted = parse_and_convert(&taso_rules);
 
-    write("converted.txt", converted).expect("Unable to write file");
+    write(outf, converted).expect("Unable to write file");
 }
 
 fn test(matches: clap::ArgMatches) {
