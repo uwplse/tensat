@@ -206,7 +206,7 @@ fn check_pat(
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
             let children = e.children();
-            let results: Vec<(bool, Option<Id>, TData)> = children.iter().map(|child| check_pat(&pat[..(*child) as usize + 1], egraph, subst)).collect();
+            let results: Vec<(bool, Option<Id>, TData)> = children.iter().map(|child| check_pat(&pat[..usize::from(*child) + 1], egraph, subst)).collect();
             
             // Check if any children contains invalid nodes
             let mut violated = false;

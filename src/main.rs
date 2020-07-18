@@ -8,17 +8,59 @@ use std::env::*;
 use std::fs::*;
 use std::time::*;
 use tamago::resnet50;
+use clap::{Arg, App};
+
 
 fn main() {
-    //prove_taso_rules();
-    optimize();
-    //convert_rw_rules();
-    //test();
+    // Parse arguments
+    let matches = App::new("Tamago")
+        .arg(Arg::with_name("mode")
+                 .short("m")
+                 .long("mode")
+                 .takes_value(true)
+                 .help("Mode to run, can be verify, optimize, test, convert"))
+        .arg(Arg::with_name("model")
+                 .short("d")
+                 .long("model")
+                 .takes_value(true)
+                 .help("Specify a pre-defined model to optimize"))
+        .arg(Arg::with_name("rules")
+                 .short("r")
+                 .long("rules")
+                 .takes_value(true)
+                 .help("Provide a file with rewrite rules"))
+        .arg(Arg::with_name("model_file")
+                 .short("f")
+                 .long("model_file")
+                 .takes_value(true)
+                 .help("Provide a file with the input model"))
+        .get_matches();
+
+    let run_mode = matches.value_of("mode").unwrap_or("optimize");
+    println!("Running mode is: {}", run_mode);
+
+    match run_mode {
+        "optimize" => {
+            optimize(matches)
+        },
+        "verify" => {
+            prove_taso_rules(matches)
+        },
+        "test" => {
+            test(matches)
+        },
+        "convert" => {
+            convert_rw_rules(matches)
+        },
+        _ => panic!("Running mode not supported"),
+    }
 }
 
-fn convert_rw_rules() {
+
+fn convert_rw_rules(matches: clap::ArgMatches) {
     env_logger::init();
-    let file = args().nth(1).expect("Pls supply taso rules file.");
+
+    let file = matches.value_of("rules").expect("Pls supply taso rules file.");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
 
     let converted = parse_and_convert(&taso_rules);
@@ -27,44 +69,44 @@ fn convert_rw_rules() {
 }
 
 
-fn test() {
+fn test(matches: clap::ArgMatches) {
     env_logger::init();
     
     let start = resnet50::get_resnet50();
 
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    println!("Runner complete!");
     runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
 }
 
 
 /// Main procedure to run optimization
 ///
-/// Reads input graph and rewrite rules from files specified as command line
-/// arguments; runs saturation with TensorAnalysis dealing with metadata; runs
+/// Gets input graph and rewrite rules; runs saturation with TensorAnalysis dealing with metadata; runs
 /// greedy extraction with TensorCost getting the cost per node/op; evaluates
 /// full graph runtime of the starting graph and extracted graph.
-fn optimize() {
+fn optimize(matches: clap::ArgMatches) {
     env_logger::init();
 
-    // Reading input graph and rules
-    /*
-    let file = args().nth(1).expect("Pls supply example graph file.");
-    let input_graph = read_to_string(file).expect("Something went wrong reading the file");
-    let start = input_graph.parse().unwrap();
-    */
-    
-    let start = resnet50::get_resnet50();
-
-    let file_rules = args().nth(1).expect("Pls supply rewrite rules file.");
-    let rw_rules = read_to_string(file_rules).expect("Something went wrong reading the rule file");
+    // Get input graph and rules
+    let rule_file = matches.value_of("rules").expect("Pls supply rewrite rules file.");
+    let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
     let split_rules: Vec<&str> = rw_rules.split("\n").collect();
+    
+    let start = match matches.value_of("model") {
+        Some(model_name) => {
+            match model_name {
+                "resnet50" => resnet50::get_resnet50(),
+                _ => panic!("The model name is not supported"),
+            }
+        },
+        None => {
+            let model_file = matches.value_of("model_file").expect("Pls supply input graph file.");
+            let input_graph = read_to_string(model_file).expect("Something went wrong reading the model file");
+            input_graph.parse().unwrap()
+        },
+    };
 
-    /*use rand::seq::SliceRandom;
-    let selected_rules = split_rules
-        .choose_multiple(&mut rand::thread_rng(), 165).cloned()
-        .collect();
-
-    let rules = rules_from_str(selected_rules);*/
     let rules = rules_from_str(split_rules);
 
     // Run saturation
@@ -121,9 +163,10 @@ fn get_full_graph_runtime(runner: &Runner::<Mdl, TensorAnalysis, ()>) -> f32 {
 }
 
 
-fn prove_taso_rules() {
+fn prove_taso_rules(matches: clap::ArgMatches) {
     env_logger::init();
-    let file = args().nth(1).expect("Pls supply taso rules file.");
+
+    let file = matches.value_of("rules").expect("Pls supply taso rules file.");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
 
     println!("Parsing rules...");

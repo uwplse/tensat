@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// Struct for converting a model specified using our Rust interface to RecExpr
 ///
 /// The RecExpr is growed on the fly when member functions are called. Uses a 
-/// Hashmap to store the map of scalar nodes to their index into the RexExpr to
+/// Hashmap to store the map of scalar nodes to their indices into the RexExpr to
 /// avoid replication.
 #[derive(Default)]
 pub struct GraphConverter {
@@ -14,7 +14,8 @@ pub struct GraphConverter {
     scalar_map: HashMap<i32, Id>,
 }
 
-
+/// The APIs of GraphConverter are (intended to) match TASO's so that we can easily 
+/// constructing TASO graphs using this class
 impl GraphConverter {
     /// Gets the RexExpr after graph is constructed
     pub fn get_rec_expr(&self) -> RecExpr<Mdl> {
@@ -72,7 +73,7 @@ impl GraphConverter {
 }
 
 
-/// Struct for generate new names for weight tensors in the model
+/// Struct for generating new names for weight tensors in the model
 ///
 /// Generates names like w1, w2... 
 #[derive(Default)]
