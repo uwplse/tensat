@@ -87,7 +87,7 @@ impl GraphConverter {
 
     pub fn matmul(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
         let activation = ACTNONE;
-        let act_id = self._get_or_add_val(activation);
+        let act_id = self.add_or_get_val(activation);
 
         let new_node = Mdl::Matmul([act_id, inpt_1, inpt_2]);
         self.rec_expr.add(new_node)
@@ -101,8 +101,8 @@ impl GraphConverter {
     pub fn concat(&mut self, axis: i32, ndim: i32, inpt_1: Id, inpt_2: Id) -> Id {
         // Only support concat of 2 inputs for now
         // To support more, pass in a slice and create more concat nodes here
-        let axis_id = self._get_or_add_val(axis);
-        let ndim_id = self._get_or_add_val(ndim);
+        let axis_id = self.add_or_get_val(axis);
+        let ndim_id = self.add_or_get_val(ndim);
 
         let new_node = Mdl::Concat([axis_id, ndim_id, inpt_1, inpt_2]);
         self.rec_expr.add(new_node)

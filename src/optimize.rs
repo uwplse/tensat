@@ -72,15 +72,15 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 // Get arguments
                 let t_inpt = *_inpt_data.meta;
                 let t_wght = *_wght_data.meta;
-                let strideH = _stride_h_data.val;
-                let strideW = _stride_w_data.val;
+                let stride_h = _stride_h_data.val;
+                let stride_w = _stride_w_data.val;
                 let padding: PaddingMode = _pad_data.val.try_into().unwrap();
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                 // Get op
                 //let start_time = Instant::now();
                 let op = (*g.model)
-                    .get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
+                    .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
                 //let duration = start_time.elapsed();
                 //println!("  Time taken getc conv: {:?}", duration);
                 assert!(op != Op_INVALID_OP);
@@ -180,11 +180,11 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 inputs.shrink_to_fit();
                 assert!(inputs.len() == inputs.capacity());
                 let ptr = inputs.as_mut_ptr();
-                std::mem::forget(ptr);
+                std::mem::forget(inputs);
 
                 // Get op
-                let needCopy = vec![false, false].as_mut_ptr();
-                let op = (*g.model).get_or_create_concat(axis, 2, ptr, needCopy);
+                let need_copy = vec![false, false].as_mut_ptr();
+                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }

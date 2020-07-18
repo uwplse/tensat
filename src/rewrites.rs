@@ -361,8 +361,8 @@ fn check_pat(
                         // Get arguments
                         let t_inpt = _inpt_data.tnsr.unwrap();
                         let t_wght = _wght_data.tnsr.unwrap();
-                        let strideH = _stride_h_data.val;
-                        let strideW = _stride_w_data.val;
+                        let stride_h = _stride_h_data.val;
+                        let stride_w = _stride_w_data.val;
                         let padding: PaddingMode = _pad_data.val.try_into().unwrap();
                         let activation: ActiMode = _act_data.val.try_into().unwrap();
 
@@ -370,7 +370,7 @@ fn check_pat(
                         unsafe {
                             //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_conv2d(
-                                t_inpt, t_wght, strideH, strideW, padding, activation,
+                                t_inpt, t_wght, stride_h, stride_w, padding, activation,
                             );
                             //let duration = start_time.elapsed();
                             //println!("  Time taken getc conv: {:?}", duration);
@@ -519,8 +519,8 @@ fn check_pat(
                                 let ptr = inputs.as_mut_ptr();
                                 std::mem::forget(inputs);
 
-                                let needCopy = vec![false, false].as_mut_ptr();
-                                let op = (*g.model).get_or_create_concat(axis, 2, ptr, needCopy);
+                                let need_copy = vec![false, false].as_mut_ptr();
+                                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy);
 
                                 if op == Op_INVALID_OP {
                                     let default_data: TData = Default::default();

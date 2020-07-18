@@ -7,12 +7,11 @@ fn resnet_block(
     strides: (i32, i32),
     out_channels: i32,
     input_dim_1: i32,
-    name_gen: &mut NameGen,
 ) -> Id {
-    let w1 = graph.new_input(&name_gen.get_name(), out_channels * 4, input_dim_1, 1, 1);
+    let w1 = graph.new_weight(out_channels * 4, input_dim_1, 1, 1);
     let mut t = graph.conv2d(input, w1, 1, 1, PSAME, ACTRELU);
 
-    let w4 = graph.new_input(&name_gen.get_name(), out_channels, input_dim_1, 1, 1);
+    let w4 = graph.new_weight(out_channels, input_dim_1, 1, 1);
     t = graph.conv2d(t, w4, strides.0, strides.1, PSAME, ACTRELU);
 
     t = graph.add(input, t);
@@ -24,7 +23,6 @@ fn resnet_block(
 pub fn get_testnet() -> RecExpr<Mdl> {
     // Step 1: create a GraphConverter instance, and a NameGen to generate new names
     let mut graph = GraphConverter::default();
-    let mut name_gen = NameGen::default();
 
     // Step 2: define the graph, in a TF/Pytorch like style
     let input = graph.new_input("input_1", 1, 64, 56, 56);
@@ -32,15 +30,8 @@ pub fn get_testnet() -> RecExpr<Mdl> {
     let mut t = input;
     let mut input_dim_1 = 64;
     let out_channels = 64;
-    t = resnet_block(
-        &mut graph,
-        t,
-        (1, 1),
-        out_channels,
-        input_dim_1,
-        &mut name_gen,
-    );
+    t = resnet_block(&mut graph, t, (1, 1), out_channels, input_dim_1);
 
     // Step 3: get the RexExpr
-    graph.get_rec_expr()
+    graph.rec_expr()
 }

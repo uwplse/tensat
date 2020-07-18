@@ -74,12 +74,9 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    let start = resnet50::get_resnet50();
-
     //let start = resnet50::get_resnet50();
     let start = testnet::get_testnet();
 
-    let start_time = Instant::now();
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     println!("Runner complete!");
     runner_start
@@ -107,6 +104,8 @@ fn optimize(matches: clap::ArgMatches) {
     let start = match matches.value_of("model") {
         Some(model_name) => match model_name {
             "resnet50" => resnet50::get_resnet50(),
+            "testnet" => testnet::get_testnet(),
+            "benchnet" => benchnet::get_benchnet(),
             _ => panic!("The model name is not supported"),
         },
         None => {
@@ -168,15 +167,6 @@ fn optimize(matches: clap::ArgMatches) {
     runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     let time_ext = get_full_graph_runtime(&runner_ext);
     println!("Extracted graph runtime: {}", time_ext);
-
-    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
-    let time_start = get_full_graph_runtime(&runner_start);
-    println!("Start graph runtime: {}", time_start);
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
