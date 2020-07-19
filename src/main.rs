@@ -82,8 +82,7 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    //let start = resnet50::get_resnet50();
-    let start = testnet::get_testnet();
+    let start = resnet50::get_resnet50();
 
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     println!("Runner complete!");

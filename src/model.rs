@@ -38,10 +38,6 @@ define_language! {
         "split_1"   = Split1([Id; 2]),
         "Cpool"     = Cpool([Id; 2]),
         "Iconv"     = Iconv([Id; 2]),
-        // NOTE refer to TASO for the const values
-        // Anone = 0
-        // Arelu = 2
-        // Psame = 0
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
         Num(i32),
@@ -135,8 +131,6 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Create tensorhandle and get metadata
                 unsafe {
                     let mm = g.matmul(t_a, t_b, activation);
-                    //let r_cost = (*(*mm).op.ptr).runtime;
-                    //println!("Cost of matmul is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -164,12 +158,7 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    //let start_time = Instant::now();
                     let res = g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation);
-                    //let duration = start_time.elapsed();
-                    //println!("  Time taken get conv: {:?}", duration);
-                    //let r_cost = (*(*res).op.ptr).runtime;
-                    //println!("Cost of conv2d is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -189,12 +178,7 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    //let start_time = Instant::now();
                     let res = g.element(OpType_OP_EW_ADD, t_a, t_b);
-                    //let duration = start_time.elapsed();
-                    //println!("  Time taken get ele: {:?}", duration);
-                    //let r_cost = (*(*res).op.ptr).runtime;
-                    //println!("Cost of ewadd is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -214,12 +198,7 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    //let start_time = Instant::now();
                     let res = g.element(OpType_OP_EW_MUL, t_a, t_b);
-                    //let duration = start_time.elapsed();
-                    //println!("  Time taken get ele: {:?}", duration);
-                    //let r_cost = (*(*res).op.ptr).runtime;
-                    //println!("Cost of ewadd is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -234,8 +213,6 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 unsafe {
                     let relu = g.relu(t_a, true);
-                    //let r_cost = (*(*relu).op.ptr).runtime;
-                    //println!("Cost of relu is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -252,8 +229,6 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(dim4).dtype == DataKind::Scalar);
 
                 unsafe {
-                    // NOTE all this just to pass ownership
-                    // to C++, not sure if necessary
                     let mut dims = vec![x(dim1).val, x(dim2).val, x(dim3).val, x(dim4).val];
                     dims.shrink_to_fit();
                     assert!(dims.len() == dims.capacity());
@@ -261,8 +236,6 @@ impl Analysis<Mdl> for TensorAnalysis {
                     std::mem::forget(dims);
 
                     let inp = g.new_input(4, ptr);
-                    //let r_cost = (*(*inp).op.ptr).runtime;
-                    //println!("Cost of input is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
@@ -286,8 +259,6 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Create tensorhandle and get metadata
                 unsafe {
                     let cat = g.concat(axis_val, 2, vec![t_a, t_b].as_ptr());
-                    //let r_cost = (*(*mm).op.ptr).runtime;
-                    //println!("Cost of matmul is {}", r_cost);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,

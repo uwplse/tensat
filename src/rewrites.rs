@@ -104,7 +104,6 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
 pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
     for (pos, rule) in rs.iter().enumerate() {
-        //println!("{:?}", rule);
         let eqn: Vec<&str> = rule.split("=>").collect();
         let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
         let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
@@ -368,12 +367,9 @@ fn check_pat(
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_conv2d(
                                 t_inpt, t_wght, stride_h, stride_w, padding, activation,
                             );
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc conv: {:?}", duration);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
@@ -402,10 +398,7 @@ fn check_pat(
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, &t_a, &t_b);
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc ele: {:?}", duration);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
@@ -434,10 +427,7 @@ fn check_pat(
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, &t_a, &t_b);
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc ele: {:?}", duration);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
@@ -469,10 +459,7 @@ fn check_pat(
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc ele: {:?}", duration);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)

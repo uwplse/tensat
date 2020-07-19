@@ -26,7 +26,6 @@ pub fn get_testnet() -> RecExpr<Mdl> {
 
     // Step 2: define the graph, in a TF/Pytorch like style
     let input = graph.new_input("input_1", 1, 64, 56, 56);
-    //let mut t = graph.mul(input, input);
     let mut t = input;
     let mut input_dim_1 = 64;
     let out_channels = 64;

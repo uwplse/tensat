@@ -78,11 +78,8 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                 // Get op
-                //let start_time = Instant::now();
                 let op = (*g.model)
                     .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc conv: {:?}", duration);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -101,10 +98,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let t_b = _b_data.meta;
 
                 // Get op
-                //let start_time = Instant::now();
                 let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc ele: {:?}", duration);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -123,10 +117,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let t_b = _b_data.meta;
 
                 // Get op
-                //let start_time = Instant::now();
-                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc ele: {:?}", duration);
+                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b)
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -148,10 +139,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                 // Get op
-                //let start_time = Instant::now();
                 let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc conv: {:?}", duration);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -196,37 +184,3 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
         }
     }
 }
-
-/*
-struct Cost;
-impl CostFunction<Mdl> for Cost {
-    type Cost = (f64, Vec<usize>);
-    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
-        let children_sizes = enode.fold(vec![], |mut sizes, id| {
-            sizes.push(costs(id).1);
-            sizes
-        });
-        layouts(enode)
-            .into_iter()
-            .map(|layout| Self::run_time(enode, layout, &children_sizes))
-            .min_by(|(x, _), (y, _)| x.partial_cmp(y).unwrap())
-            .unwrap()
-        // TODO gotta calc output sizes
-    }
-}
-
-struct Layout;
-fn layouts(_e: &Mdl) -> Vec<Layout> {
-    todo!()
-}
-
-impl Cost {
-    fn run_time(
-        _e: &Mdl,
-        _layout: Layout,
-        _sizes: &[Vec<usize>],
-    ) -> <Cost as CostFunction<Mdl>>::Cost {
-        todo!()
-    }
-}
-*/
