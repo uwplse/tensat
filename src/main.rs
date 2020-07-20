@@ -114,6 +114,7 @@ fn optimize(matches: clap::ArgMatches) {
             "resnet50" => resnet50::get_resnet50(),
             "testnet" => testnet::get_testnet(),
             "benchnet" => benchnet::get_benchnet(),
+            "nasrnn" => nasrnn::get_nasrnn(),
             _ => panic!("The model name is not supported"),
         },
         None => {
