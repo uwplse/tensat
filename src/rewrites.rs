@@ -311,6 +311,50 @@ fn check_pat(
                         }
                     }
 
+                    Mdl::Tanh(_a) => {
+                        let a_t_data = &results[0].2;
+                        assert!(a_t_data.dtype == DataKind::Tnsr);
+                        let t_a = a_t_data.tnsr.unwrap();
+
+                        unsafe {
+                            let op = (*g.model).get_or_create_activation(t_a, OpType_OP_TANH, true);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Sigmoid(_a) => {
+                        let a_t_data = &results[0].2;
+                        assert!(a_t_data.dtype == DataKind::Tnsr);
+                        let t_a = a_t_data.tnsr.unwrap();
+
+                        unsafe {
+                            let op = (*g.model).get_or_create_activation(t_a, OpType_OP_SIGMOID, true);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
                     Mdl::Conv2d([_stride_h, _stride_w, _pad, _act, _inpt, _wght]) => {
                         // Check types
                         let _stride_h_data = &results[0].2;

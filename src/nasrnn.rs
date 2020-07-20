@@ -16,7 +16,7 @@ fn nas_node(graph: &mut GraphConverter, input: Id, x: Id) -> Id {
         tmp.push(combine(&mut graph, x, input));
     }
     let mut midt = Vec::new();
-    midt.push(graph.add(graph.relu(tmp[0]), graph.sigmoid([tmp[3]])));
+    midt.push(graph.add(graph.relu(tmp[0]), graph.sigmoid(tmp[3])));
     midt.push(graph.add(graph.sigmoid(tmp[1]), graph.tanh(tmp[2])));
     midt.push(graph.mul(graph.sigmoid(tmp[4]), graph.tanh(tmp[5])));
     midt.push(graph.mul(graph.sigmoid(tmp[6]), graph.relu(tmp[7])));
@@ -38,8 +38,8 @@ pub fn get_nasrnn() -> RecExpr<Mdl> {
         xs.push(graph.new_input(vec![1, HIDDEN_SIZE]));
     }
     let mut state = graph.new_weight(vec![1, HIDDEN_SIZE]);
-    for i in 0..LENGTH {
-        state = nas_node(&mut graph, state, xs[i])
+    for x in xs {
+        state = nas_node(&mut graph, state, x)
     }
 
     // Step 3: get the RexExpr

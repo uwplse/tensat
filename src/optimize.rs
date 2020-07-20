@@ -53,6 +53,32 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             }
         }
 
+        Mdl::Tanh(_a) => {
+            // Check types
+            let a_t_data = x(_a);
+            assert!(a_t_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get op
+                let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_TANH, true);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Sigmoid(_a) => {
+            // Check types
+            let a_t_data = x(_a);
+            assert!(a_t_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get op
+                let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
         Mdl::Conv2d([_stride_h, _stride_w, _pad, _act, _inpt, _wght]) => {
             // Check types
             let _stride_h_data = x(_stride_h);

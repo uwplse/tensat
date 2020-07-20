@@ -31,6 +31,8 @@ define_language! {
         "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
+        "tanh"      = Tanh(Id),
+        "sigmoid"   = Sigmoid(Id),
         "poolavg"   = Poolavg([Id; 6]),
         "poolmax"   = Poolmax([Id; 6]),
         "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
@@ -218,12 +220,42 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_a = x(a).meta;
 
                 unsafe {
-                    let relu = g.relu(t_a, true);
+                    let res = g.relu(t_a, true);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
                         name: String::new(),
-                        meta: relu,
+                        meta: res,
+                    }
+                }
+            }
+
+            Mdl::Tanh(a) => {
+                assert!(x(a).dtype == DataKind::Tnsr);
+                let t_a = x(a).meta;
+
+                unsafe {
+                    let res = g.tanh(t_a, true);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        name: String::new(),
+                        meta: res,
+                    }
+                }
+            }
+
+            Mdl::Sigmoid(a) => {
+                assert!(x(a).dtype == DataKind::Tnsr);
+                let t_a = x(a).meta;
+
+                unsafe {
+                    let res = g.sigmoid(t_a, true);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        name: String::new(),
+                        meta: res,
                     }
                 }
             }

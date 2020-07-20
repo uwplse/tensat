@@ -81,6 +81,16 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
+    pub fn tanh(&mut self, inpt: Id) -> Id {
+        let new_node = Mdl::Tanh(inpt);
+        self.rec_expr.add(new_node)
+    }
+
+    pub fn sigmoid(&mut self, inpt: Id) -> Id {
+        let new_node = Mdl::Sigmoid(inpt);
+        self.rec_expr.add(new_node)
+    }
+
     pub fn add(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
         let new_node = Mdl::Ewadd([inpt_1, inpt_2]);
         self.rec_expr.add(new_node)

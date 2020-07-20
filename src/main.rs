@@ -11,6 +11,7 @@ use tamago::optimize::*;
 use tamago::resnet50;
 use tamago::rewrites::*;
 use tamago::testnet;
+use tamago::nasrnn;
 use tamago::{parse::*, verify::*};
 
 fn main() {
@@ -82,7 +83,7 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    let start = testnet::get_testnet();
+    let start = nasrnn::get_nasrnn();
 
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     println!("Runner complete!");
