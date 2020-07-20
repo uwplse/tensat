@@ -289,37 +289,6 @@ fn check_pat(
                         (true, None, t_data)
                     }
 
-                    Mdl::Var(_s) => {
-                        let t_data = TData {
-                            dtype: DataKind::Name,
-                            val: 0,
-                            tnsr: None,
-                        };
-                        (true, None, t_data)
-                    }
-
-                    Mdl::Input([_name, _dim1, _dim2, _dim3, _dim4]) => {
-                        let mut dims = vec![
-                            results[1].2.val,
-                            results[2].2.val,
-                            results[3].2.val,
-                            results[4].2.val,
-                        ];
-                        dims.shrink_to_fit();
-                        assert!(dims.len() == dims.capacity());
-                        let ptr = dims.as_mut_ptr();
-                        unsafe {
-                            std::mem::forget(dims);
-                            let inp = g.new_input(4, ptr);
-                            let t_data = TData {
-                                dtype: DataKind::Tnsr,
-                                val: 0,
-                                tnsr: Some(*inp),
-                            };
-                            (true, None, t_data)
-                        }
-                    }
-
                     Mdl::Relu(_a) => {
                         let a_t_data = &results[0].2;
                         assert!(a_t_data.dtype == DataKind::Tnsr);

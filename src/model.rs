@@ -22,7 +22,7 @@ pub const ACTTANH: i32 = 3;
 
 define_language! {
     pub enum Mdl {
-        "input"     = Input([Id; 5]),
+        "input"     = Input([Id; 1]), // takes a name, format: name@dim1_dim2...
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -63,9 +63,11 @@ impl Default for DataKind {
 pub struct ValTnsr {
     /// The data type of this eclass, can be a name/scalar/tensor
     pub dtype: DataKind,
-    /// The value of this eclass if it is a scalar type
+    /// The value of this eclass if it is a Scalar type
     pub val: i32,
-    /// The pointer to the tensor if it is a tensor type
+    /// The name string of this eclass if it is a Name type
+    pub name: String,
+    /// The pointer to the tensor if it is a Tensor type
     pub meta: TensorHandle,
 }
 
@@ -134,6 +136,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: mm,
                     }
                 }
@@ -162,6 +165,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: res,
                     }
                 }
@@ -182,6 +186,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: res,
                     }
                 }
@@ -202,6 +207,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: res,
                     }
                 }
@@ -216,29 +222,38 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: relu,
                     }
                 }
             }
 
-            Mdl::Input([name, dim1, dim2, dim3, dim4]) => {
+            Mdl::Input([name]) => {
+                // Check types
                 assert!(x(name).dtype == DataKind::Name);
-                assert!(x(dim1).dtype == DataKind::Scalar);
-                assert!(x(dim2).dtype == DataKind::Scalar);
-                assert!(x(dim3).dtype == DataKind::Scalar);
-                assert!(x(dim4).dtype == DataKind::Scalar);
 
+                // Get shape
+                let mut split = x(name).name.split("@");
+                let name_vec: Vec<&str> = split.collect();
+                assert!(name_vec.len() == 2);
+                let mut split_dims = name_vec[1].split("_");
+                let dim_str_vec: Vec<&str> = split_dims.collect();
+
+                // Create tensorhandle and get metadata
                 unsafe {
-                    let mut dims = vec![x(dim1).val, x(dim2).val, x(dim3).val, x(dim4).val];
+                    let mut dims: Vec<i32> = dim_str_vec.iter().map(|x| x.parse::<i32>().unwrap()).collect();
+                    let ndim = dims.len();
+                    assert!(ndim <= 4);
                     dims.shrink_to_fit();
                     assert!(dims.len() == dims.capacity());
                     let ptr = dims.as_mut_ptr();
                     std::mem::forget(dims);
 
-                    let inp = g.new_input(4, ptr);
+                    let inp = g.new_input(ndim.try_into().unwrap(), ptr);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: inp,
                     }
                 }
@@ -262,6 +277,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
+                        name: String::new(),
                         meta: cat,
                     }
                 }
@@ -270,12 +286,14 @@ impl Analysis<Mdl> for TensorAnalysis {
             Mdl::Num(_n) => Self::Data {
                 dtype: DataKind::Scalar,
                 val: *_n,
+                name: String::new(),
                 meta: std::ptr::null_mut(),
             },
 
             Mdl::Var(_s) => Self::Data {
                 dtype: DataKind::Name,
                 val: 0,
+                name: _s.as_str().to_string(),
                 meta: std::ptr::null_mut(),
             },
 

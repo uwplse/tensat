@@ -15,7 +15,7 @@ pub struct GraphConverter {
 }
 
 /// The APIs of GraphConverter are (intended to) match TASO's so that we can easily
-/// constructing TASO graphs using this class
+/// construct TASO graphs using this class
 impl GraphConverter {
     /// Gets the RexExpr after graph is constructed
     pub fn rec_expr(self) -> RecExpr<Mdl> {
@@ -25,28 +25,29 @@ impl GraphConverter {
     /// Takes in the parameters for the new input, construct the node in RexExpr,
     /// return the Id (index) of this input node in the RecExpr. This is the
     /// pattern for all these op functions.
-    pub fn new_input(&mut self, name: &str, dim1: i32, dim2: i32, dim3: i32, dim4: i32) -> Id {
+    pub fn new_input(&mut self, dims: Vec<i32>) -> Id {
+        let mut name = self.name_gen.new_input_name();
+        let dims_str = dims.iter().map(|x| x.to_string()).collect::<Vec<String>>().join("_");
+        name.push_str("@");
+        name.push_str(&dims_str);
+
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
-        let dim1_id = self.add_or_get_val(dim1);
-        let dim2_id = self.add_or_get_val(dim2);
-        let dim3_id = self.add_or_get_val(dim3);
-        let dim4_id = self.add_or_get_val(dim4);
 
-        let new_node = Mdl::Input([name_id, dim1_id, dim2_id, dim3_id, dim4_id]);
+        let new_node = Mdl::Input([name_id]);
         self.rec_expr.add(new_node)
     }
 
-    pub fn new_weight(&mut self, dim1: i32, dim2: i32, dim3: i32, dim4: i32) -> Id {
-        let name = &self.name_gen.new_name();
+    pub fn new_weight(&mut self, dims: Vec<i32>) -> Id {
+        let mut name = self.name_gen.new_weight_name();
+        let dims_str = dims.iter().map(|x| x.to_string()).collect::<Vec<String>>().join("_");
+        name.push_str("@");
+        name.push_str(&dims_str);
+
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
-        let dim1_id = self.add_or_get_val(dim1);
-        let dim2_id = self.add_or_get_val(dim2);
-        let dim3_id = self.add_or_get_val(dim3);
-        let dim4_id = self.add_or_get_val(dim4);
 
-        let new_node = Mdl::Input([name_id, dim1_id, dim2_id, dim3_id, dim4_id]);
+        let new_node = Mdl::Input([name_id]);
         self.rec_expr.add(new_node)
     }
 
@@ -127,13 +128,20 @@ impl GraphConverter {
 /// Generates names like w1, w2...
 #[derive(Default)]
 pub struct NameGen {
-    count: i32,
+    count_input: i32,
+    count_weight: i32,
 }
 
 impl NameGen {
-    pub fn new_name(&mut self) -> String {
-        let name = format!("w{}", self.count);
-        self.count += 1;
+    pub fn new_weight_name(&mut self) -> String {
+        let name = format!("w_{}", self.count_weight);
+        self.count_weight += 1;
+        name
+    }
+
+    pub fn new_input_name(&mut self) -> String {
+        let name = format!("input_{}", self.count_input);
+        self.count_input += 1;
         name
     }
 }

@@ -117,7 +117,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let t_b = _b_data.meta;
 
                 // Get op
-                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b)
+                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
