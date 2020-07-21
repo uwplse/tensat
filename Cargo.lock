@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "egg"
-version = "0.5.1-dev"
+version = "0.6.1-dev"
 dependencies = [
  "indexmap",
  "instant",
@@ -511,6 +511,7 @@ name = "tamago"
 version = "0.1.0"
 dependencies = [
  "bindgen",
+ "clap",
  "egg",
  "env_logger",
  "pest",

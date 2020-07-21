@@ -11,6 +11,7 @@ env_logger = { version =  "0.7", default_features = false }
 pest = "2.0"
 pest_derive = "2.0"
 rand = "0.7"
+clap = "2.33"
 
 [dependencies.egg]
 path = "../egg"

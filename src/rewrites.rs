@@ -5,7 +5,7 @@ use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
 // TODO egg now provides bidirectional rules whic should cut down
-// this list in half. 
+// this list in half.
 #[rustfmt::skip]
 pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("ewadd-is-associative"            ; "(ewadd ?x (ewadd ?y ?z)) "                                             => "(ewadd (ewadd ?x ?y) ?z)"),
@@ -116,21 +116,24 @@ pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
 
 /// Struct for passing results in the recursive function check_pat
 ///
-/// Similar as ValTnsr for TensorAnalysis, but with tnsr being the object 
-/// rather than pointer, to make memory working correctly with recursive 
+/// Similar as ValTnsr for TensorAnalysis, but with tnsr being the object
+/// rather than pointer, to make memory working correctly with recursive
 /// function.
 struct TData {
-  pub dtype: DataKind,
-  pub val: i32,
-  pub tnsr: Option<Tensor>,
+    pub dtype: DataKind,
+    pub val: i32,
+    pub tnsr: Option<Tensor>,
 }
 
 impl Default for TData {
-  fn default() -> Self {
-    TData { tnsr: None, val: Default::default(), dtype: Default::default()}
-  }
+    fn default() -> Self {
+        TData {
+            tnsr: None,
+            val: Default::default(),
+            dtype: Default::default(),
+        }
+    }
 }
-
 
 impl PartialEq for Op {
     fn eq(&self, other: &Self) -> bool {
@@ -138,20 +141,24 @@ impl PartialEq for Op {
     }
 }
 
-
-/// Custom struct implementing the Applier trait, checking the new nodes to 
+/// Custom struct implementing the Applier trait, checking the new nodes to
 /// construct are all valid before actually apply.
 #[derive(Debug, Clone, PartialEq)]
 struct CheckApply {
-    /// the pattern of the right hand side of the rewrite rule, the one 
+    /// the pattern of the right hand side of the rewrite rule, the one
     /// to be constructed.
     pat: Pattern<Mdl>,
 }
 
 impl Applier<Mdl, TensorAnalysis> for CheckApply {
-    /// Apply the pattern once. Check the new nodes are valid before actually 
+    /// Apply the pattern once. Check the new nodes are valid before actually
     /// apply. See Applier trait in egg for more information.
-    fn apply_one(&self, egraph: &mut EGraph<Mdl, TensorAnalysis>, matched_id: Id, subst: &Subst) -> Vec<Id> {
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<Mdl, TensorAnalysis>,
+        matched_id: Id,
+        subst: &Subst,
+    ) -> Vec<Id> {
         if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
             self.pat.apply_one(egraph, matched_id, subst)
         } else {
@@ -163,7 +170,6 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         self.pat.vars()
     }
 }
-
 
 /// Check if all the new nodes to create in the pattern is valid.
 ///
@@ -180,7 +186,7 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 /// A tuple of (bool, Option<Id>, TData) where
 ///
 /// - bool: true if the nodes in this pattern are all valid
-/// - Option<Id>: if the root node of this pattern (pat.last()) is in egraph, 
+/// - Option<Id>: if the root node of this pattern (pat.last()) is in egraph,
 ///     then it is the Id of that eclass. Otherwise None
 /// - TData: The TData for the root node of this pattern. This is read from
 ///     egraph if the root node is in egraph, otherwise constructed by calling
@@ -196,18 +202,29 @@ fn check_pat(
             let cid = subst[*w];
             unsafe {
                 let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
-                    TData {dtype: egraph[cid].data.dtype, val: egraph[cid].data.val, tnsr: Some((*egraph[cid].data.meta).clone())}
+                    TData {
+                        dtype: egraph[cid].data.dtype,
+                        val: egraph[cid].data.val,
+                        tnsr: Some((*egraph[cid].data.meta).clone()),
+                    }
                 } else {
-                    TData {dtype: egraph[cid].data.dtype, val: egraph[cid].data.val, tnsr: None}
+                    TData {
+                        dtype: egraph[cid].data.dtype,
+                        val: egraph[cid].data.val,
+                        tnsr: None,
+                    }
                 };
                 return (true, Some(cid), t_data);
             }
-        },
+        }
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
             let children = e.children();
-            let results: Vec<(bool, Option<Id>, TData)> = children.iter().map(|child| check_pat(&pat[..(*child) as usize + 1], egraph, subst)).collect();
-            
+            let results: Vec<(bool, Option<Id>, TData)> = children
+                .iter()
+                .map(|child| check_pat(&pat[..usize::from(*child) + 1], egraph, subst))
+                .collect();
+
             // Check if any children contains invalid nodes
             let mut violated = false;
             for res in &results {
@@ -243,13 +260,21 @@ fn check_pat(
                             // Get metadata from egraph
                             unsafe {
                                 let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
-                                    TData {dtype: egraph[id].data.dtype, val: egraph[id].data.val, tnsr: Some((*egraph[id].data.meta).clone())}
+                                    TData {
+                                        dtype: egraph[id].data.dtype,
+                                        val: egraph[id].data.val,
+                                        tnsr: Some((*egraph[id].data.meta).clone()),
+                                    }
                                 } else {
-                                    TData {dtype: egraph[id].data.dtype, val: egraph[id].data.val, tnsr: None}
+                                    TData {
+                                        dtype: egraph[id].data.dtype,
+                                        val: egraph[id].data.val,
+                                        tnsr: None,
+                                    }
                                 };
-                                return (true, looked, t_data)
+                                return (true, looked, t_data);
                             }
-                        } 
+                        }
                         None => (),
                     };
                 }
@@ -257,27 +282,44 @@ fn check_pat(
                 let mut g = egraph.analysis.graph.borrow_mut();
                 let result = match e {
                     Mdl::Num(_n) => {
-                        let t_data = TData { dtype : DataKind::Scalar, val : *_n, tnsr : None };
+                        let t_data = TData {
+                            dtype: DataKind::Scalar,
+                            val: *_n,
+                            tnsr: None,
+                        };
                         (true, None, t_data)
-                    },
+                    }
 
                     Mdl::Var(_s) => {
-                        let t_data = TData { dtype : DataKind::Name, val : 0, tnsr : None };
+                        let t_data = TData {
+                            dtype: DataKind::Name,
+                            val: 0,
+                            tnsr: None,
+                        };
                         (true, None, t_data)
-                    },
+                    }
 
-                    Mdl::Inpt([_name, _dim1, _dim2, _dim3, _dim4]) => {
-                        let mut dims = vec![results[1].2.val, results[2].2.val, results[3].2.val, results[4].2.val];
+                    Mdl::Input([_name, _dim1, _dim2, _dim3, _dim4]) => {
+                        let mut dims = vec![
+                            results[1].2.val,
+                            results[2].2.val,
+                            results[3].2.val,
+                            results[4].2.val,
+                        ];
                         dims.shrink_to_fit();
                         assert!(dims.len() == dims.capacity());
                         let ptr = dims.as_mut_ptr();
                         unsafe {
-                            std::mem::forget(ptr);
+                            std::mem::forget(dims);
                             let inp = g.new_input(4, ptr);
-                            let t_data = TData {dtype : DataKind::Tnsr, val : 0, tnsr : Some(*inp)};
+                            let t_data = TData {
+                                dtype: DataKind::Tnsr,
+                                val: 0,
+                                tnsr: Some(*inp),
+                            };
                             (true, None, t_data)
                         }
-                    },
+                    }
 
                     Mdl::Relu(_a) => {
                         let a_t_data = &results[0].2;
@@ -291,11 +333,15 @@ fn check_pat(
                                 (false, None, default_data)
                             } else {
                                 let t = (*op.ptr).outputs[0].clone();
-                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
                                 (true, None, t_data)
                             }
                         }
-                    },
+                    }
 
                     Mdl::Conv2d([_stride_h, _stride_w, _pad, _act, _inpt, _wght]) => {
                         // Check types
@@ -323,7 +369,9 @@ fn check_pat(
                         // Try creating op
                         unsafe {
                             //let start_time = Instant::now();
-                            let op = (*g.model).get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
+                            let op = (*g.model).get_or_create_conv2d(
+                                t_inpt, t_wght, strideH, strideW, padding, activation,
+                            );
                             //let duration = start_time.elapsed();
                             //println!("  Time taken getc conv: {:?}", duration);
                             if op == Op_INVALID_OP {
@@ -332,11 +380,15 @@ fn check_pat(
                                 (false, None, default_data)
                             } else {
                                 let t = (*op.ptr).outputs[0].clone();
-                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
                                 (true, None, t_data)
                             }
                         }
-                    },
+                    }
 
                     Mdl::Ewadd([_a, _b]) => {
                         // Check types
@@ -348,7 +400,7 @@ fn check_pat(
                         // Get arguments
                         let t_a = _a_data.tnsr.unwrap();
                         let t_b = _b_data.tnsr.unwrap();
-                        
+
                         // Try creating op
                         unsafe {
                             //let start_time = Instant::now();
@@ -361,17 +413,23 @@ fn check_pat(
                                 (false, None, default_data)
                             } else {
                                 let t = (*op.ptr).outputs[0].clone();
-                                let t_data = TData {dtype: DataKind::Tnsr, val: 0, tnsr: Some(t)};
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
                                 (true, None, t_data)
                             }
                         }
-                    },
+                    }
 
-                    other => {println!("{:?}", other); todo!()}
+                    other => {
+                        println!("{:?}", other);
+                        todo!()
+                    }
                 };
                 return result;
             }
         }
     };
 }
-
