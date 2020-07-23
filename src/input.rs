@@ -27,7 +27,11 @@ impl GraphConverter {
     /// pattern for all these op functions.
     pub fn new_input(&mut self, dims: Vec<i32>) -> Id {
         let mut name = self.name_gen.new_input_name();
-        let dims_str = dims.iter().map(|x| x.to_string()).collect::<Vec<String>>().join("_");
+        let dims_str = dims
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join("_");
         name.push_str("@");
         name.push_str(&dims_str);
 
@@ -40,7 +44,11 @@ impl GraphConverter {
 
     pub fn new_weight(&mut self, dims: Vec<i32>) -> Id {
         let mut name = self.name_gen.new_weight_name();
-        let dims_str = dims.iter().map(|x| x.to_string()).collect::<Vec<String>>().join("_");
+        let dims_str = dims
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join("_");
         name.push_str("@");
         name.push_str(&dims_str);
 
@@ -119,7 +127,15 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
-    pub fn maxpool2d(&mut self, inpt: Id, kernel_h: i32, kernel_w: i32, stride_h: i32, stride_w: i32, padding: i32) -> Id {
+    pub fn maxpool2d(
+        &mut self,
+        inpt: Id,
+        kernel_h: i32,
+        kernel_w: i32,
+        stride_h: i32,
+        stride_w: i32,
+        padding: i32,
+    ) -> Id {
         let kernel_h_id = self.add_or_get_val(kernel_h);
         let kernel_w_id = self.add_or_get_val(kernel_w);
         let stride_h_id = self.add_or_get_val(stride_h);

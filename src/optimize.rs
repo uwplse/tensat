@@ -73,7 +73,8 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
 
             unsafe {
                 // Get op
-                let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
+                let op =
+                    (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -233,8 +234,17 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                 // Get op
-                let op = (*g.model)
-                    .get_or_create_pool2d(t_inpt, t_wght, OpType_OP_POOL2D_MAX, kernel_h, kernel_w, stride_h, stride_w, padding, activation);
+                let op = (*g.model).get_or_create_pool2d(
+                    t_inpt,
+                    t_wght,
+                    OpType_OP_POOL2D_MAX,
+                    kernel_h,
+                    kernel_w,
+                    stride_h,
+                    stride_w,
+                    padding,
+                    activation,
+                );
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }

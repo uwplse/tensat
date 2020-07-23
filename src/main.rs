@@ -7,12 +7,12 @@ use std::time::*;
 use std::time::{Duration, Instant};
 use tamago::benchnet;
 use tamago::model::*;
+use tamago::nasrnn;
 use tamago::optimize::*;
 use tamago::resnet50;
+use tamago::resnext50;
 use tamago::rewrites::*;
 use tamago::testnet;
-use tamago::nasrnn;
-use tamago::resnext50;
 use tamago::{parse::*, verify::*};
 
 fn main() {

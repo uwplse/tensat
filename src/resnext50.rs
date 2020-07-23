@@ -14,7 +14,7 @@ fn resnext_block(
         input, w1, /*stride_h=*/ 1, /*stride_w=*/ 1, /*padding=*/ PSAME,
         /*activation=*/ ACTRELU,
     );
-    let w2 = graph.new_weight(vec![out_channels, out_channels/groups, 3, 3]);
+    let w2 = graph.new_weight(vec![out_channels, out_channels / groups, 3, 3]);
     let tmp = graph.conv2d(
         tmp, w2, /*stride_h=*/ strides.0, /*stride_w=*/ strides.1,
         /*padding=*/ PSAME, /*activation=*/ ACTRELU,
@@ -47,7 +47,10 @@ pub fn get_resnext50() -> RecExpr<Mdl> {
         input, weight, /*stride_h=*/ 2, /*stride_w=*/ 2, /*padding=*/ PSAME,
         /*activation=*/ ACTRELU,
     );
-    tmp = graph.maxpool2d(tmp, /*kernel_h=*/ 3, /*kernel_w=*/ 3, /*stride_h=*/ 2, /*stride_w=*/ 2, /*padding=*/ PSAME);
+    tmp = graph.maxpool2d(
+        tmp, /*kernel_h=*/ 3, /*kernel_w=*/ 3, /*stride_h=*/ 2,
+        /*stride_w=*/ 2, /*padding=*/ PSAME,
+    );
 
     let groups = 32;
     let mut input_dim_1 = 64;

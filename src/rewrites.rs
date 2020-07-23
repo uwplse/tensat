@@ -348,7 +348,8 @@ fn check_pat(
                         let t_a = a_t_data.tnsr.unwrap();
 
                         unsafe {
-                            let op = (*g.model).get_or_create_activation(t_a, OpType_OP_SIGMOID, true);
+                            let op =
+                                (*g.model).get_or_create_activation(t_a, OpType_OP_SIGMOID, true);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)

@@ -5,10 +5,10 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 //use rand::prelude::*;
+use rand;
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
-use rand;
 
 use egg::*;
 
@@ -276,7 +276,10 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    let mut dims: Vec<i32> = dim_str_vec.iter().map(|x| x.parse::<i32>().unwrap()).collect();
+                    let mut dims: Vec<i32> = dim_str_vec
+                        .iter()
+                        .map(|x| x.parse::<i32>().unwrap())
+                        .collect();
                     let ndim = dims.len();
                     assert!(ndim <= 4);
                     dims.shrink_to_fit();
@@ -307,7 +310,10 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    let mut dims: Vec<i32> = dim_str_vec.iter().map(|x| x.parse::<i32>().unwrap()).collect();
+                    let mut dims: Vec<i32> = dim_str_vec
+                        .iter()
+                        .map(|x| x.parse::<i32>().unwrap())
+                        .collect();
                     let ndim = dims.len();
                     assert!(ndim <= 4);
                     dims.shrink_to_fit();
@@ -318,7 +324,8 @@ impl Analysis<Mdl> for TensorAnalysis {
                     for d in &dims {
                         num_entries = num_entries * d;
                     }
-                    let mut weight_data: Vec<f32> = Vec::with_capacity(num_entries.try_into().unwrap());
+                    let mut weight_data: Vec<f32> =
+                        Vec::with_capacity(num_entries.try_into().unwrap());
                     for _ in 0..weight_data.capacity() {
                         weight_data.push(rand::random());
                     }
@@ -405,7 +412,9 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    let res = g.pool2d_max(t_inpt, kernelH, kernelW, strideH, strideW, padding, activation);
+                    let res = g.pool2d_max(
+                        t_inpt, kernelH, kernelW, strideH, strideW, padding, activation,
+                    );
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,

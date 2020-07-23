@@ -42,7 +42,6 @@ fn nas_node(graph: &mut GraphConverter, input: Id, x: Id) -> Id {
     graph.tanh(midt[6])
 }
 
-
 /// Gets the RecExpr of a nasrnn model
 pub fn get_nasrnn() -> RecExpr<Mdl> {
     // Step 1: create a GraphConverter instance
