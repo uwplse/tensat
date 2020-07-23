@@ -38,7 +38,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
-        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) => 0.0,
+        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) | Mdl::Weight(_) => 0.0,
 
         Mdl::Relu(_a) => {
             // Check types

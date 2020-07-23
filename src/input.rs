@@ -47,7 +47,7 @@ impl GraphConverter {
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
 
-        let new_node = Mdl::Input([name_id]);
+        let new_node = Mdl::Weight([name_id]);
         self.rec_expr.add(new_node)
     }
 

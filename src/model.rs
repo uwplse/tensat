@@ -8,6 +8,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
+use rand;
 
 use egg::*;
 
@@ -23,6 +24,7 @@ pub const ACTTANH: i32 = 3;
 define_language! {
     pub enum Mdl {
         "input"     = Input([Id; 1]), // takes a name, format: name@dim1_dim2...
+        "weight"    = Weight([Id; 1]), // takes a name, format: name@dim1_dim2...
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -282,6 +284,51 @@ impl Analysis<Mdl> for TensorAnalysis {
                     std::mem::forget(dims);
 
                     let inp = g.new_input(ndim.try_into().unwrap(), ptr);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        name: String::new(),
+                        meta: inp,
+                    }
+                }
+            }
+
+            Mdl::Weight([name]) => {
+                // Check types
+                assert!(x(name).dtype == DataKind::Name);
+
+                // Get shape
+                let mut split = x(name).name.split("@");
+                let name_vec: Vec<&str> = split.collect();
+                assert!(name_vec.len() == 2);
+                let mut split_dims = name_vec[1].split("_");
+                let dim_str_vec: Vec<&str> = split_dims.collect();
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    let mut dims: Vec<i32> = dim_str_vec.iter().map(|x| x.parse::<i32>().unwrap()).collect();
+                    let ndim = dims.len();
+                    assert!(ndim <= 4);
+                    dims.shrink_to_fit();
+                    assert!(dims.len() == dims.capacity());
+
+                    // Create data for weight
+                    let mut num_entries = 1;
+                    for d in &dims {
+                        num_entries = num_entries * d;
+                    }
+                    let mut weight_data: Vec<f32> = Vec::with_capacity(num_entries.try_into().unwrap());
+                    for _ in 0..weight_data.capacity() {
+                        weight_data.push(rand::random());
+                    }
+                    assert!(weight_data.len() == weight_data.capacity());
+
+                    let ptr = dims.as_mut_ptr();
+                    std::mem::forget(dims);
+                    let data_ptr = weight_data.as_mut_ptr();
+                    std::mem::forget(weight_data);
+
+                    let inp = g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,

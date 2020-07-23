@@ -180,7 +180,10 @@ fn optimize(matches: clap::ArgMatches) {
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
     let mut g = runner.egraph.analysis.graph.borrow_mut();
-    unsafe { g.run() }
+    unsafe {
+        let processed_g = g.preprocess_weights();
+        (*processed_g).run()
+    }
 }
 
 fn prove_taso_rules(matches: clap::ArgMatches) {
