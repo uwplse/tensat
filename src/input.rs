@@ -119,6 +119,27 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
+    pub fn maxpool2d(&mut self, inpt: Id, kernel_h: i32, kernel_w: i32, stride_h: i32, stride_w: i32, padding: i32) -> Id {
+        let kernel_h_id = self.add_or_get_val(kernel_h);
+        let kernel_w_id = self.add_or_get_val(kernel_w);
+        let stride_h_id = self.add_or_get_val(stride_h);
+        let stride_w_id = self.add_or_get_val(stride_w);
+        let padding_id = self.add_or_get_val(padding);
+        let activation = ACTNONE;
+        let act_id = self.add_or_get_val(activation);
+
+        let new_node = Mdl::Poolmax([
+            inpt,
+            kernel_h_id,
+            kernel_w_id,
+            stride_h_id,
+            stride_w_id,
+            padding_id,
+            act_id,
+        ]);
+        self.rec_expr.add(new_node)
+    }
+
     /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
     fn add_or_get_val(&mut self, val: i32) -> Id {
         match self.scalar_map.get(&val) {

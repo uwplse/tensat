@@ -35,8 +35,8 @@ define_language! {
         "relu"      = Relu(Id),
         "tanh"      = Tanh(Id),
         "sigmoid"   = Sigmoid(Id),
-        "poolavg"   = Poolavg([Id; 6]),
-        "poolmax"   = Poolmax([Id; 6]),
+        "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
+        "poolmax"   = Poolmax([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
@@ -375,6 +375,37 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Create tensorhandle and get metadata
                 unsafe {
                     let res = g.merge_gconv(t_weight, count_val);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        name: String::new(),
+                        meta: res,
+                    }
+                }
+            }
+
+            Mdl::Poolmax([inpt, kernel_h, kernel_w, stride_h, stride_w, pad, act]) => {
+                // Check types
+                assert!(x(kernel_h).dtype == DataKind::Scalar);
+                assert!(x(kernel_w).dtype == DataKind::Scalar);
+                assert!(x(stride_h).dtype == DataKind::Scalar);
+                assert!(x(stride_w).dtype == DataKind::Scalar);
+                assert!(x(pad).dtype == DataKind::Scalar);
+                assert!(x(act).dtype == DataKind::Scalar);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_inpt = x(inpt).meta;
+                let kernelH = x(kernel_h).val;
+                let kernelW = x(kernel_w).val;
+                let strideH = x(stride_h).val;
+                let strideW = x(stride_w).val;
+                let padding: PaddingMode = x(pad).val.try_into().unwrap();
+                let activation: ActiMode = x(act).val.try_into().unwrap();
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    let res = g.pool2d_max(t_inpt, kernelH, kernelW, strideH, strideW, padding, activation);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,

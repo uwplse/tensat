@@ -12,6 +12,7 @@ use tamago::resnet50;
 use tamago::rewrites::*;
 use tamago::testnet;
 use tamago::nasrnn;
+use tamago::resnext50;
 use tamago::{parse::*, verify::*};
 
 fn main() {
@@ -117,6 +118,7 @@ fn optimize(matches: clap::ArgMatches) {
             "testnet" => testnet::get_testnet(),
             "benchnet" => benchnet::get_benchnet(),
             "nasrnn" => nasrnn::get_nasrnn(),
+            "resnext50" => resnext50::get_resnext50(),
             _ => panic!("The model name is not supported"),
         },
         None => {
@@ -135,12 +137,12 @@ fn optimize(matches: clap::ArgMatches) {
     let time_limit = Duration::new(10, 0);
     let iter_limit = 10;
 
-    let start_time = Instant::now();
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_time_limit(time_limit)
         .with_iter_limit(iter_limit)
-        .with_expr(&start)
-        .run(&rules[..]);
+        .with_expr(&start);
+    let start_time = Instant::now();
+    let runner = runner.run(&rules[..]);
     let duration = start_time.elapsed();
 
     println!("Runner complete!");
