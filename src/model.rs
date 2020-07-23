@@ -23,8 +23,8 @@ pub const ACTTANH: i32 = 3;
 
 define_language! {
     pub enum Mdl {
-        "input"     = Input([Id; 1]), // takes a name, format: name@dim1_dim2...
-        "weight"    = Weight([Id; 1]), // takes a name, format: name@dim1_dim2...
+        "input"     = Input([Id; 1]), // takes a Var, format: name@dim1_dim2...
+        "weight"    = Weight([Id; 1]), // takes a Var, format : name@dim1_dim2...
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
@@ -44,6 +44,7 @@ define_language! {
         "Iconv"     = Iconv([Id; 2]),
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
+        "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
         Num(i32),
         Var(Symbol),
     }
@@ -283,12 +284,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                     let ptr = dims.as_mut_ptr();
                     std::mem::forget(dims);
 
-                    let inp = g.new_input(ndim.try_into().unwrap(), ptr);
+                    let res = g.new_input(ndim.try_into().unwrap(), ptr);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
                         name: String::new(),
-                        meta: inp,
+                        meta: res,
                     }
                 }
             }
@@ -328,12 +329,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                     let data_ptr = weight_data.as_mut_ptr();
                     std::mem::forget(weight_data);
 
-                    let inp = g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr);
+                    let res = g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr);
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
                         name: String::new(),
-                        meta: inp,
+                        meta: res,
                     }
                 }
             }
@@ -352,12 +353,33 @@ impl Analysis<Mdl> for TensorAnalysis {
 
                 // Create tensorhandle and get metadata
                 unsafe {
-                    let cat = g.concat(axis_val, 2, vec![t_a, t_b].as_ptr());
+                    let res = g.concat(axis_val, 2, vec![t_a, t_b].as_ptr());
                     Self::Data {
                         dtype: DataKind::Tnsr,
                         val: 0,
                         name: String::new(),
-                        meta: cat,
+                        meta: res,
+                    }
+                }
+            }
+
+            Mdl::Merge([weight, count]) => {
+                // Check types
+                assert!(x(count).dtype == DataKind::Scalar);
+                assert!(x(weight).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_weight = x(weight).meta;
+                let count_val = x(count).val;
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    let res = g.merge_gconv(t_weight, count_val);
+                    Self::Data {
+                        dtype: DataKind::Tnsr,
+                        val: 0,
+                        name: String::new(),
+                        meta: res,
                     }
                 }
             }

@@ -107,7 +107,9 @@ fn optimize(matches: clap::ArgMatches) {
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
     let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let split_rules: Vec<&str> = rw_rules.split("\n").collect();
+    let mut split_rules: Vec<&str> = rw_rules.split("\n").collect();
+    let mut pre_def_rules = pre_defined_rules();
+    split_rules.append(&mut pre_def_rules);
 
     let start = match matches.value_of("model") {
         Some(model_name) => match model_name {

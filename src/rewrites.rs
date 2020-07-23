@@ -113,6 +113,15 @@ pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     rule_vec
 }
 
+pub fn pre_defined_rules() -> Vec<&'static str> {
+    vec![
+        "(conv2d 1 1 0 0 ?input_1 ?input_2)=>(conv2d 1 1 0 0 ?input_1 (merge ?input_2 2))",
+        "(conv2d 1 1 0 2 ?input_1 ?input_2)=>(conv2d 1 1 0 2 ?input_1 (merge ?input_2 2))",
+        "(conv2d 2 2 0 0 ?input_1 ?input_2)=>(conv2d 2 2 0 0 ?input_1 (merge ?input_2 2))",
+        "(conv2d 2 2 0 2 ?input_1 ?input_2)=>(conv2d 2 2 0 2 ?input_1 (merge ?input_2 2))",
+    ]
+}
+
 /// Struct for passing results in the recursive function check_pat
 ///
 /// Similar as ValTnsr for TensorAnalysis, but with tnsr being the object
@@ -534,6 +543,35 @@ fn check_pat(
                                     };
                                     (true, None, t_data)
                                 }
+                            }
+                        }
+                    }
+
+                    Mdl::Merge([_weight, _count]) => {
+                        // Check types
+                        let _weight_data = &results[0].2;
+                        let _count_data = &results[1].2;
+                        assert!(_count_data.dtype == DataKind::Scalar);
+                        assert!(_weight_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_weight = _weight_data.tnsr.unwrap();
+                        let count = _count_data.val;
+
+                        // Try creating op
+                        unsafe {
+                            let op = (*g.model).get_or_create_merge_gconv(&t_weight, count);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
                             }
                         }
                     }
