@@ -95,15 +95,14 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_inpt_data.dtype == DataKind::Tnsr);
             assert!(_wght_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let stride_h = _stride_h_data.val;
+            let stride_w = _stride_w_data.val;
+            let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
             unsafe {
-                // Get arguments
                 let t_inpt = *_inpt_data.meta;
                 let t_wght = *_wght_data.meta;
-                let stride_h = _stride_h_data.val;
-                let stride_w = _stride_w_data.val;
-                let padding: PaddingMode = _pad_data.val.try_into().unwrap();
-                let activation: ActiMode = _act_data.val.try_into().unwrap();
-
                 // Get op
                 let op = (*g.model)
                     .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
@@ -119,11 +118,10 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_a_data.dtype == DataKind::Tnsr);
             assert!(_b_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let t_a = _a_data.meta;
+            let t_b = _b_data.meta;
             unsafe {
-                // Get arguments
-                let t_a = _a_data.meta;
-                let t_b = _b_data.meta;
-
                 // Get op
                 let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
                 assert!(op != Op_INVALID_OP);
@@ -138,11 +136,10 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_a_data.dtype == DataKind::Tnsr);
             assert!(_b_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let t_a = _a_data.meta;
+            let t_b = _b_data.meta;
             unsafe {
-                // Get arguments
-                let t_a = _a_data.meta;
-                let t_b = _b_data.meta;
-
                 // Get op
                 let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
                 assert!(op != Op_INVALID_OP);
@@ -159,12 +156,11 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_a_data.dtype == DataKind::Tnsr);
             assert!(_b_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
             unsafe {
-                // Get arguments
                 let t_a = *_a_data.meta;
                 let t_b = *_b_data.meta;
-                let activation: ActiMode = _act_data.val.try_into().unwrap();
-
                 // Get op
                 let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
                 assert!(op != Op_INVALID_OP);
@@ -183,12 +179,12 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_a_data.dtype == DataKind::Tnsr);
             assert!(_b_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let axis = _axis_data.val;
+            let ndim = _ndim_data.val;
             unsafe {
-                // Get arguments
                 let t_a = *_a_data.meta;
                 let t_b = *_b_data.meta;
-                let axis = _axis_data.val;
-                let ndim = _ndim_data.val;
 
                 // Pass ownership to C++
                 let mut inputs = vec![t_a, t_b];
@@ -198,8 +194,8 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 std::mem::forget(inputs);
 
                 // Get op
-                let need_copy = vec![false, false].as_mut_ptr();
-                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy);
+                let mut need_copy = [false, false];
+                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy.as_mut_ptr());
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -222,16 +218,16 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_act_data.dtype == DataKind::Scalar);
             assert!(_inpt_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let kernel_h = _kernel_h_data.val;
+            let kernel_w = _kernel_w_data.val;
+            let stride_h = _stride_h_data.val;
+            let stride_w = _stride_w_data.val;
+            let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
             unsafe {
-                // Get arguments
                 let t_inpt = *_inpt_data.meta;
                 let t_wght = t_inpt.clone(); // Just a placeholder, t_wght won't be used in get_or_create_pool2d here
-                let kernel_h = _kernel_h_data.val;
-                let kernel_w = _kernel_w_data.val;
-                let stride_h = _stride_h_data.val;
-                let stride_w = _stride_w_data.val;
-                let padding: PaddingMode = _pad_data.val.try_into().unwrap();
-                let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                 // Get op
                 let op = (*g.model).get_or_create_pool2d(

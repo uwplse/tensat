@@ -1,5 +1,6 @@
 use crate::model::*;
 use egg::*;
+use itertools::Itertools;
 use std::collections::HashMap;
 
 /// Struct for converting a model specified using our Rust interface to RecExpr
@@ -25,16 +26,8 @@ impl GraphConverter {
     /// Takes in the parameters for the new input, construct the node in RexExpr,
     /// return the Id (index) of this input node in the RecExpr. This is the
     /// pattern for all these op functions.
-    pub fn new_input(&mut self, dims: Vec<i32>) -> Id {
-        let mut name = self.name_gen.new_input_name();
-        let dims_str = dims
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>()
-            .join("_");
-        name.push_str("@");
-        name.push_str(&dims_str);
-
+    pub fn new_input(&mut self, dims: &[i32]) -> Id {
+        let name = self.name_gen.new_input_name() + "@" + &dims.iter().join("_");
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
 
@@ -42,16 +35,8 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
-    pub fn new_weight(&mut self, dims: Vec<i32>) -> Id {
-        let mut name = self.name_gen.new_weight_name();
-        let dims_str = dims
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>()
-            .join("_");
-        name.push_str("@");
-        name.push_str(&dims_str);
-
+    pub fn new_weight(&mut self, dims: &[i32]) -> Id {
+        let name = self.name_gen.new_weight_name() + "@" + &dims.iter().join("_");
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
 

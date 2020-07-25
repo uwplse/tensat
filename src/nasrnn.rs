@@ -5,8 +5,8 @@ const LENGTH: i32 = 5;
 const HIDDEN_SIZE: i32 = 512;
 
 fn combine(graph: &mut GraphConverter, x: Id, h: Id) -> Id {
-    let w1 = graph.new_weight(vec![HIDDEN_SIZE, HIDDEN_SIZE]);
-    let w2 = graph.new_weight(vec![HIDDEN_SIZE, HIDDEN_SIZE]);
+    let w1 = graph.new_weight(&[HIDDEN_SIZE, HIDDEN_SIZE]);
+    let w2 = graph.new_weight(&[HIDDEN_SIZE, HIDDEN_SIZE]);
     let t1 = graph.matmul(x, w1);
     let t2 = graph.matmul(h, w2);
     graph.add(t1, t2)
@@ -50,9 +50,9 @@ pub fn get_nasrnn() -> RecExpr<Mdl> {
     // Step 2: define the graph
     let mut xs = Vec::new();
     for i in 0..LENGTH {
-        xs.push(graph.new_input(vec![1, HIDDEN_SIZE]));
+        xs.push(graph.new_input(&[1, HIDDEN_SIZE]));
     }
-    let mut state = graph.new_weight(vec![1, HIDDEN_SIZE]);
+    let mut state = graph.new_weight(&[1, HIDDEN_SIZE]);
     for x in xs {
         state = nas_node(&mut graph, state, x)
     }

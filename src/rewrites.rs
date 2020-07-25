@@ -208,22 +208,20 @@ fn check_pat(
         ENodeOrVar::Var(w) => {
             // The root node is a variable, then use subst to get metadata from egraph
             let cid = subst[*w];
-            unsafe {
-                let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
-                    TData {
-                        dtype: egraph[cid].data.dtype,
-                        val: egraph[cid].data.val,
-                        tnsr: Some((*egraph[cid].data.meta).clone()),
-                    }
-                } else {
-                    TData {
-                        dtype: egraph[cid].data.dtype,
-                        val: egraph[cid].data.val,
-                        tnsr: None,
-                    }
-                };
-                return (true, Some(cid), t_data);
-            }
+            let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
+                TData {
+                    dtype: egraph[cid].data.dtype,
+                    val: egraph[cid].data.val,
+                    tnsr: unsafe { Some((*egraph[cid].data.meta).clone()) },
+                }
+            } else {
+                TData {
+                    dtype: egraph[cid].data.dtype,
+                    val: egraph[cid].data.val,
+                    tnsr: None,
+                }
+            };
+            return (true, Some(cid), t_data);
         }
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
@@ -266,22 +264,20 @@ fn check_pat(
                     match looked {
                         Some(id) => {
                             // Get metadata from egraph
-                            unsafe {
-                                let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: Some((*egraph[id].data.meta).clone()),
-                                    }
-                                } else {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: None,
-                                    }
-                                };
-                                return (true, looked, t_data);
-                            }
+                            let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
+                                TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                }
+                            } else {
+                                TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: None,
+                                }
+                            };
+                            return (true, looked, t_data);
                         }
                         None => (),
                     };
@@ -516,21 +512,26 @@ fn check_pat(
                         let ndim = _ndim_data.val;
 
                         // Try creating op
-                        unsafe {
-                            // Check tensor ndim
-                            if t_a.numDim != ndim || t_b.numDim != ndim {
-                                let default_data: TData = Default::default();
-                                (false, None, default_data)
-                            } else {
-                                // Pass ownership to C++
-                                let mut inputs = vec![t_a, t_b];
-                                inputs.shrink_to_fit();
-                                assert!(inputs.len() == inputs.capacity());
-                                let ptr = inputs.as_mut_ptr();
-                                std::mem::forget(inputs);
+                        // Check tensor ndim
+                        if t_a.numDim != ndim || t_b.numDim != ndim {
+                            let default_data: TData = Default::default();
+                            (false, None, default_data)
+                        } else {
+                            // Pass ownership to C++
+                            let mut inputs = vec![t_a, t_b];
+                            inputs.shrink_to_fit();
+                            assert!(inputs.len() == inputs.capacity());
+                            let ptr = inputs.as_mut_ptr();
+                            std::mem::forget(inputs);
 
-                                let need_copy = vec![false, false].as_mut_ptr();
-                                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy);
+                            let mut need_copy = [false, false];
+                            unsafe {
+                                let op = (*g.model).get_or_create_concat(
+                                    axis,
+                                    2,
+                                    ptr,
+                                    need_copy.as_mut_ptr(),
+                                );
 
                                 if op == Op_INVALID_OP {
                                     let default_data: TData = Default::default();

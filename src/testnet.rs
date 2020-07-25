@@ -8,10 +8,10 @@ fn resnet_block(
     out_channels: i32,
     input_dim_1: i32,
 ) -> Id {
-    let w1 = graph.new_weight(vec![out_channels * 4, input_dim_1, 1, 1]);
+    let w1 = graph.new_weight(&[out_channels * 4, input_dim_1, 1, 1]);
     let mut t = graph.conv2d(input, w1, 1, 1, PSAME, ACTRELU);
 
-    let w4 = graph.new_weight(vec![out_channels, input_dim_1, 1, 1]);
+    let w4 = graph.new_weight(&[out_channels, input_dim_1, 1, 1]);
     t = graph.conv2d(t, w4, strides.0, strides.1, PSAME, ACTRELU);
 
     t = graph.add(input, t);
@@ -25,7 +25,7 @@ pub fn get_testnet() -> RecExpr<Mdl> {
     let mut graph = GraphConverter::default();
 
     // Step 2: define the graph, in a TF/Pytorch like style
-    let input = graph.new_input(vec![1, 64, 56, 56]);
+    let input = graph.new_input(&[1, 64, 56, 56]);
     let mut t = input;
     let mut input_dim_1 = 64;
     let out_channels = 64;

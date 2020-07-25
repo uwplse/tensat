@@ -107,10 +107,9 @@ fn optimize(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
+    // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
     let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let mut split_rules: Vec<&str> = rw_rules.split("\n").collect();
-    let mut pre_def_rules = pre_defined_rules();
-    split_rules.append(&mut pre_def_rules);
+    let split_rules: Vec<&str> = rw_rules.split("\n").chain(pre_defined_rules()).collect();
 
     let start = match matches.value_of("model") {
         Some(model_name) => match model_name {
@@ -134,11 +133,11 @@ fn optimize(matches: clap::ArgMatches) {
     let rules = rules_from_str(split_rules);
 
     // Run saturation
-    let time_limit = Duration::new(10, 0);
+    let time_limit_sec = Duration::new(10, 0);
     let iter_limit = 10;
 
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(time_limit)
+        .with_time_limit(time_limit_sec)
         .with_iter_limit(iter_limit)
         .with_expr(&start);
     let start_time = Instant::now();
@@ -185,6 +184,9 @@ fn optimize(matches: clap::ArgMatches) {
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
     let mut g = runner.egraph.analysis.graph.borrow_mut();
     unsafe {
+        // This is calling TASO's preprocess_weights function before evaluating full graph
+        // run time. It removes op that has only weights as its inputs. Since TASO only cares
+        // about inference time, such ops can be pre-computed
         let processed_g = g.preprocess_weights();
         (*processed_g).run()
     }

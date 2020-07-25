@@ -12,6 +12,8 @@ pest = "2.0"
 pest_derive = "2.0"
 rand = "0.7"
 clap = "2.33"
+itertools = "0.9"
+arrayvec = "0.5.1"
 
 [dependencies.egg]
 path = "../egg"

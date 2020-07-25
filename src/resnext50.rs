@@ -9,23 +9,23 @@ fn resnext_block(
     input_dim_1: i32,
     groups: i32,
 ) -> Id {
-    let w1 = graph.new_weight(vec![out_channels, input_dim_1, 1, 1]);
+    let w1 = graph.new_weight(&[out_channels, input_dim_1, 1, 1]);
     let tmp = graph.conv2d(
         input, w1, /*stride_h=*/ 1, /*stride_w=*/ 1, /*padding=*/ PSAME,
         /*activation=*/ ACTRELU,
     );
-    let w2 = graph.new_weight(vec![out_channels, out_channels / groups, 3, 3]);
+    let w2 = graph.new_weight(&[out_channels, out_channels / groups, 3, 3]);
     let tmp = graph.conv2d(
         tmp, w2, /*stride_h=*/ strides.0, /*stride_w=*/ strides.1,
         /*padding=*/ PSAME, /*activation=*/ ACTRELU,
     );
-    let w3 = graph.new_weight(vec![out_channels * 2, out_channels, 1, 1]);
+    let w3 = graph.new_weight(&[out_channels * 2, out_channels, 1, 1]);
     let tmp = graph.conv2d(
         tmp, w3, /*stride_h=*/ 1, /*stride_w=*/ 1, /*padding=*/ PSAME,
         /*activation=*/ ACTNONE,
     );
     if (strides.0 > 1) || (input_dim_1 != out_channels * 2) {
-        let w4 = graph.new_weight(vec![out_channels * 2, input_dim_1, 1, 1]);
+        let w4 = graph.new_weight(&[out_channels * 2, input_dim_1, 1, 1]);
         input = graph.conv2d(
             input, w4, /*stride_h=*/ strides.0, /*stride_w=*/ strides.1,
             /*padding=*/ PSAME, /*activation=*/ ACTRELU,
@@ -41,8 +41,8 @@ pub fn get_resnext50() -> RecExpr<Mdl> {
     let mut graph = GraphConverter::default();
 
     // Step 2: define the graph
-    let input = graph.new_input(vec![1, 3, 224, 224]);
-    let weight = graph.new_weight(vec![64, 3, 7, 7]);
+    let input = graph.new_input(&[1, 3, 224, 224]);
+    let weight = graph.new_weight(&[64, 3, 7, 7]);
     let mut tmp = graph.conv2d(
         input, weight, /*stride_h=*/ 2, /*stride_w=*/ 2, /*padding=*/ PSAME,
         /*activation=*/ ACTRELU,

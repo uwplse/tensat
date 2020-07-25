@@ -136,14 +136,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let mm = g.matmul(t_a, t_b, activation);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: mm,
-                    }
+                let res = unsafe { g.matmul(t_a, t_b, activation) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -165,14 +163,13 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res =
+                    unsafe { g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -186,14 +183,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_b = x(b).meta;
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.element(OpType_OP_EW_ADD, t_a, t_b);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.element(OpType_OP_EW_ADD, t_a, t_b) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -207,14 +202,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_b = x(b).meta;
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.element(OpType_OP_EW_MUL, t_a, t_b);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.element(OpType_OP_EW_MUL, t_a, t_b) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -222,14 +215,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
 
-                unsafe {
-                    let res = g.relu(t_a, true);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.relu(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -237,14 +228,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
 
-                unsafe {
-                    let res = g.tanh(t_a, true);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.tanh(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -252,14 +241,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
 
-                unsafe {
-                    let res = g.sigmoid(t_a, true);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.sigmoid(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -267,33 +254,27 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Check types
                 assert!(x(name).dtype == DataKind::Name);
 
-                // Get shape
-                let mut split = x(name).name.split("@");
-                let name_vec: Vec<&str> = split.collect();
+                // Get arguments
+                let name_vec: Vec<&str> = x(name).name.split("@").collect();
                 assert!(name_vec.len() == 2);
-                let mut split_dims = name_vec[1].split("_");
-                let dim_str_vec: Vec<&str> = split_dims.collect();
+                let mut dims: Vec<i32> = name_vec[1]
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
+
+                let ndim = dims.len();
+                dims.shrink_to_fit();
+                assert!(dims.len() == dims.capacity());
+                let ptr = dims.as_mut_ptr();
+                std::mem::forget(dims);
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let mut dims: Vec<i32> = dim_str_vec
-                        .iter()
-                        .map(|x| x.parse::<i32>().unwrap())
-                        .collect();
-                    let ndim = dims.len();
-                    assert!(ndim <= 4);
-                    dims.shrink_to_fit();
-                    assert!(dims.len() == dims.capacity());
-                    let ptr = dims.as_mut_ptr();
-                    std::mem::forget(dims);
-
-                    let res = g.new_input(ndim.try_into().unwrap(), ptr);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.new_input(ndim.try_into().unwrap(), ptr) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -301,48 +282,35 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Check types
                 assert!(x(name).dtype == DataKind::Name);
 
-                // Get shape
-                let mut split = x(name).name.split("@");
-                let name_vec: Vec<&str> = split.collect();
+                // Get arguments
+                let name_vec: Vec<&str> = x(name).name.split("@").collect();
                 assert!(name_vec.len() == 2);
-                let mut split_dims = name_vec[1].split("_");
-                let dim_str_vec: Vec<&str> = split_dims.collect();
+                let mut dims: Vec<i32> = name_vec[1]
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
+
+                let ndim = dims.len();
+                dims.shrink_to_fit();
+                assert!(dims.len() == dims.capacity());
+
+                let num_entries = dims.iter().product();
+                let mut weight_data: Vec<f32> = (0..num_entries).map(|_| rand::random()).collect();
+                weight_data.shrink_to_fit();
+                assert!(weight_data.len() == weight_data.capacity());
+
+                let ptr = dims.as_mut_ptr();
+                std::mem::forget(dims);
+                let data_ptr = weight_data.as_mut_ptr();
+                std::mem::forget(weight_data);
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let mut dims: Vec<i32> = dim_str_vec
-                        .iter()
-                        .map(|x| x.parse::<i32>().unwrap())
-                        .collect();
-                    let ndim = dims.len();
-                    assert!(ndim <= 4);
-                    dims.shrink_to_fit();
-                    assert!(dims.len() == dims.capacity());
-
-                    // Create data for weight
-                    let mut num_entries = 1;
-                    for d in &dims {
-                        num_entries = num_entries * d;
-                    }
-                    let mut weight_data: Vec<f32> =
-                        Vec::with_capacity(num_entries.try_into().unwrap());
-                    for _ in 0..weight_data.capacity() {
-                        weight_data.push(rand::random());
-                    }
-                    assert!(weight_data.len() == weight_data.capacity());
-
-                    let ptr = dims.as_mut_ptr();
-                    std::mem::forget(dims);
-                    let data_ptr = weight_data.as_mut_ptr();
-                    std::mem::forget(weight_data);
-
-                    let res = g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -359,14 +327,13 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let axis_val = x(axis).val;
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.concat(axis_val, 2, vec![t_a, t_b].as_ptr());
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let t = [t_a, t_b];
+                let res = unsafe { g.concat(axis_val, 2, t.as_ptr()) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -380,14 +347,12 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let count_val = x(count).val;
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.merge_gconv(t_weight, count_val);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                let res = unsafe { g.merge_gconv(t_weight, count_val) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -411,16 +376,16 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let res = g.pool2d_max(
+                let res = unsafe {
+                    g.pool2d_max(
                         t_inpt, kernelH, kernelW, strideH, strideW, padding, activation,
-                    );
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        name: String::new(),
-                        meta: res,
-                    }
+                    )
+                };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
