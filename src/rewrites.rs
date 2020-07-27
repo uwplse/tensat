@@ -3,6 +3,7 @@ use egg::{rewrite as rw, *};
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
+use itertools::Itertools;
 
 // TODO egg now provides bidirectional rules whic should cut down
 // this list in half.
@@ -602,7 +603,7 @@ fn check_pat(
     };
 }
 
-/*
+
 /// Struct for the multi-pattern rules. In charge of searching for matches and
 /// applying the rewrite.
 #[derive(Debug, Clone, PartialEq)]
@@ -612,12 +613,25 @@ pub struct MultiPatterns {
 }
 
 impl MultiPatterns {
-    pub fn with_rules() -> MultiPatterns {
+    pub fn with_rules(rules: Vec<&str>) -> MultiPatterns {
+        // Multi-pattern rules should come in pairs, every two entries belong to one rule
+        assert!(rules.len() % 2 == 0);
 
+        let mut multi_rules = Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
+        for i in 0..(rules.len()/2) {
+            let get_pats = |rule: &str| {
+                rule.split("=>").map(|x| x.parse().unwrap()).next_tuple().unwrap()
+            };
+            let (src_1, dst_1) = get_pats(rules[2*i]);
+            let (src_2, dst_2) = get_pats(rules[2*i+1]);
+            multi_rules.push((src_1, src_2, dst_1, dst_2));
+        }
+
+        MultiPatterns { rules: multi_rules }
     }
 
+    /*
     pub fn run_one() {
 
-    }
+    }*/
 }
-*/

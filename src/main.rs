@@ -69,12 +69,12 @@ fn main() {
         "optimize" => optimize(matches),
         "verify" => prove_taso_rules(matches),
         "test" => test(matches),
-        "convert" => convert_rw_rules(matches),
+        "convert" => convert_learned_rules(matches),
         _ => panic!("Running mode not supported"),
     }
 }
 
-fn convert_rw_rules(matches: clap::ArgMatches) {
+fn convert_learned_rules(matches: clap::ArgMatches) {
     env_logger::init();
 
     let file = matches
@@ -90,16 +90,16 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
-
-    // Get input graph and rules
-    match matches.value_of("multi_rules") {
+    let multi_patterns = match matches.value_of("multi_rules") {
         Some(rule_file) => {
-            // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
-            let multi_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-            let split_rules: Vec<&str> = multi_rules.split("\n").chain(pre_defined_multi()).collect();
-            println!("Num {}", split_rules.len());
+            let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi()).collect();
+            MultiPatterns::with_rules(multi_rules)
         },
-        None => {},
+        None => {
+            let multi_rules: Vec<&str> = pre_defined_multi();
+            MultiPatterns::with_rules(multi_rules)
+        },
     };
 }
 
@@ -115,9 +115,10 @@ fn optimize(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
-    // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
-    let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let split_rules: Vec<&str> = rw_rules.split("\n").chain(pre_defined_rules()).collect();
+    // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
+    let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+    let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules()).collect();
+    let rules = rules_from_str(split_rules);
 
     let start = match matches.value_of("model") {
         Some(model_name) => match model_name {
@@ -138,7 +139,18 @@ fn optimize(matches: clap::ArgMatches) {
         }
     };
 
-    let rules = rules_from_str(split_rules);
+    // Get multi-pattern rules. learned_rules are the learned rules from TASO, pre_defined_multi are the hand-specified rules from TASO
+    let multi_patterns = match matches.value_of("multi_rules") {
+        Some(rule_file) => {
+            let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi()).collect();
+            MultiPatterns::with_rules(multi_rules)
+        },
+        None => {
+            let multi_rules: Vec<&str> = pre_defined_multi();
+            MultiPatterns::with_rules(multi_rules)
+        },
+    };
 
     // Run saturation
     let time_limit_sec = Duration::new(10, 0);
