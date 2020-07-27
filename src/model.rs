@@ -5,6 +5,7 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 //use rand::prelude::*;
+use rand;
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
@@ -22,28 +23,28 @@ pub const ACTTANH: i32 = 3;
 
 define_language! {
     pub enum Mdl {
-        "input"     = Input([Id; 5]),
+        "input"     = Input([Id; 1]), // takes a Var, format: name@dim1_dim2...
+        "weight"    = Weight([Id; 1]), // takes a Var, format : name@dim1_dim2...
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
         "transpose" = Transpose(Id),
-        "matmul"    = Matmul([Id; 2]),
+        "matmul"    = Matmul([Id; 3]), // activation, input1, input2
         "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 3]),
         "relu"      = Relu(Id),
-        "poolavg"   = Poolavg([Id; 6]),
-        "poolmax"   = Poolmax([Id; 6]),
-        "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2
+        "tanh"      = Tanh(Id),
+        "sigmoid"   = Sigmoid(Id),
+        "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
+        "poolmax"   = Poolmax([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
+        "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
         "split_0"   = Split0([Id; 2]),
         "split_1"   = Split1([Id; 2]),
         "Cpool"     = Cpool([Id; 2]),
         "Iconv"     = Iconv([Id; 2]),
-        // NOTE refer to TASO for the const values
-        // Anone = 0
-        // Arelu = 2
-        // Psame = 0
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
+        "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
         Num(i32),
         Var(Symbol),
     }
@@ -67,9 +68,11 @@ impl Default for DataKind {
 pub struct ValTnsr {
     /// The data type of this eclass, can be a name/scalar/tensor
     pub dtype: DataKind,
-    /// The value of this eclass if it is a scalar type
+    /// The value of this eclass if it is a Scalar type
     pub val: i32,
-    /// The pointer to the tensor if it is a tensor type
+    /// The name string of this eclass if it is a Name type
+    pub name: String,
+    /// The pointer to the tensor if it is a Tensor type
     pub meta: TensorHandle,
 }
 
@@ -121,25 +124,24 @@ impl Analysis<Mdl> for TensorAnalysis {
         let x = |i: &Id| &egraph[*i].data;
         let mut g = egraph.analysis.graph.borrow_mut();
         match enode {
-            Mdl::Matmul([a, b]) => {
+            Mdl::Matmul([act, a, b]) => {
                 // Check types
+                assert!(x(act).dtype == DataKind::Scalar);
                 assert!(x(a).dtype == DataKind::Tnsr);
                 assert!(x(b).dtype == DataKind::Tnsr);
 
                 // Get arguments
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
+                let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    let mm = g.matmul(t_a, t_b, ActiMode_AC_MODE_NONE);
-                    //let r_cost = (*(*mm).op.ptr).runtime;
-                    //println!("Cost of matmul is {}", r_cost);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        meta: mm,
-                    }
+                let res = unsafe { g.matmul(t_a, t_b, activation) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -161,18 +163,13 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let activation: ActiMode = x(act).val.try_into().unwrap();
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    //let start_time = Instant::now();
-                    let res = g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation);
-                    //let duration = start_time.elapsed();
-                    //println!("  Time taken get conv: {:?}", duration);
-                    //let r_cost = (*(*res).op.ptr).runtime;
-                    //println!("Cost of conv2d is {}", r_cost);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        meta: res,
-                    }
+                let res =
+                    unsafe { g.conv2d1(t_inpt, t_wght, strideH, strideW, padding, activation) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -186,18 +183,31 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_b = x(b).meta;
 
                 // Create tensorhandle and get metadata
-                unsafe {
-                    //let start_time = Instant::now();
-                    let res = g.element(OpType_OP_EW_ADD, t_a, t_b);
-                    //let duration = start_time.elapsed();
-                    //println!("  Time taken get ele: {:?}", duration);
-                    //let r_cost = (*(*res).op.ptr).runtime;
-                    //println!("Cost of ewadd is {}", r_cost);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        meta: res,
-                    }
+                let res = unsafe { g.element(OpType_OP_EW_ADD, t_a, t_b) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Ewmul([a, b]) => {
+                // Check types
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_a = x(a).meta;
+                let t_b = x(b).meta;
+
+                // Create tensorhandle and get metadata
+                let res = unsafe { g.element(OpType_OP_EW_MUL, t_a, t_b) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
@@ -205,63 +215,191 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
 
-                unsafe {
-                    let relu = g.relu(t_a, true);
-                    //let r_cost = (*(*relu).op.ptr).runtime;
-                    //println!("Cost of relu is {}", r_cost);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        meta: relu,
-                    }
+                let res = unsafe { g.relu(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
 
-            Mdl::Input([name, dim1, dim2, dim3, dim4]) => {
+            Mdl::Tanh(a) => {
+                assert!(x(a).dtype == DataKind::Tnsr);
+                let t_a = x(a).meta;
+
+                let res = unsafe { g.tanh(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Sigmoid(a) => {
+                assert!(x(a).dtype == DataKind::Tnsr);
+                let t_a = x(a).meta;
+
+                let res = unsafe { g.sigmoid(t_a, true) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Input([name]) => {
+                // Check types
                 assert!(x(name).dtype == DataKind::Name);
-                assert!(x(dim1).dtype == DataKind::Scalar);
-                assert!(x(dim2).dtype == DataKind::Scalar);
-                assert!(x(dim3).dtype == DataKind::Scalar);
-                assert!(x(dim4).dtype == DataKind::Scalar);
 
-                unsafe {
-                    // NOTE all this just to pass ownership
-                    // to C++, not sure if necessary
-                    let mut dims = vec![x(dim1).val, x(dim2).val, x(dim3).val, x(dim4).val];
-                    dims.shrink_to_fit();
-                    assert!(dims.len() == dims.capacity());
-                    let ptr = dims.as_mut_ptr();
-                    std::mem::forget(dims);
+                // Get arguments
+                let name_vec: Vec<&str> = x(name).name.split("@").collect();
+                assert!(name_vec.len() == 2);
+                let mut dims: Vec<i32> = name_vec[1]
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
 
-                    let inp = g.new_input(4, ptr);
-                    //let r_cost = (*(*inp).op.ptr).runtime;
-                    //println!("Cost of input is {}", r_cost);
-                    Self::Data {
-                        dtype: DataKind::Tnsr,
-                        val: 0,
-                        meta: inp,
-                    }
+                let ndim = dims.len();
+                dims.shrink_to_fit();
+                assert!(dims.len() == dims.capacity());
+                let ptr = dims.as_mut_ptr();
+                std::mem::forget(dims);
+
+                // Create tensorhandle and get metadata
+                let res = unsafe { g.new_input(ndim.try_into().unwrap(), ptr) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
                 }
             }
-            //Mdl::Concat([a, b, c]) => {
-            //    // let t_a = x(a).meta;
-            //    let t_b = x(b).meta;
-            //    let t_c = x(c).meta;
 
-            //    unsafe { // very unsafe sketchy
-            //      let cat = g.concat(1, 2, vec![t_b, t_c].as_ptr());
-            //      Self::Data {cost : (*(*cat).op.ptr).runtime, meta : cat}
-            //    }
-            //  },
+            Mdl::Weight([name]) => {
+                // Check types
+                assert!(x(name).dtype == DataKind::Name);
+
+                // Get arguments
+                let name_vec: Vec<&str> = x(name).name.split("@").collect();
+                assert!(name_vec.len() == 2);
+                let mut dims: Vec<i32> = name_vec[1]
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
+
+                let ndim = dims.len();
+                dims.shrink_to_fit();
+                assert!(dims.len() == dims.capacity());
+
+                let num_entries = dims.iter().product();
+                let mut weight_data: Vec<f32> = (0..num_entries).map(|_| rand::random()).collect();
+                weight_data.shrink_to_fit();
+                assert!(weight_data.len() == weight_data.capacity());
+
+                let ptr = dims.as_mut_ptr();
+                std::mem::forget(dims);
+                let data_ptr = weight_data.as_mut_ptr();
+                std::mem::forget(weight_data);
+
+                // Create tensorhandle and get metadata
+                let res = unsafe { g.new_weight(ndim.try_into().unwrap(), ptr, data_ptr) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Concat([axis, ndim, a, b]) => {
+                // Check types
+                assert!(x(axis).dtype == DataKind::Scalar);
+                assert!(x(ndim).dtype == DataKind::Scalar);
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_a = x(a).meta;
+                let t_b = x(b).meta;
+                let axis_val = x(axis).val;
+
+                // Create tensorhandle and get metadata
+                let t = [t_a, t_b];
+                let res = unsafe { g.concat(axis_val, 2, t.as_ptr()) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Merge([weight, count]) => {
+                // Check types
+                assert!(x(count).dtype == DataKind::Scalar);
+                assert!(x(weight).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_weight = x(weight).meta;
+                let count_val = x(count).val;
+
+                // Create tensorhandle and get metadata
+                let res = unsafe { g.merge_gconv(t_weight, count_val) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
+            Mdl::Poolmax([inpt, kernel_h, kernel_w, stride_h, stride_w, pad, act]) => {
+                // Check types
+                assert!(x(kernel_h).dtype == DataKind::Scalar);
+                assert!(x(kernel_w).dtype == DataKind::Scalar);
+                assert!(x(stride_h).dtype == DataKind::Scalar);
+                assert!(x(stride_w).dtype == DataKind::Scalar);
+                assert!(x(pad).dtype == DataKind::Scalar);
+                assert!(x(act).dtype == DataKind::Scalar);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_inpt = x(inpt).meta;
+                let kernelH = x(kernel_h).val;
+                let kernelW = x(kernel_w).val;
+                let strideH = x(stride_h).val;
+                let strideW = x(stride_w).val;
+                let padding: PaddingMode = x(pad).val.try_into().unwrap();
+                let activation: ActiMode = x(act).val.try_into().unwrap();
+
+                // Create tensorhandle and get metadata
+                let res = unsafe {
+                    g.pool2d_max(
+                        t_inpt, kernelH, kernelW, strideH, strideW, padding, activation,
+                    )
+                };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                }
+            }
+
             Mdl::Num(_n) => Self::Data {
                 dtype: DataKind::Scalar,
                 val: *_n,
+                name: String::new(),
                 meta: std::ptr::null_mut(),
             },
 
             Mdl::Var(_s) => Self::Data {
                 dtype: DataKind::Name,
                 val: 0,
+                name: _s.as_str().to_string(),
                 meta: std::ptr::null_mut(),
             },
 

@@ -1,13 +1,18 @@
 use clap::{App, Arg};
 use egg::*;
+use std::collections::HashMap;
 use std::env::*;
 use std::fs::*;
 use std::time::*;
 use std::time::{Duration, Instant};
+use tamago::benchnet;
 use tamago::model::*;
+use tamago::nasrnn;
 use tamago::optimize::*;
 use tamago::resnet50;
+use tamago::resnext50;
 use tamago::rewrites::*;
+use tamago::testnet;
 use tamago::{parse::*, verify::*};
 
 fn main() {
@@ -33,6 +38,13 @@ fn main() {
                 .long("rules")
                 .takes_value(true)
                 .help("Provide a file with rewrite rules"),
+        )
+        .arg(
+            Arg::with_name("out_file")
+                .short("o")
+                .long("out_file")
+                .takes_value(true)
+                .help("Provide a output file name"),
         )
         .arg(
             Arg::with_name("model_file")
@@ -61,17 +73,18 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
     let file = matches
         .value_of("rules")
         .expect("Pls supply taso rules file.");
+    let outf = matches.value_of("out_file").unwrap_or("converted.txt");
     let taso_rules = read_to_string(file).expect("Something went wrong reading the file");
 
     let converted = parse_and_convert(&taso_rules);
 
-    write("converted.txt", converted).expect("Unable to write file");
+    write(outf, converted).expect("Unable to write file");
 }
 
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    let start = resnet50::get_resnet50();
+    let start = nasrnn::get_nasrnn();
 
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     println!("Runner complete!");
@@ -94,12 +107,17 @@ fn optimize(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
+    // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
     let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let split_rules: Vec<&str> = rw_rules.split("\n").collect();
+    let split_rules: Vec<&str> = rw_rules.split("\n").chain(pre_defined_rules()).collect();
 
     let start = match matches.value_of("model") {
         Some(model_name) => match model_name {
             "resnet50" => resnet50::get_resnet50(),
+            "testnet" => testnet::get_testnet(),
+            "benchnet" => benchnet::get_benchnet(),
+            "nasrnn" => nasrnn::get_nasrnn(),
+            "resnext50" => resnext50::get_resnext50(),
             _ => panic!("The model name is not supported"),
         },
         None => {
@@ -115,15 +133,15 @@ fn optimize(matches: clap::ArgMatches) {
     let rules = rules_from_str(split_rules);
 
     // Run saturation
-    let time_limit = Duration::new(100, 0);
+    let time_limit_sec = Duration::new(10, 0);
     let iter_limit = 10;
 
-    let start_time = Instant::now();
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(time_limit)
+        .with_time_limit(time_limit_sec)
         .with_iter_limit(iter_limit)
-        .with_expr(&start)
-        .run(&rules[..]);
+        .with_expr(&start);
+    let start_time = Instant::now();
+    let runner = runner.run(&rules[..]);
     let duration = start_time.elapsed();
 
     println!("Runner complete!");
@@ -148,11 +166,6 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Best cost: {:?}", best_cost);
 
     // Evaluation starting and extracted graph runtime, save graphs
-    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
-    runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
-    let time_ext = get_full_graph_runtime(&runner_ext);
-    println!("Extracted graph runtime: {}", time_ext);
-
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     runner_start
         .egraph
@@ -161,11 +174,22 @@ fn optimize(matches: clap::ArgMatches) {
         .unwrap();
     let time_start = get_full_graph_runtime(&runner_start);
     println!("Start graph runtime: {}", time_start);
+
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
+    runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
+    let time_ext = get_full_graph_runtime(&runner_ext);
+    println!("Extracted graph runtime: {}", time_ext);
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
     let mut g = runner.egraph.analysis.graph.borrow_mut();
-    unsafe { g.run() }
+    unsafe {
+        // This is calling TASO's preprocess_weights function before evaluating full graph
+        // run time. It removes op that has only weights as its inputs. Since TASO only cares
+        // about inference time, such ops can be pre-computed
+        let processed_g = g.preprocess_weights();
+        (*processed_g).run()
+    }
 }
 
 fn prove_taso_rules(matches: clap::ArgMatches) {

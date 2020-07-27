@@ -38,7 +38,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
-        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) => 0.0,
+        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) | Mdl::Weight(_) | Mdl::Merge(_) => 0.0,
 
         Mdl::Relu(_a) => {
             // Check types
@@ -48,6 +48,33 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             unsafe {
                 // Get op
                 let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_RELU, true);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Tanh(_a) => {
+            // Check types
+            let a_t_data = x(_a);
+            assert!(a_t_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get op
+                let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_TANH, true);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Sigmoid(_a) => {
+            // Check types
+            let a_t_data = x(_a);
+            assert!(a_t_data.dtype == DataKind::Tnsr);
+
+            unsafe {
+                // Get op
+                let op =
+                    (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -68,21 +95,17 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_inpt_data.dtype == DataKind::Tnsr);
             assert!(_wght_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let stride_h = _stride_h_data.val;
+            let stride_w = _stride_w_data.val;
+            let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
             unsafe {
-                // Get arguments
                 let t_inpt = *_inpt_data.meta;
                 let t_wght = *_wght_data.meta;
-                let strideH = _stride_h_data.val;
-                let strideW = _stride_w_data.val;
-                let padding: PaddingMode = _pad_data.val.try_into().unwrap();
-                let activation: ActiMode = _act_data.val.try_into().unwrap();
-
                 // Get op
-                //let start_time = Instant::now();
                 let op = (*g.model)
-                    .get_or_create_conv2d(t_inpt, t_wght, strideH, strideW, padding, activation);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc conv: {:?}", duration);
+                    .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -95,16 +118,129 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             assert!(_a_data.dtype == DataKind::Tnsr);
             assert!(_b_data.dtype == DataKind::Tnsr);
 
+            // Get arguments
+            let t_a = _a_data.meta;
+            let t_b = _b_data.meta;
             unsafe {
-                // Get arguments
-                let t_a = _a_data.meta;
-                let t_b = _b_data.meta;
+                // Get op
+                let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Ewmul([_a, _b]) => {
+            // Check types
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            let t_a = _a_data.meta;
+            let t_b = _b_data.meta;
+            unsafe {
+                // Get op
+                let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Matmul([_act, _a, _b]) => {
+            // Check types
+            let _act_data = x(_act);
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_act_data.dtype == DataKind::Scalar);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
+            unsafe {
+                let t_a = *_a_data.meta;
+                let t_b = *_b_data.meta;
+                // Get op
+                let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Concat([_axis, _ndim, _a, _b]) => {
+            // Check types
+            let _axis_data = x(_axis);
+            let _ndim_data = x(_ndim);
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_axis_data.dtype == DataKind::Scalar);
+            assert!(_ndim_data.dtype == DataKind::Scalar);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            let axis = _axis_data.val;
+            let ndim = _ndim_data.val;
+            unsafe {
+                let t_a = *_a_data.meta;
+                let t_b = *_b_data.meta;
+
+                // Pass ownership to C++
+                let mut inputs = vec![t_a, t_b];
+                inputs.shrink_to_fit();
+                assert!(inputs.len() == inputs.capacity());
+                let ptr = inputs.as_mut_ptr();
+                std::mem::forget(inputs);
 
                 // Get op
-                //let start_time = Instant::now();
-                let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
-                //let duration = start_time.elapsed();
-                //println!("  Time taken getc ele: {:?}", duration);
+                let mut need_copy = [false, false];
+                let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy.as_mut_ptr());
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Poolmax([_inpt, _kernel_h, _kernel_w, _stride_h, _stride_w, _pad, _act]) => {
+            // Check types
+            let _kernel_h_data = x(_kernel_h);
+            let _kernel_w_data = x(_kernel_w);
+            let _stride_h_data = x(_stride_h);
+            let _stride_w_data = x(_stride_w);
+            let _pad_data = x(_pad);
+            let _act_data = x(_act);
+            let _inpt_data = x(_inpt);
+            assert!(_kernel_h_data.dtype == DataKind::Scalar);
+            assert!(_kernel_w_data.dtype == DataKind::Scalar);
+            assert!(_stride_h_data.dtype == DataKind::Scalar);
+            assert!(_stride_w_data.dtype == DataKind::Scalar);
+            assert!(_pad_data.dtype == DataKind::Scalar);
+            assert!(_act_data.dtype == DataKind::Scalar);
+            assert!(_inpt_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            let kernel_h = _kernel_h_data.val;
+            let kernel_w = _kernel_w_data.val;
+            let stride_h = _stride_h_data.val;
+            let stride_w = _stride_w_data.val;
+            let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+            let activation: ActiMode = _act_data.val.try_into().unwrap();
+            unsafe {
+                let t_inpt = *_inpt_data.meta;
+                let t_wght = t_inpt.clone(); // Just a placeholder, t_wght won't be used in get_or_create_pool2d here
+
+                // Get op
+                let op = (*g.model).get_or_create_pool2d(
+                    t_inpt,
+                    t_wght,
+                    OpType_OP_POOL2D_MAX,
+                    kernel_h,
+                    kernel_w,
+                    stride_h,
+                    stride_w,
+                    padding,
+                    activation,
+                );
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }
@@ -116,37 +252,3 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
         }
     }
 }
-
-/*
-struct Cost;
-impl CostFunction<Mdl> for Cost {
-    type Cost = (f64, Vec<usize>);
-    fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
-        let children_sizes = enode.fold(vec![], |mut sizes, id| {
-            sizes.push(costs(id).1);
-            sizes
-        });
-        layouts(enode)
-            .into_iter()
-            .map(|layout| Self::run_time(enode, layout, &children_sizes))
-            .min_by(|(x, _), (y, _)| x.partial_cmp(y).unwrap())
-            .unwrap()
-        // TODO gotta calc output sizes
-    }
-}
-
-struct Layout;
-fn layouts(_e: &Mdl) -> Vec<Layout> {
-    todo!()
-}
-
-impl Cost {
-    fn run_time(
-        _e: &Mdl,
-        _layout: Layout,
-        _sizes: &[Vec<usize>],
-    ) -> <Cost as CostFunction<Mdl>>::Cost {
-        todo!()
-    }
-}
-*/

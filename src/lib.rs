@@ -1,9 +1,13 @@
+pub mod benchnet;
 pub mod input;
 pub mod model;
+pub mod nasrnn;
 pub mod optimize;
 pub mod parse;
 pub mod resnet50;
+pub mod resnext50;
 pub mod rewrites;
+pub mod testnet;
 
 pub mod verify {
     use crate::model::*;

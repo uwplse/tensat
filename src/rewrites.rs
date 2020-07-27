@@ -104,7 +104,6 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
 pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
     for (pos, rule) in rs.iter().enumerate() {
-        //println!("{:?}", rule);
         let eqn: Vec<&str> = rule.split("=>").collect();
         let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
         let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
@@ -112,6 +111,15 @@ pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
         rule_vec.push(rw!(rule_name; lhs => { CheckApply {pat: rhs} }));
     }
     rule_vec
+}
+
+pub fn pre_defined_rules() -> Vec<&'static str> {
+    vec![
+        "(conv2d 1 1 0 0 ?input_1 ?input_2)=>(conv2d 1 1 0 0 ?input_1 (merge ?input_2 2))",
+        "(conv2d 1 1 0 2 ?input_1 ?input_2)=>(conv2d 1 1 0 2 ?input_1 (merge ?input_2 2))",
+        "(conv2d 2 2 0 0 ?input_1 ?input_2)=>(conv2d 2 2 0 0 ?input_1 (merge ?input_2 2))",
+        "(conv2d 2 2 0 2 ?input_1 ?input_2)=>(conv2d 2 2 0 2 ?input_1 (merge ?input_2 2))",
+    ]
 }
 
 /// Struct for passing results in the recursive function check_pat
@@ -200,22 +208,20 @@ fn check_pat(
         ENodeOrVar::Var(w) => {
             // The root node is a variable, then use subst to get metadata from egraph
             let cid = subst[*w];
-            unsafe {
-                let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
-                    TData {
-                        dtype: egraph[cid].data.dtype,
-                        val: egraph[cid].data.val,
-                        tnsr: Some((*egraph[cid].data.meta).clone()),
-                    }
-                } else {
-                    TData {
-                        dtype: egraph[cid].data.dtype,
-                        val: egraph[cid].data.val,
-                        tnsr: None,
-                    }
-                };
-                return (true, Some(cid), t_data);
-            }
+            let t_data = if egraph[cid].data.dtype == DataKind::Tnsr {
+                TData {
+                    dtype: egraph[cid].data.dtype,
+                    val: egraph[cid].data.val,
+                    tnsr: unsafe { Some((*egraph[cid].data.meta).clone()) },
+                }
+            } else {
+                TData {
+                    dtype: egraph[cid].data.dtype,
+                    val: egraph[cid].data.val,
+                    tnsr: None,
+                }
+            };
+            return (true, Some(cid), t_data);
         }
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
@@ -258,22 +264,20 @@ fn check_pat(
                     match looked {
                         Some(id) => {
                             // Get metadata from egraph
-                            unsafe {
-                                let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: Some((*egraph[id].data.meta).clone()),
-                                    }
-                                } else {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: None,
-                                    }
-                                };
-                                return (true, looked, t_data);
-                            }
+                            let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
+                                TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                }
+                            } else {
+                                TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: None,
+                                }
+                            };
+                            return (true, looked, t_data);
                         }
                         None => (),
                     };
@@ -290,37 +294,6 @@ fn check_pat(
                         (true, None, t_data)
                     }
 
-                    Mdl::Var(_s) => {
-                        let t_data = TData {
-                            dtype: DataKind::Name,
-                            val: 0,
-                            tnsr: None,
-                        };
-                        (true, None, t_data)
-                    }
-
-                    Mdl::Input([_name, _dim1, _dim2, _dim3, _dim4]) => {
-                        let mut dims = vec![
-                            results[1].2.val,
-                            results[2].2.val,
-                            results[3].2.val,
-                            results[4].2.val,
-                        ];
-                        dims.shrink_to_fit();
-                        assert!(dims.len() == dims.capacity());
-                        let ptr = dims.as_mut_ptr();
-                        unsafe {
-                            std::mem::forget(dims);
-                            let inp = g.new_input(4, ptr);
-                            let t_data = TData {
-                                dtype: DataKind::Tnsr,
-                                val: 0,
-                                tnsr: Some(*inp),
-                            };
-                            (true, None, t_data)
-                        }
-                    }
-
                     Mdl::Relu(_a) => {
                         let a_t_data = &results[0].2;
                         assert!(a_t_data.dtype == DataKind::Tnsr);
@@ -328,6 +301,51 @@ fn check_pat(
 
                         unsafe {
                             let op = (*g.model).get_or_create_activation(t_a, OpType_OP_RELU, true);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Tanh(_a) => {
+                        let a_t_data = &results[0].2;
+                        assert!(a_t_data.dtype == DataKind::Tnsr);
+                        let t_a = a_t_data.tnsr.unwrap();
+
+                        unsafe {
+                            let op = (*g.model).get_or_create_activation(t_a, OpType_OP_TANH, true);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Sigmoid(_a) => {
+                        let a_t_data = &results[0].2;
+                        assert!(a_t_data.dtype == DataKind::Tnsr);
+                        let t_a = a_t_data.tnsr.unwrap();
+
+                        unsafe {
+                            let op =
+                                (*g.model).get_or_create_activation(t_a, OpType_OP_SIGMOID, true);
                             if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
@@ -361,21 +379,17 @@ fn check_pat(
                         // Get arguments
                         let t_inpt = _inpt_data.tnsr.unwrap();
                         let t_wght = _wght_data.tnsr.unwrap();
-                        let strideH = _stride_h_data.val;
-                        let strideW = _stride_w_data.val;
+                        let stride_h = _stride_h_data.val;
+                        let stride_w = _stride_w_data.val;
                         let padding: PaddingMode = _pad_data.val.try_into().unwrap();
                         let activation: ActiMode = _act_data.val.try_into().unwrap();
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_conv2d(
-                                t_inpt, t_wght, strideH, strideW, padding, activation,
+                                t_inpt, t_wght, stride_h, stride_w, padding, activation,
                             );
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc conv: {:?}", duration);
                             if op == Op_INVALID_OP {
-                                println!("Invalid op in conv2d");
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
                             } else {
@@ -403,12 +417,153 @@ fn check_pat(
 
                         // Try creating op
                         unsafe {
-                            //let start_time = Instant::now();
                             let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, &t_a, &t_b);
-                            //let duration = start_time.elapsed();
-                            //println!("  Time taken getc ele: {:?}", duration);
                             if op == Op_INVALID_OP {
-                                println!("Invalid op in ewadd");
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Ewmul([_a, _b]) => {
+                        // Check types
+                        let _a_data = &results[0].2;
+                        let _b_data = &results[1].2;
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+
+                        // Try creating op
+                        unsafe {
+                            let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, &t_a, &t_b);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Matmul([_act, _a, _b]) => {
+                        // Check types
+                        let _act_data = &results[0].2;
+                        let _a_data = &results[1].2;
+                        let _b_data = &results[2].2;
+                        assert!(_act_data.dtype == DataKind::Scalar);
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+                        let activation: ActiMode = _act_data.val.try_into().unwrap();
+
+                        // Try creating op
+                        unsafe {
+                            let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t = (*op.ptr).outputs[0].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::Tnsr,
+                                    val: 0,
+                                    tnsr: Some(t),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Concat([_axis, _ndim, _a, _b]) => {
+                        // Check types
+                        let _axis_data = &results[0].2;
+                        let _ndim_data = &results[1].2;
+                        let _a_data = &results[2].2;
+                        let _b_data = &results[3].2;
+                        assert!(_axis_data.dtype == DataKind::Scalar);
+                        assert!(_ndim_data.dtype == DataKind::Scalar);
+                        assert!(_a_data.dtype == DataKind::Tnsr);
+                        assert!(_b_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_a = _a_data.tnsr.unwrap();
+                        let t_b = _b_data.tnsr.unwrap();
+                        let axis = _axis_data.val;
+                        let ndim = _ndim_data.val;
+
+                        // Try creating op
+                        // Check tensor ndim
+                        if t_a.numDim != ndim || t_b.numDim != ndim {
+                            let default_data: TData = Default::default();
+                            (false, None, default_data)
+                        } else {
+                            // Pass ownership to C++
+                            let mut inputs = vec![t_a, t_b];
+                            inputs.shrink_to_fit();
+                            assert!(inputs.len() == inputs.capacity());
+                            let ptr = inputs.as_mut_ptr();
+                            std::mem::forget(inputs);
+
+                            let mut need_copy = [false, false];
+                            unsafe {
+                                let op = (*g.model).get_or_create_concat(
+                                    axis,
+                                    2,
+                                    ptr,
+                                    need_copy.as_mut_ptr(),
+                                );
+
+                                if op == Op_INVALID_OP {
+                                    let default_data: TData = Default::default();
+                                    (false, None, default_data)
+                                } else {
+                                    let t = (*op.ptr).outputs[0].clone();
+                                    let t_data = TData {
+                                        dtype: DataKind::Tnsr,
+                                        val: 0,
+                                        tnsr: Some(t),
+                                    };
+                                    (true, None, t_data)
+                                }
+                            }
+                        }
+                    }
+
+                    Mdl::Merge([_weight, _count]) => {
+                        // Check types
+                        let _weight_data = &results[0].2;
+                        let _count_data = &results[1].2;
+                        assert!(_count_data.dtype == DataKind::Scalar);
+                        assert!(_weight_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_weight = _weight_data.tnsr.unwrap();
+                        let count = _count_data.val;
+
+                        // Try creating op
+                        unsafe {
+                            let op = (*g.model).get_or_create_merge_gconv(&t_weight, count);
+                            if op == Op_INVALID_OP {
                                 let default_data: TData = Default::default();
                                 (false, None, default_data)
                             } else {
