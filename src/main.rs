@@ -90,17 +90,6 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
-    let multi_patterns = match matches.value_of("multi_rules") {
-        Some(rule_file) => {
-            let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi()).collect();
-            MultiPatterns::with_rules(multi_rules)
-        },
-        None => {
-            let multi_rules: Vec<&str> = pre_defined_multi();
-            MultiPatterns::with_rules(multi_rules)
-        },
-    };
 }
 
 /// Main procedure to run optimization
@@ -117,7 +106,8 @@ fn optimize(matches: clap::ArgMatches) {
         .expect("Pls supply rewrite rules file.");
     // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
     let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules()).collect();
+    let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
+    let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
     let rules = rules_from_str(split_rules);
 
     let start = match matches.value_of("model") {
@@ -143,11 +133,12 @@ fn optimize(matches: clap::ArgMatches) {
     let multi_patterns = match matches.value_of("multi_rules") {
         Some(rule_file) => {
             let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi()).collect();
+            let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
+            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
             MultiPatterns::with_rules(multi_rules)
         },
         None => {
-            let multi_rules: Vec<&str> = pre_defined_multi();
+            let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
             MultiPatterns::with_rules(multi_rules)
         },
     };
