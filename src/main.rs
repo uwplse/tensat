@@ -159,7 +159,8 @@ fn optimize(matches: clap::ArgMatches) {
     let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
         .with_time_limit(time_limit_sec)
         .with_iter_limit(iter_limit)
-        .with_expr(&start);
+        .with_expr(&start)
+        .with_hook(move |runner| multi_patterns.run_one(runner));
     let start_time = Instant::now();
     let runner = runner.run(&rules[..]);
     let duration = start_time.elapsed();

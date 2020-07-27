@@ -630,8 +630,18 @@ impl MultiPatterns {
         MultiPatterns { rules: multi_rules }
     }
 
-    /*
-    pub fn run_one() {
+    pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
 
-    }*/
+        // Construct hashmap to store matches for each canonicalized pattern
+
+        // Search matches for canonicalized patterns
+
+        // For each multi rule
+            // For each pairs of matches (subst), 
+            // if the shared variables matches, and two subst are different
+                // merge subst, check_pat on both dst, and apply_one on each, union
+
+        println!("Egraph is this big: {}", runner.egraph.total_size());
+        Ok(())
+    }
 }
