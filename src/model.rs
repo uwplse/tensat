@@ -122,6 +122,16 @@ impl Analysis<Mdl> for TensorAnalysis {
     // Constructs metadata for a new enode, using TASO side functions for tensors.
     fn make(egraph: &EGraph<Mdl, Self>, enode: &Mdl) -> Self::Data {
         let x = |i: &Id| &egraph[*i].data;
+        let dim_from_name = |name: &Id| {
+            let name_vec: Vec<&str> = x(name).name.split("@").collect();
+            assert!(name_vec.len() == 2);
+            let dims: Vec<i32> = name_vec[1]
+                .split("_")
+                .map(|x| x.parse::<i32>().unwrap())
+                .collect();
+            dims
+        };
+
         let mut g = egraph.analysis.graph.borrow_mut();
         match enode {
             Mdl::Matmul([act, a, b]) => {
@@ -255,13 +265,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(name).dtype == DataKind::Name);
 
                 // Get arguments
-                let name_vec: Vec<&str> = x(name).name.split("@").collect();
-                assert!(name_vec.len() == 2);
-                let mut dims: Vec<i32> = name_vec[1]
-                    .split("_")
-                    .map(|x| x.parse::<i32>().unwrap())
-                    .collect();
-
+                let mut dims = dim_from_name(name);
                 let ndim = dims.len();
                 dims.shrink_to_fit();
                 assert!(dims.len() == dims.capacity());
@@ -283,13 +287,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(name).dtype == DataKind::Name);
 
                 // Get arguments
-                let name_vec: Vec<&str> = x(name).name.split("@").collect();
-                assert!(name_vec.len() == 2);
-                let mut dims: Vec<i32> = name_vec[1]
-                    .split("_")
-                    .map(|x| x.parse::<i32>().unwrap())
-                    .collect();
-
+                let mut dims = dim_from_name(name);
                 let ndim = dims.len();
                 dims.shrink_to_fit();
                 assert!(dims.len() == dims.capacity());
