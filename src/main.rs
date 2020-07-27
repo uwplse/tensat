@@ -53,6 +53,13 @@ fn main() {
                 .takes_value(true)
                 .help("Provide a file with the input model"),
         )
+        .arg(
+            Arg::with_name("multi_rules")
+                .short("t")
+                .long("multi_rules")
+                .takes_value(true)
+                .help("File with multi-pattern rules. Every two lines belong to one multi-pattern rule"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -84,15 +91,16 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    let start = nasrnn::get_nasrnn();
-
-    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    println!("Runner complete!");
-    runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
+    // Get input graph and rules
+    match matches.value_of("multi_rules") {
+        Some(rule_file) => {
+            // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
+            let multi_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+            let split_rules: Vec<&str> = multi_rules.split("\n").chain(pre_defined_multi()).collect();
+            println!("Num {}", split_rules.len());
+        },
+        None => {},
+    };
 }
 
 /// Main procedure to run optimization
