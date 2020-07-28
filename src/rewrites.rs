@@ -4,6 +4,8 @@ use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 use itertools::Itertools;
+use std::collections::HashMap;
+
 
 // TODO egg now provides bidirectional rules whic should cut down
 // this list in half.
@@ -600,13 +602,50 @@ fn check_pat(
 }
 
 
+#[derive(Debug)]
+struct MapToCanonical {
+    index: i32,
+    /// Mapping from variable in this pattern to variable in the canonical pattern
+    var_map: HashMap<egg::Var, egg::Var>,
+}
+
 /// Struct for the multi-pattern rules. In charge of searching for matches and
 /// applying the rewrite.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct MultiPatterns {
     // slice of (src_1, src_2, dst_1, dst_2)
     rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>,
+    canonical_src_pat: Vec<Pattern<Mdl>>,
+    src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
 }
+
+fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var>) {
+    let mut var_map = HashMap::<egg::Var, egg::Var>::new();
+    let mut count = 0;
+    let substituted: Vec<_> = pat.ast.as_ref().iter().cloned().map(|x| {
+        match x {
+            ENodeOrVar::ENode(_) => x,
+            ENodeOrVar::Var(v) => {
+                match var_map.get(&v) {
+                    Some(var) => ENodeOrVar::Var(*var),
+                    None => {
+                        let name = format!("?i_{}", count);
+                        count += 1;
+                        let new_var: egg::Var = name.parse().unwrap();
+                        let new_node = ENodeOrVar::Var(new_var);
+                        var_map.insert(v, new_var);
+                        new_node
+                    },
+                }
+            },
+        }
+    }).collect();
+
+    let ast = RecExpr::from(substituted);
+    let canonical_pat = Pattern::<Mdl>::from(ast);
+    (canonical_pat, var_map)
+}
+
 
 impl MultiPatterns {
     pub fn with_rules(rules: Vec<&str>) -> MultiPatterns {
@@ -614,16 +653,52 @@ impl MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
         let mut multi_rules = Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
-        for i in 0..(rules.len()/2) {
-            let get_pats = |rule: &str| {
-                rule.split("=>").map(|x| x.parse().unwrap()).next_tuple().unwrap()
+        let mut canonical_pats = Vec::<Pattern<Mdl>>::new();
+        let mut src_pat_maps = Vec::<(MapToCanonical, MapToCanonical)>::new();
+
+        let mut canonicalize_and_add = |pat: &Pattern<Mdl>| {
+            let (pat_canonical, pat_var_map) = canonicalize(pat);
+            let index_found = canonical_pats.iter().enumerate().find_map(|(i, pattern)| {
+                if *pattern == pat_canonical { Some(i) } else { None }
+            });
+            let pat_index = match index_found {
+                Some(i) => i,
+                None => {
+                    canonical_pats.push(pat_canonical);
+                    canonical_pats.len() - 1
+                },
             };
+            let pat_map = MapToCanonical {
+                index: pat_index.try_into().unwrap(),
+                var_map: pat_var_map,
+            };
+            pat_map
+        };
+
+        let get_pats = |rule: &str| {
+            rule.split("=>").map(|x| x.parse().unwrap()).next_tuple().unwrap()
+        };
+
+        for i in 0..(rules.len()/2) {
             let (src_1, dst_1) = get_pats(rules[2*i]);
             let (src_2, dst_2) = get_pats(rules[2*i+1]);
+            
+            let src_1_map = canonicalize_and_add(&src_1);
+            let src_2_map = canonicalize_and_add(&src_2);
+
             multi_rules.push((src_1, src_2, dst_1, dst_2));
+            src_pat_maps.push((src_1_map, src_2_map));
         }
 
-        MultiPatterns { rules: multi_rules }
+        println!("Number of canonicalized {:?}", canonical_pats.len());
+        println!("{:?}", canonical_pats[0].pretty(100));
+        println!("{:?}", canonical_pats[1].pretty(100));
+
+        MultiPatterns {
+             rules: multi_rules, 
+             canonical_src_pat: canonical_pats,
+             src_pat_maps: src_pat_maps,
+        }
     }
 
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
