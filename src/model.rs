@@ -420,8 +420,10 @@ impl Analysis<Mdl> for TensorAnalysis {
                     g.add_edge((*t_inpt).op, op, (*t_inpt).idx, 0);
                     let x1 = Box::new((*op.ptr).outputs[0].clone());
                     let res = Box::into_raw(x1);
+                    (*res).op = op;
                     let x2 = Box::new((*op.ptr).outputs[1].clone());
                     let res_2 = Box::into_raw(x2);
+                    (*res_2).op = op;
                     Self::Data {
                         dtype: DataKind::TnsrTuple,
                         val: 0,
