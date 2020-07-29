@@ -653,7 +653,14 @@ fn check_pat(
                         let _inpt_data = &results[0].2;
                         assert!(_inpt_data.dtype == DataKind::TnsrTuple);
 
-                        (true, None, _inpt_data.tnsr.unwrap())
+                        let t_data = TData {
+                            dtype: DataKind::Tnsr,
+                            val: 0,
+                            tnsr: _inpt_data.tnsr,
+                            tnsr_2: None,
+                        };
+
+                        (true, None, t_data)
                     }
 
                     Mdl::Split1(_inpt) => {
@@ -661,7 +668,14 @@ fn check_pat(
                         let _inpt_data = &results[0].2;
                         assert!(_inpt_data.dtype == DataKind::TnsrTuple);
 
-                        (true, None, _inpt_data.tnsr_2.unwrap())
+                        let t_data = TData {
+                            dtype: DataKind::Tnsr,
+                            val: 0,
+                            tnsr: _inpt_data.tnsr_2,
+                            tnsr_2: None,
+                        };
+
+                        (true, None, t_data)
                     }
 
                     Mdl::Enlarge([_a, _b]) => {
