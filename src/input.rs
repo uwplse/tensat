@@ -141,6 +141,23 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
+    pub fn enlarge(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
+        let new_node = Mdl::Enlarge([inpt_1, inpt_2]);
+        self.rec_expr.add(new_node)
+    }
+
+    pub fn split(&mut self, axis: i32, inpt: Id) -> (Id, Id) {
+        let axis_id = self.add_or_get_val(axis);
+
+        let split_node = Mdl::Split([axis_id, inpt]);
+        let split_id = self.rec_expr.add(split_node);
+        let split_0_node = Mdl::Split0(split_id);
+        let split_0_id = self.rec_expr.add(split_0_node);
+        let split_1_node = Mdl::Split1(split_id);
+        let split_1_id = self.rec_expr.add(split_1_node);
+        (split_0_id, split_1_id)
+    }
+
     /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
     fn add_or_get_val(&mut self, val: i32) -> Id {
         match self.scalar_map.get(&val) {
