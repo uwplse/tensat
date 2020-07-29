@@ -604,7 +604,7 @@ fn check_pat(
 
 #[derive(Debug)]
 struct MapToCanonical {
-    index: i32,
+    index: usize,
     /// Mapping from variable in this pattern to variable in the canonical pattern
     var_map: HashMap<egg::Var, egg::Var>,
 }
@@ -669,7 +669,7 @@ impl MultiPatterns {
                 },
             };
             let pat_map = MapToCanonical {
-                index: pat_index.try_into().unwrap(),
+                index: pat_index,
                 var_map: pat_var_map,
             };
             pat_map
@@ -703,16 +703,76 @@ impl MultiPatterns {
 
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
 
-        // Construct hashmap to store matches for each canonicalized pattern
-
-        // Search matches for canonicalized patterns
+        // Construct Vec to store matches for each canonicalized pattern
+        let matches: Vec<Vec<SearchMatches>> = self.canonical_src_pat.iter().map(|x| x.search(&runner.egraph)).collect();
 
         // For each multi rule
-            // For each pairs of matches (subst), 
-            // if the shared variables matches, and two subst are different
-                // merge subst, check_pat on both dst, and apply_one on each, union
+        for (i, rule) in self.rules.iter().enumerate() {
+            let map_1 = &self.src_pat_maps[i].0;
+            let map_2 = &self.src_pat_maps[i].1;
+            let matches_1 = &matches[map_1.index];
+            let matches_2 = &matches[map_2.index];
+            for match_1 in matches_1 {
+                for match_2 in matches_2 {
+                    if match_1.eclass == match_2.eclass {
+                        println!("Same class");
+                        // We don't want to apply multi-pattern rules on the same eclass
+                        continue;
+                    }
+                    for subst_1 in &match_1.substs {
+                        for subst_2 in &match_2.substs {
+                            // De-canonicalize the substitutions
+                            let subst_1_dec = decanonicalize(subst_1, &map_1.var_map);
+                            let subst_2_dec = decanonicalize(subst_2, &map_2.var_map);
+                            // Check if two substitutions have matching shared variables
+                            if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
+                                // If so, merge two substitutions
+                                let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
+                                // check_pat on both dst patterns
+
+                                println!("Rule {} match", i);
+
+                                /*
+                                if check_pat(rule.2.ast.as_ref(), &runner.egraph, merged_subst).0 {
+
+                                }*/
+                                // apply dst patterns, union
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         println!("Egraph is this big: {}", runner.egraph.total_size());
         Ok(())
     }
+}
+
+fn merge_subst(subst_1: Subst, mut subst_2: Subst, var_map_1: &HashMap<egg::Var, egg::Var>) -> Subst {
+    for (var, _) in var_map_1.iter() {
+        let id_1 = subst_1.get(*var).unwrap();
+        subst_2.insert(*var, *id_1);
+    }
+    subst_2
+}
+
+fn decanonicalize(subst: &Subst, var_map: &HashMap<egg::Var, egg::Var>) -> Subst {
+    var_map.iter().fold(Default::default(), |mut new_subst, (orig_var, canonical_var)| {
+        new_subst.insert(*orig_var, *subst.get(*canonical_var).unwrap());
+        new_subst
+    })
+}
+
+/// Check if the shared variables between two substitutions point to the same eclass Id
+/// var_map_1
+fn compatible(subst_1: &Subst, subst_2: &Subst, var_map_1: &HashMap<egg::Var, egg::Var>) -> bool {
+    for (var, _) in var_map_1.iter() {
+        let id_1 = subst_1.get(*var).unwrap();
+        match subst_2.get(*var) {
+            Some(id_2) => if id_1 != id_2 { return false },
+            None => (),
+        };
+    }
+    return true;
 }
