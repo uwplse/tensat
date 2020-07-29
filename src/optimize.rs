@@ -264,6 +264,24 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             }
         }
 
+        Mdl::Enlarge([_a, _b]) => {
+            // Check types
+            let _a_data = x(_a);
+            let _b_data = x(_b);
+            assert!(_a_data.dtype == DataKind::Tnsr);
+            assert!(_b_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            unsafe {
+                let t_a = *_a_data.meta;
+                let t_b = *_b_data.meta;
+                // Get op
+                let op = (*g.model).get_or_create_enlarge(t_a, t_b);
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
         other => {
             println!("Get cost not implemented for: {:?}", other);
             0.0

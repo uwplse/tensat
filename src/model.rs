@@ -459,6 +459,26 @@ impl Analysis<Mdl> for TensorAnalysis {
                 }
             }
 
+            Mdl::Enlarge([a, b]) => {
+                // Check types
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_a = x(a).meta;
+                let t_b = x(b).meta;
+
+                // Create tensorhandle and get metadata
+                let res = unsafe { g.enlarge(t_a, t_b) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
             Mdl::Num(_n) => Self::Data {
                 dtype: DataKind::Scalar,
                 val: *_n,
