@@ -833,7 +833,6 @@ impl MultiPatterns {
             for match_1 in matches_1 {
                 for match_2 in matches_2 {
                     if match_1.eclass == match_2.eclass {
-                        println!("Same class");
                         // We don't want to apply multi-pattern rules on the same eclass
                         continue;
                     }
@@ -847,8 +846,6 @@ impl MultiPatterns {
                                 // If so, merge two substitutions
                                 let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
                                 
-                                println!("Rule {} match", i);
-
                                 // check_pat on both dst patterns
                                 if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                                     if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
@@ -857,7 +854,6 @@ impl MultiPatterns {
                                         runner.egraph.union(id_1, match_1.eclass);
                                         let id_2 = rule.3.apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)[0];
                                         runner.egraph.union(id_2, match_2.eclass);
-                                        println!("Applied");
                                     }
                                 }
                             }
@@ -866,6 +862,8 @@ impl MultiPatterns {
                 }
             }
         }
+
+        runner.egraph.rebuild();
 
         println!("Egraph is this big: {}", runner.egraph.total_size());
         Ok(())
