@@ -56,6 +56,7 @@ pub enum DataKind {
     Name,
     Scalar,
     Tnsr,
+    TnsrTuple,
 }
 
 impl Default for DataKind {
@@ -75,12 +76,15 @@ pub struct ValTnsr {
     pub name: String,
     /// The pointer to the tensor if it is a Tensor type
     pub meta: TensorHandle,
+    /// The pointer to the second tensor if it is a TnsrTuple type (for split node)
+    pub meta_2: TensorHandle,
 }
 
 impl Default for ValTnsr {
     fn default() -> Self {
         ValTnsr {
             meta: std::ptr::null_mut(),
+            meta_2: std::ptr::null_mut(),
             ..Default::default()
         }
     }
@@ -153,6 +157,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -181,6 +186,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -200,6 +206,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -219,6 +226,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -232,6 +240,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -245,6 +254,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -258,6 +268,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -280,6 +291,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -310,6 +322,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -333,6 +346,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -352,6 +366,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -385,6 +400,62 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
+            Mdl::Split([axis, inpt]) => {
+                // Check types
+                assert!(x(axis).dtype == DataKind::Scalar);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_inpt = x(inpt).meta;
+                let axis_val = x(axis).val;
+
+                // Create tensorhandle and get metadata
+                unsafe {
+                    let op = (*g.model).get_or_create_split1(t_inpt, axis, 2);
+                    g.add_edge((*t_inpt).op, op, (*t_inpt).idx, 0);
+                    let x1 = Box::new((*op.ptr).outputs[0].clone());
+                    let res = Box::into_raw(x1);
+                    let x2 = Box::new((*op.ptr).outputs[1].clone());
+                    let res_2 = Box::into_raw(x2);
+                    Self::Data {
+                        dtype: DataKind::TnsrTuple,
+                        val: 0,
+                        name: String::new(),
+                        meta: res,
+                        meta_2: res_2,
+                    }
+                }
+            }
+
+            Mdl::Split0(inpt) => {
+                // Check types
+                assert!(x(inpt).dtype == DataKind::TnsrTuple);
+
+                let res = x(inpt).meta;
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
+            Mdl::Split1(inpt) => {
+                // Check types
+                assert!(x(inpt).dtype == DataKind::TnsrTuple);
+
+                let res = x(inpt).meta_2;
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
                 }
             }
 
@@ -393,6 +464,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 val: *_n,
                 name: String::new(),
                 meta: std::ptr::null_mut(),
+                meta_2: std::ptr::null_mut(),
             },
 
             Mdl::Var(_s) => Self::Data {
@@ -400,6 +472,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 val: 0,
                 name: _s.as_str().to_string(),
                 meta: std::ptr::null_mut(),
+                meta_2: std::ptr::null_mut(),
             },
 
             other => {

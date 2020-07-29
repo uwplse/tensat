@@ -38,7 +38,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
-        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) | Mdl::Weight(_) | Mdl::Merge(_) => 0.0,
+        Mdl::Num(_) | Mdl::Var(_) | Mdl::Input(_) | Mdl::Weight(_) | Mdl::Merge(_) | Mdl::Split0(_) | Mdl::Split1(_) => 0.0,
 
         Mdl::Relu(_a) => {
             // Check types
@@ -241,6 +241,24 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                     padding,
                     activation,
                 );
+                assert!(op != Op_INVALID_OP);
+                (*op.ptr).runtime.clone()
+            }
+        }
+
+        Mdl::Split([_axis, _inpt]) => {
+            // Check types
+            let _axis_data = x(_axis);
+            let _inpt_data = x(_inpt);
+            assert!(_axis_data.dtype == DataKind::Scalar);
+            assert!(_inpt_data.dtype == DataKind::Tnsr);
+
+            // Get arguments
+            let t_inpt = _inpt_data.meta;
+            let axis = _axis_data.val;
+            unsafe {
+                // Get op
+                let op = (*g.model).get_or_create_split1(t_inpt, axis, 2);
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
             }

@@ -143,12 +143,14 @@ struct TData {
     pub dtype: DataKind,
     pub val: i32,
     pub tnsr: Option<Tensor>,
+    pub tnsr_2: Option<Tensor>,
 }
 
 impl Default for TData {
     fn default() -> Self {
         TData {
             tnsr: None,
+            tnsr_2: None,
             val: Default::default(),
             dtype: Default::default(),
         }
@@ -225,12 +227,14 @@ fn check_pat(
                     dtype: egraph[cid].data.dtype,
                     val: egraph[cid].data.val,
                     tnsr: unsafe { Some((*egraph[cid].data.meta).clone()) },
+                    tnsr_2: None,
                 }
-            } else {
+            } else { // A variable cannot refer to a TnsrTuple, so we don't need that case
                 TData {
                     dtype: egraph[cid].data.dtype,
                     val: egraph[cid].data.val,
                     tnsr: None,
+                    tnsr_2: None,
                 }
             };
             return (true, Some(cid), t_data);
@@ -276,18 +280,31 @@ fn check_pat(
                     match looked {
                         Some(id) => {
                             // Get metadata from egraph
-                            let t_data = if egraph[id].data.dtype == DataKind::Tnsr {
-                                TData {
-                                    dtype: egraph[id].data.dtype,
-                                    val: egraph[id].data.val,
-                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
-                                }
-                            } else {
-                                TData {
-                                    dtype: egraph[id].data.dtype,
-                                    val: egraph[id].data.val,
-                                    tnsr: None,
-                                }
+                            let t_data = match egraph[id].data.dtype {
+                                DataKind::Tnsr => {
+                                    TData {
+                                        dtype: egraph[id].data.dtype,
+                                        val: egraph[id].data.val,
+                                        tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                        tnsr_2: None,
+                                    }
+                                },
+                                DataKind::TnsrTuple => {
+                                    TData {
+                                        dtype: egraph[id].data.dtype,
+                                        val: egraph[id].data.val,
+                                        tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                        tnsr_2: unsafe { Some((*egraph[id].data.meta_2).clone()) },
+                                    }
+                                },
+                                _ => {
+                                    TData {
+                                        dtype: egraph[id].data.dtype,
+                                        val: egraph[id].data.val,
+                                        tnsr: None,
+                                        tnsr_2: None,
+                                    }
+                                },
                             };
                             return (true, looked, t_data);
                         }
@@ -302,6 +319,7 @@ fn check_pat(
                             dtype: DataKind::Scalar,
                             val: *_n,
                             tnsr: None,
+                            tnsr_2: None,
                         };
                         (true, None, t_data)
                     }
@@ -322,6 +340,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -344,6 +363,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -367,6 +387,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -410,6 +431,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -439,6 +461,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -468,6 +491,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -500,6 +524,7 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
@@ -554,6 +579,7 @@ fn check_pat(
                                         dtype: DataKind::Tnsr,
                                         val: 0,
                                         tnsr: Some(t),
+                                        tnsr_2: None,
                                     };
                                     (true, None, t_data)
                                 }
@@ -584,10 +610,58 @@ fn check_pat(
                                     dtype: DataKind::Tnsr,
                                     val: 0,
                                     tnsr: Some(t),
+                                    tnsr_2: None,
                                 };
                                 (true, None, t_data)
                             }
                         }
+                    }
+
+                    Mdl::Split([_axis, _inpt]) => {
+                        // Check types
+                        let _axis_data = &results[0].2;
+                        let _inpt_data = &results[1].2;
+                        assert!(_axis_data.dtype == DataKind::Scalar);
+                        assert!(_inpt_data.dtype == DataKind::Tnsr);
+
+                        // Get arguments
+                        let t_inpt = _inpt_data.tnsr.unwrap();
+                        let axis = _axis_data.val;
+
+                        // Try creating op
+                        unsafe {
+                            let op = (*g.model).get_or_create_split1(&t_inpt, axis, 2);
+                            if op == Op_INVALID_OP {
+                                let default_data: TData = Default::default();
+                                (false, None, default_data)
+                            } else {
+                                let t_1 = (*op.ptr).outputs[0].clone();
+                                let t_2 = (*op.ptr).outputs[1].clone();
+                                let t_data = TData {
+                                    dtype: DataKind::TnsrTuple,
+                                    val: 0,
+                                    tnsr: Some(t_1),
+                                    tnsr_2: Some(t_2),
+                                };
+                                (true, None, t_data)
+                            }
+                        }
+                    }
+
+                    Mdl::Split0(_inpt) => {
+                        // Check types
+                        let _inpt_data = &results[0].2;
+                        assert!(_inpt_data.dtype == DataKind::TnsrTuple);
+
+                        (true, None, _inpt_data.tnsr.unwrap())
+                    }
+
+                    Mdl::Split1(_inpt) => {
+                        // Check types
+                        let _inpt_data = &results[0].2;
+                        assert!(_inpt_data.dtype == DataKind::TnsrTuple);
+
+                        (true, None, _inpt_data.tnsr_2.unwrap())
                     }
 
                     other => {
