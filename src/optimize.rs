@@ -15,7 +15,11 @@ impl CostFunction<Mdl> for TensorCost<'_> {
     /// trait for more information on interface.
     fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
         let self_cost = get_self_cost(self.egraph, enode);
-        enode.fold(self_cost, |sum, id| sum + costs(id))
+        let total_cost = enode.fold(self_cost, |sum, id| sum + costs(id));
+        match enode {
+            Mdl::Split0(_) | Mdl::Split1(_) => total_cost/10.0,
+            _ => total_cost,
+        }
     }
 }
 

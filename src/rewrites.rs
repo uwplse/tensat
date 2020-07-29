@@ -846,15 +846,20 @@ impl MultiPatterns {
                             if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
                                 // If so, merge two substitutions
                                 let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
-                                // check_pat on both dst patterns
-
+                                
                                 println!("Rule {} match", i);
 
-                                /*
-                                if check_pat(rule.2.ast.as_ref(), &runner.egraph, merged_subst).0 {
-
-                                }*/
-                                // apply dst patterns, union
+                                // check_pat on both dst patterns
+                                if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                                    if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                                        // apply dst patterns, union
+                                        let id_1 = rule.2.apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)[0];
+                                        runner.egraph.union(id_1, match_1.eclass);
+                                        let id_2 = rule.3.apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)[0];
+                                        runner.egraph.union(id_2, match_2.eclass);
+                                        println!("Applied");
+                                    }
+                                }
                             }
                         }
                     }

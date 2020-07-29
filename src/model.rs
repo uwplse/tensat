@@ -416,6 +416,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Create tensorhandle and get metadata
                 unsafe {
                     let op = (*g.model).get_or_create_split1(t_inpt, axis_val, 2);
+                    assert!(op != Op_INVALID_OP);
                     g.add_edge((*t_inpt).op, op, (*t_inpt).idx, 0);
                     let x1 = Box::new((*op.ptr).outputs[0].clone());
                     let res = Box::into_raw(x1);

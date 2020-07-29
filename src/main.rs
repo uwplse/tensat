@@ -90,6 +90,34 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
+
+    let start = match matches.value_of("model") {
+        Some(model_name) => match model_name {
+            "resnet50" => resnet50::get_resnet50(),
+            "testnet" => testnet::get_testnet(),
+            "benchnet" => benchnet::get_benchnet(),
+            "nasrnn" => nasrnn::get_nasrnn(),
+            "resnext50" => resnext50::get_resnext50(),
+            _ => panic!("The model name is not supported"),
+        },
+        None => {
+            let model_file = matches
+                .value_of("model_file")
+                .expect("Pls supply input graph file.");
+            let input_graph =
+                read_to_string(model_file).expect("Something went wrong reading the model file");
+            input_graph.parse().unwrap()
+        }
+    };
+
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    runner_start
+        .egraph
+        .dot()
+        .to_svg("target/start.svg")
+        .unwrap();
+    let time_start = get_full_graph_runtime(&runner_start);
+    println!("Start graph runtime: {}", time_start);
 }
 
 /// Main procedure to run optimization
