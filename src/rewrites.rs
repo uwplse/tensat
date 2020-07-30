@@ -1,11 +1,10 @@
 use crate::model::*;
 use egg::{rewrite as rw, *};
+use itertools::Itertools;
 use root::taso::*;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
-use itertools::Itertools;
-use std::collections::HashMap;
-
 
 // TODO egg now provides bidirectional rules whic should cut down
 // this list in half.
@@ -229,7 +228,8 @@ fn check_pat(
                     tnsr: unsafe { Some((*egraph[cid].data.meta).clone()) },
                     tnsr_2: None,
                 }
-            } else { // A variable cannot refer to a TnsrTuple, so we don't need that case
+            } else {
+                // A variable cannot refer to a TnsrTuple, so we don't need that case
                 TData {
                     dtype: egraph[cid].data.dtype,
                     val: egraph[cid].data.val,
@@ -281,29 +281,23 @@ fn check_pat(
                         Some(id) => {
                             // Get metadata from egraph
                             let t_data = match egraph[id].data.dtype {
-                                DataKind::Tnsr => {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
-                                        tnsr_2: None,
-                                    }
+                                DataKind::Tnsr => TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                    tnsr_2: None,
                                 },
-                                DataKind::TnsrTuple => {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
-                                        tnsr_2: unsafe { Some((*egraph[id].data.meta_2).clone()) },
-                                    }
+                                DataKind::TnsrTuple => TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                    tnsr_2: unsafe { Some((*egraph[id].data.meta_2).clone()) },
                                 },
-                                _ => {
-                                    TData {
-                                        dtype: egraph[id].data.dtype,
-                                        val: egraph[id].data.val,
-                                        tnsr: None,
-                                        tnsr_2: None,
-                                    }
+                                _ => TData {
+                                    dtype: egraph[id].data.dtype,
+                                    val: egraph[id].data.val,
+                                    tnsr: None,
+                                    tnsr_2: None,
                                 },
                             };
                             return (true, looked, t_data);
@@ -719,11 +713,12 @@ fn check_pat(
     };
 }
 
-
+/// Struct for storing information on how each pattern maps to its canonical version
 #[derive(Debug)]
 struct MapToCanonical {
+    /// Index into MultiPatterns.canonical_src_pat. Points to the canonical version.
     index: usize,
-    /// Mapping from variable in this pattern to variable in the canonical pattern
+    /// Mapping from variable in this pattern to variable in the canonical pattern.
     var_map: HashMap<egg::Var, egg::Var>,
 }
 
@@ -731,60 +726,43 @@ struct MapToCanonical {
 /// applying the rewrite.
 #[derive(Debug)]
 pub struct MultiPatterns {
-    // slice of (src_1, src_2, dst_1, dst_2)
+    /// Vec of (src_1, src_2, dst_1, dst_2)
     rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>,
+    /// Vec of all unique canonical source patterns (for src_1's and src_2's)
     canonical_src_pat: Vec<Pattern<Mdl>>,
+    /// Mapping information for each src pattern. The order is the same as in rules
     src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
 }
 
-fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var>) {
-    let mut var_map = HashMap::<egg::Var, egg::Var>::new();
-    let mut count = 0;
-    let substituted: Vec<_> = pat.ast.as_ref().iter().cloned().map(|x| {
-        match x {
-            ENodeOrVar::ENode(_) => x,
-            ENodeOrVar::Var(v) => {
-                match var_map.get(&v) {
-                    Some(var) => ENodeOrVar::Var(*var),
-                    None => {
-                        let name = format!("?i_{}", count);
-                        count += 1;
-                        let new_var: egg::Var = name.parse().unwrap();
-                        let new_node = ENodeOrVar::Var(new_var);
-                        var_map.insert(v, new_var);
-                        new_node
-                    },
-                }
-            },
-        }
-    }).collect();
-
-    let ast = RecExpr::from(substituted);
-    let canonical_pat = Pattern::<Mdl>::from(ast);
-    (canonical_pat, var_map)
-}
-
-
 impl MultiPatterns {
+    /// Construct a MultiPatterns with rules. Each multi-pattern rule contains two matched outputs.
+    ///
+    /// # Parameters
+    ///
+    /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
     pub fn with_rules(rules: Vec<&str>) -> MultiPatterns {
-        // Multi-pattern rules should come in pairs, every two entries belong to one rule
         assert!(rules.len() % 2 == 0);
 
-        let mut multi_rules = Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
+        let mut multi_rules =
+            Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
         let mut canonical_pats = Vec::<Pattern<Mdl>>::new();
         let mut src_pat_maps = Vec::<(MapToCanonical, MapToCanonical)>::new();
 
         let mut canonicalize_and_add = |pat: &Pattern<Mdl>| {
             let (pat_canonical, pat_var_map) = canonicalize(pat);
             let index_found = canonical_pats.iter().enumerate().find_map(|(i, pattern)| {
-                if *pattern == pat_canonical { Some(i) } else { None }
+                if *pattern == pat_canonical {
+                    Some(i)
+                } else {
+                    None
+                }
             });
             let pat_index = match index_found {
                 Some(i) => i,
                 None => {
                     canonical_pats.push(pat_canonical);
                     canonical_pats.len() - 1
-                },
+                }
             };
             let pat_map = MapToCanonical {
                 index: pat_index,
@@ -794,13 +772,16 @@ impl MultiPatterns {
         };
 
         let get_pats = |rule: &str| {
-            rule.split("=>").map(|x| x.parse().unwrap()).next_tuple().unwrap()
+            rule.split("=>")
+                .map(|x| x.parse().unwrap())
+                .next_tuple()
+                .unwrap()
         };
 
-        for i in 0..(rules.len()/2) {
-            let (src_1, dst_1) = get_pats(rules[2*i]);
-            let (src_2, dst_2) = get_pats(rules[2*i+1]);
-            
+        for i in 0..(rules.len() / 2) {
+            let (src_1, dst_1) = get_pats(rules[2 * i]);
+            let (src_2, dst_2) = get_pats(rules[2 * i + 1]);
+
             let src_1_map = canonicalize_and_add(&src_1);
             let src_2_map = canonicalize_and_add(&src_2);
 
@@ -809,20 +790,27 @@ impl MultiPatterns {
         }
 
         println!("Number of canonicalized {:?}", canonical_pats.len());
-        println!("{:?}", canonical_pats[0].pretty(100));
-        println!("{:?}", canonical_pats[1].pretty(100));
 
         MultiPatterns {
-             rules: multi_rules, 
-             canonical_src_pat: canonical_pats,
-             src_pat_maps: src_pat_maps,
+            rules: multi_rules,
+            canonical_src_pat: canonical_pats,
+            src_pat_maps: src_pat_maps,
         }
     }
 
+    /// Search and apply all multi-pattern rules for one iteration
+    ///
+    /// This function is used as hook function to egg::Runner. It first searches for matches
+    /// of all canonicalized source patterns. Then for all compatible substitutions found,
+    /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
+    /// the same eclass. It always returns Ok()
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
-
         // Construct Vec to store matches for each canonicalized pattern
-        let matches: Vec<Vec<SearchMatches>> = self.canonical_src_pat.iter().map(|x| x.search(&runner.egraph)).collect();
+        let matches: Vec<Vec<SearchMatches>> = self
+            .canonical_src_pat
+            .iter()
+            .map(|x| x.search(&runner.egraph))
+            .collect();
 
         // For each multi rule
         for (i, rule) in self.rules.iter().enumerate() {
@@ -844,15 +832,32 @@ impl MultiPatterns {
                             // Check if two substitutions have matching shared variables
                             if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
                                 // If so, merge two substitutions
-                                let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
-                                
+                                let merged_subst =
+                                    merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
+
                                 // check_pat on both dst patterns
-                                if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
-                                    if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                                if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst)
+                                    .0
+                                {
+                                    if check_pat(
+                                        rule.3.ast.as_ref(),
+                                        &mut runner.egraph,
+                                        &merged_subst,
+                                    )
+                                    .0
+                                    {
                                         // apply dst patterns, union
-                                        let id_1 = rule.2.apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)[0];
+                                        let id_1 = rule.2.apply_one(
+                                            &mut runner.egraph,
+                                            match_1.eclass,
+                                            &merged_subst,
+                                        )[0];
                                         runner.egraph.union(id_1, match_1.eclass);
-                                        let id_2 = rule.3.apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)[0];
+                                        let id_2 = rule.3.apply_one(
+                                            &mut runner.egraph,
+                                            match_2.eclass,
+                                            &merged_subst,
+                                        )[0];
                                         runner.egraph.union(id_2, match_2.eclass);
                                     }
                                 }
@@ -864,13 +869,68 @@ impl MultiPatterns {
         }
 
         runner.egraph.rebuild();
-
-        println!("Egraph is this big: {}", runner.egraph.total_size());
         Ok(())
     }
 }
 
-fn merge_subst(subst_1: Subst, mut subst_2: Subst, var_map_1: &HashMap<egg::Var, egg::Var>) -> Subst {
+/// Canonicalize a pattern
+///
+/// This function constructs a canonicalized pattern for a given pattern. It sequentially
+/// replaces each unique variable with ?i_0, ?i_1 ...
+///
+/// # Parameters
+///
+/// - `pat`: the pattern to canonicalize. See egg::Pattern for more info
+///
+/// # Returns
+///
+/// - Pattern<Mdl>: the canonicalized pattern
+/// - HashMap<egg::Var, egg::Var>: Mapping from variable in the original pattern to
+///     variable in the canonical pattern.
+fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var>) {
+    let mut var_map = HashMap::<egg::Var, egg::Var>::new();
+    let mut count = 0;
+    let substituted: Vec<_> = pat
+        .ast
+        .as_ref()
+        .iter()
+        .cloned()
+        .map(|x| match x {
+            ENodeOrVar::ENode(_) => x,
+            ENodeOrVar::Var(v) => match var_map.get(&v) {
+                Some(var) => ENodeOrVar::Var(*var),
+                None => {
+                    let name = format!("?i_{}", count);
+                    count += 1;
+                    let new_var: egg::Var = name.parse().unwrap();
+                    let new_node = ENodeOrVar::Var(new_var);
+                    var_map.insert(v, new_var);
+                    new_node
+                }
+            },
+        })
+        .collect();
+
+    let ast = RecExpr::from(substituted);
+    let canonical_pat = Pattern::<Mdl>::from(ast);
+    (canonical_pat, var_map)
+}
+
+/// Merge two substitutions
+///
+/// This function merges two substitutions. The merged one contains substitutions (egg::Var -> Id)
+/// from both input substitutions.
+///
+/// # Parameters
+///
+/// - `subst_1`: substitution to be merged
+/// - `subst_2`: substitution to be merged
+/// - `var_map_1`: the keys of this map should be all Var in subst_1. It is just for providing the Vars
+fn merge_subst(
+    subst_1: Subst,
+    mut subst_2: Subst,
+    var_map_1: &HashMap<egg::Var, egg::Var>,
+) -> Subst {
     for (var, _) in var_map_1.iter() {
         let id_1 = subst_1.get(*var).unwrap();
         subst_2.insert(*var, *id_1);
@@ -878,20 +938,46 @@ fn merge_subst(subst_1: Subst, mut subst_2: Subst, var_map_1: &HashMap<egg::Var,
     subst_2
 }
 
+/// Decanonicalize a substitution
+///
+/// Create a decanonicalized substitution by replacing the variables in the canonical substitution
+/// with the original variables
+///
+/// # Parameters
+///
+/// - `subst`: The substitution using the canonicalized variables
+/// - `var_map`: Mapping from variable in the original pattern to variable in the canonical pattern.
 fn decanonicalize(subst: &Subst, var_map: &HashMap<egg::Var, egg::Var>) -> Subst {
-    var_map.iter().fold(Default::default(), |mut new_subst, (orig_var, canonical_var)| {
-        new_subst.insert(*orig_var, *subst.get(*canonical_var).unwrap());
-        new_subst
-    })
+    var_map.iter().fold(
+        Default::default(),
+        |mut new_subst, (orig_var, canonical_var)| {
+            new_subst.insert(*orig_var, *subst.get(*canonical_var).unwrap());
+            new_subst
+        },
+    )
 }
 
-/// Check if the shared variables between two substitutions point to the same eclass Id
-/// var_map_1
+/// Check if the shared variables between two substitutions point to the same eclass Id.
+///
+/// # Parameters
+///
+/// - `subst_1`: substitution to be checked
+/// - `subst_2`: substitution to be checked
+/// - `var_map_1`: the keys of this map should be all Var in subst_1. It is just for providing the Vars
+///
+/// # Returns
+///
+///   Return true if all corresponding shared variables between two substitutions point to the
+///   same eclass Id's.
 fn compatible(subst_1: &Subst, subst_2: &Subst, var_map_1: &HashMap<egg::Var, egg::Var>) -> bool {
     for (var, _) in var_map_1.iter() {
         let id_1 = subst_1.get(*var).unwrap();
         match subst_2.get(*var) {
-            Some(id_2) => if id_1 != id_2 { return false },
+            Some(id_2) => {
+                if id_1 != id_2 {
+                    return false;
+                }
+            }
             None => (),
         };
     }

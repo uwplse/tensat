@@ -1,14 +1,13 @@
 use crate::{input::*, model::*};
 use egg::*;
 
-
 /// Gets the RecExpr of a resnet50 model
 pub fn get_testnet() -> RecExpr<Mdl> {
     // Step 1: create a GraphConverter instance, and a NameGen to generate new names
     let mut graph = GraphConverter::default();
 
     if true {
-         // Step 2: define the graph, in a TF/Pytorch like style
+        // Step 2: define the graph, in a TF/Pytorch like style
         let input = graph.new_input(&[1, 64, 56, 56]);
         let w1 = graph.new_weight(&[12, 64, 3, 3]);
         let w2 = graph.new_weight(&[12, 64, 5, 5]);
@@ -22,7 +21,7 @@ pub fn get_testnet() -> RecExpr<Mdl> {
         );
         let tmp3 = graph.add(tmp, tmp2);
     } else {
-         // Step 2: define the graph, in a TF/Pytorch like style
+        // Step 2: define the graph, in a TF/Pytorch like style
         let input = graph.new_input(&[1, 64, 56, 56]);
         let w1 = graph.new_weight(&[12, 64, 3, 3]);
         let w2 = graph.new_weight(&[12, 64, 5, 5]);

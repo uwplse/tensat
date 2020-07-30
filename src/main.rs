@@ -162,7 +162,8 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Get input graph and rules
     // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
-    let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+    let learned_rules =
+        read_to_string(rule_file).expect("Something went wrong reading the rule file");
     let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
     let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
     let rules = rules_from_str(split_rules);
@@ -189,22 +190,22 @@ fn optimize(matches: clap::ArgMatches) {
     // Get multi-pattern rules. learned_rules are the learned rules from TASO, pre_defined_multi are the hand-specified rules from TASO
     let multi_patterns = match matches.value_of("multi_rules") {
         Some(rule_file) => {
-            let learned_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
+            let learned_rules =
+                read_to_string(rule_file).expect("Something went wrong reading the rule file");
             let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
-            let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
+            let multi_rules: Vec<&str> =
+                learned_rules.split("\n").chain(pre_defined_multi).collect();
             MultiPatterns::with_rules(multi_rules)
-        },
+        }
         None => {
             let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
             MultiPatterns::with_rules(multi_rules)
-        },
+        }
     };
 
     // Run saturation
     let time_limit_sec = match matches.value_of("n_sec") {
-        Some(s) => {
-            Duration::new(s.parse::<u64>().unwrap(), 0)
-        },
+        Some(s) => Duration::new(s.parse::<u64>().unwrap(), 0),
         None => Duration::new(10, 0),
     };
     let iter_limit = match matches.value_of("n_iter") {
@@ -214,15 +215,15 @@ fn optimize(matches: clap::ArgMatches) {
 
     let runner = if use_multi {
         Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(time_limit_sec)
-        .with_iter_limit(iter_limit)
-        .with_expr(&start)
-        .with_hook(move |runner| multi_patterns.run_one(runner))
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
+            .with_hook(move |runner| multi_patterns.run_one(runner))
     } else {
         Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(time_limit_sec)
-        .with_iter_limit(iter_limit)
-        .with_expr(&start)
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
     };
     let start_time = Instant::now();
     let runner = runner.run(&rules[..]);
@@ -251,15 +252,17 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extractor complete!");
     println!("  Time taken: {:?}", duration);
     println!("  Best cost: {:?}", best_cost);
-
-    println!("{:?}", best.pretty(10000));
-
+    
     // Evaluation starting and extracted graph runtime, save graphs
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
-    
+
     if save_graph != "none" {
-        runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
+        runner_start
+            .egraph
+            .dot()
+            .to_svg("target/start.svg")
+            .unwrap();
         runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     }
 
