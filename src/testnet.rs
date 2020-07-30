@@ -7,7 +7,7 @@ pub fn get_testnet() -> RecExpr<Mdl> {
     // Step 1: create a GraphConverter instance, and a NameGen to generate new names
     let mut graph = GraphConverter::default();
 
-    if false {
+    if true {
          // Step 2: define the graph, in a TF/Pytorch like style
         let input = graph.new_input(&[1, 64, 56, 56]);
         let w1 = graph.new_weight(&[12, 64, 3, 3]);
