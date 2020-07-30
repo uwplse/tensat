@@ -73,6 +73,18 @@ fn main() {
                 .long("use_multi")
                 .help("Set this flag will enable use of multi-pattern rules"),
         )
+        .arg(
+            Arg::with_name("n_iter")
+                .long("n_iter")
+                .takes_value(true)
+                .help("Max number of iterations for egg to run"),
+        )
+        .arg(
+            Arg::with_name("n_sec")
+                .long("n_sec")
+                .takes_value(true)
+                .help("Max number of seconds for egg to run"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -189,8 +201,16 @@ fn optimize(matches: clap::ArgMatches) {
     };
 
     // Run saturation
-    let time_limit_sec = Duration::new(10, 0);
-    let iter_limit = 2;
+    let time_limit_sec = match matches.value_of("n_sec") {
+        Some(s) => {
+            Duration::new(s.parse::<u64>().unwrap(), 0)
+        },
+        None => Duration::new(10, 0),
+    };
+    let iter_limit = match matches.value_of("n_iter") {
+        Some(s) => s.parse::<usize>().unwrap(),
+        None => 3,
+    };
 
     let runner = if use_multi {
         Runner::<Mdl, TensorAnalysis, ()>::default()
@@ -232,23 +252,22 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Time taken: {:?}", duration);
     println!("  Best cost: {:?}", best_cost);
 
+    println!("{:?}", best.pretty(10000));
+
     // Evaluation starting and extracted graph runtime, save graphs
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
+    
+    if save_graph != "none" {
+        runner_start.egraph.dot().to_svg("target/start.svg").unwrap();
+        runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
+    }
+
     let time_start = get_full_graph_runtime(&runner_start);
     println!("Start graph runtime: {}", time_start);
 
-    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
     let time_ext = get_full_graph_runtime(&runner_ext);
     println!("Extracted graph runtime: {}", time_ext);
-
-    if save_graph != "none" {
-        runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
-        runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
-    }
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
