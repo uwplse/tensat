@@ -117,14 +117,12 @@ fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
     let start = match matches.value_of("model") {
-        Some(model_name) => match model_name {
-            "resnet50" => resnet50::get_resnet50(),
-            "testnet" => testnet::get_testnet(),
-            "benchnet" => benchnet::get_benchnet(),
-            "nasrnn" => nasrnn::get_nasrnn(),
-            "resnext50" => resnext50::get_resnext50(),
-            _ => panic!("The model name is not supported"),
-        },
+        Some("resnet50") => resnet50::get_resnet50(),
+        Some("testnet") => testnet::get_testnet(),
+        Some("benchnet") => benchnet::get_benchnet(),
+        Some("nasrnn") => nasrnn::get_nasrnn(),
+        Some("resnext50") => resnext50::get_resnext50(),
+        Some(_) => panic!("The model name is not supported"),
         None => {
             let model_file = matches
                 .value_of("model_file")
@@ -169,14 +167,12 @@ fn optimize(matches: clap::ArgMatches) {
     let rules = rules_from_str(split_rules);
 
     let start = match matches.value_of("model") {
-        Some(model_name) => match model_name {
-            "resnet50" => resnet50::get_resnet50(),
-            "testnet" => testnet::get_testnet(),
-            "benchnet" => benchnet::get_benchnet(),
-            "nasrnn" => nasrnn::get_nasrnn(),
-            "resnext50" => resnext50::get_resnext50(),
-            _ => panic!("The model name is not supported"),
-        },
+        Some("resnet50") => resnet50::get_resnet50(),
+        Some("testnet") => testnet::get_testnet(),
+        Some("benchnet") => benchnet::get_benchnet(),
+        Some("nasrnn") => nasrnn::get_nasrnn(),
+        Some("resnext50") => resnext50::get_resnext50(),
+        Some(_) => panic!("The model name is not supported"),
         None => {
             let model_file = matches
                 .value_of("model_file")
@@ -187,31 +183,27 @@ fn optimize(matches: clap::ArgMatches) {
         }
     };
 
-    // Get multi-pattern rules. learned_rules are the learned rules from TASO, pre_defined_multi are the hand-specified rules from TASO
-    let multi_patterns = match matches.value_of("multi_rules") {
-        Some(rule_file) => {
-            let learned_rules =
-                read_to_string(rule_file).expect("Something went wrong reading the rule file");
-            let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
-            let multi_rules: Vec<&str> =
-                learned_rules.split("\n").chain(pre_defined_multi).collect();
-            MultiPatterns::with_rules(multi_rules)
-        }
-        None => {
-            let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
-            MultiPatterns::with_rules(multi_rules)
-        }
+    // Get multi-pattern rules. learned_rules are the learned rules from TASO,
+    // pre_defined_multi are the hand-specified rules from TASO
+    let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
+        let learned_rules =
+            read_to_string(rule_file).expect("Something went wrong reading the rule file");
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
+        let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
+        MultiPatterns::with_rules(multi_rules)
+    } else {
+        let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
+        MultiPatterns::with_rules(multi_rules)
     };
 
     // Run saturation
-    let time_limit_sec = match matches.value_of("n_sec") {
-        Some(s) => Duration::new(s.parse::<u64>().unwrap(), 0),
-        None => Duration::new(10, 0),
-    };
-    let iter_limit = match matches.value_of("n_iter") {
-        Some(s) => s.parse::<usize>().unwrap(),
-        None => 3,
-    };
+    let n_sec = matches
+        .value_of("n_sec")
+        .map_or(10, |s| s.parse::<u64>().unwrap());
+    let time_limit_sec = Duration::new(n_sec, 0);
+    let iter_limit = matches
+        .value_of("n_iter")
+        .map_or(3, |s| s.parse::<usize>().unwrap());
 
     let runner = if use_multi {
         Runner::<Mdl, TensorAnalysis, ()>::default()
@@ -252,7 +244,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extractor complete!");
     println!("  Time taken: {:?}", duration);
     println!("  Best cost: {:?}", best_cost);
-    
+
     // Evaluation starting and extracted graph runtime, save graphs
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);

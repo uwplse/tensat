@@ -750,25 +750,18 @@ impl MultiPatterns {
 
         let mut canonicalize_and_add = |pat: &Pattern<Mdl>| {
             let (pat_canonical, pat_var_map) = canonicalize(pat);
-            let index_found = canonical_pats.iter().enumerate().find_map(|(i, pattern)| {
-                if *pattern == pat_canonical {
-                    Some(i)
-                } else {
-                    None
-                }
-            });
-            let pat_index = match index_found {
-                Some(i) => i,
-                None => {
+
+            let index_found = canonical_pats.iter().position(|x| *x == pat_canonical);
+            let pat_index = index_found
+                .or_else(|| {
                     canonical_pats.push(pat_canonical);
-                    canonical_pats.len() - 1
-                }
-            };
-            let pat_map = MapToCanonical {
+                    Some(canonical_pats.len() - 1)
+                })
+                .unwrap();
+            MapToCanonical {
                 index: pat_index,
                 var_map: pat_var_map,
-            };
-            pat_map
+            }
         };
 
         let get_pats = |rule: &str| {
@@ -824,52 +817,54 @@ impl MultiPatterns {
                         // We don't want to apply multi-pattern rules on the same eclass
                         continue;
                     }
-                    for subst_1 in &match_1.substs {
-                        for subst_2 in &match_2.substs {
-                            // De-canonicalize the substitutions
-                            let subst_1_dec = decanonicalize(subst_1, &map_1.var_map);
-                            let subst_2_dec = decanonicalize(subst_2, &map_2.var_map);
-                            // Check if two substitutions have matching shared variables
-                            if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
-                                // If so, merge two substitutions
-                                let merged_subst =
-                                    merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
-
-                                // check_pat on both dst patterns
-                                if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst)
-                                    .0
-                                {
-                                    if check_pat(
-                                        rule.3.ast.as_ref(),
-                                        &mut runner.egraph,
-                                        &merged_subst,
-                                    )
-                                    .0
-                                    {
-                                        // apply dst patterns, union
-                                        let id_1 = rule.2.apply_one(
-                                            &mut runner.egraph,
-                                            match_1.eclass,
-                                            &merged_subst,
-                                        )[0];
-                                        runner.egraph.union(id_1, match_1.eclass);
-                                        let id_2 = rule.3.apply_one(
-                                            &mut runner.egraph,
-                                            match_2.eclass,
-                                            &merged_subst,
-                                        )[0];
-                                        runner.egraph.union(id_2, match_2.eclass);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                 }
             }
         }
 
         runner.egraph.rebuild();
         Ok(())
+    }
+
+    /// Apply a rule with a pair of matches for its src patterns
+    fn apply_match_pair(
+        &self,
+        rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>),
+        match_1: &SearchMatches,
+        match_2: &SearchMatches,
+        map_1: &MapToCanonical,
+        map_2: &MapToCanonical,
+        runner: &mut Runner<Mdl, TensorAnalysis, ()>,
+    ) {
+        for subst_1 in &match_1.substs {
+            for subst_2 in &match_2.substs {
+                // De-canonicalize the substitutions
+                let subst_1_dec = decanonicalize(subst_1, &map_1.var_map);
+                let subst_2_dec = decanonicalize(subst_2, &map_2.var_map);
+                // Check if two substitutions have matching shared variables
+                if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
+                    // If so, merge two substitutions
+                    let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
+
+                    // check_pat on both dst patterns
+                    if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                        if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                            // apply dst patterns, union
+                            let id_1 =
+                                rule.2
+                                    .apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)
+                                    [0];
+                            runner.egraph.union(id_1, match_1.eclass);
+                            let id_2 =
+                                rule.3
+                                    .apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)
+                                    [0];
+                            runner.egraph.union(id_2, match_2.eclass);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -903,9 +898,8 @@ fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var
                     let name = format!("?i_{}", count);
                     count += 1;
                     let new_var: egg::Var = name.parse().unwrap();
-                    let new_node = ENodeOrVar::Var(new_var);
                     var_map.insert(v, new_var);
-                    new_node
+                    ENodeOrVar::Var(new_var)
                 }
             },
         })
@@ -972,14 +966,11 @@ fn decanonicalize(subst: &Subst, var_map: &HashMap<egg::Var, egg::Var>) -> Subst
 fn compatible(subst_1: &Subst, subst_2: &Subst, var_map_1: &HashMap<egg::Var, egg::Var>) -> bool {
     for (var, _) in var_map_1.iter() {
         let id_1 = subst_1.get(*var).unwrap();
-        match subst_2.get(*var) {
-            Some(id_2) => {
-                if id_1 != id_2 {
-                    return false;
-                }
+        if let Some(id_2) = subst_2.get(*var) {
+            if id_1 != id_2 {
+                return false;
             }
-            None => (),
-        };
+        }
     }
     return true;
 }
