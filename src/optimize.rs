@@ -44,7 +44,9 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
         | Mdl::Weight(_)
         | Mdl::Merge(_)
         | Mdl::Split0(_)
-        | Mdl::Split1(_) => 0.0,
+        | Mdl::Split1(_)
+        | Mdl::Reshape(_)
+        | Mdl::Transpose(_) => 0.0,
 
         Mdl::Relu(_a) => {
             // Check types
