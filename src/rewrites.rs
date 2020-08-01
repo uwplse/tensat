@@ -892,15 +892,13 @@ fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var
         .cloned()
         .map(|x| match x {
             ENodeOrVar::ENode(_) => x,
-            ENodeOrVar::Var(v) => match var_map.get(&v) {
-                Some(var) => ENodeOrVar::Var(*var),
-                None => {
+            ENodeOrVar::Var(v) => {
+                let var = var_map.entry(v).or_insert_with(|| {
                     let name = format!("?i_{}", count);
                     count += 1;
-                    let new_var: egg::Var = name.parse().unwrap();
-                    var_map.insert(v, new_var);
-                    ENodeOrVar::Var(new_var)
-                }
+                    name.parse().unwrap()
+                });
+                ENodeOrVar::Var(*var)
             },
         })
         .collect();
@@ -942,13 +940,11 @@ fn merge_subst(
 /// - `subst`: The substitution using the canonicalized variables
 /// - `var_map`: Mapping from variable in the original pattern to variable in the canonical pattern.
 fn decanonicalize(subst: &Subst, var_map: &HashMap<egg::Var, egg::Var>) -> Subst {
-    var_map.iter().fold(
-        Default::default(),
-        |mut new_subst, (orig_var, canonical_var)| {
-            new_subst.insert(*orig_var, *subst.get(*canonical_var).unwrap());
-            new_subst
-        },
-    )
+    let mut new_subst: Subst = Default::default();
+    for (orig_var, canonical_var) in var_map.iter() {
+        new_subst.insert(*orig_var, *subst.get(*canonical_var).unwrap());
+    }
+    new_subst
 }
 
 /// Check if the shared variables between two substitutions point to the same eclass Id.
