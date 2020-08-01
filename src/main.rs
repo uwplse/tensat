@@ -206,6 +206,8 @@ fn optimize(matches: clap::ArgMatches) {
         .map_or(3, |s| s.parse::<usize>().unwrap());
 
     let runner = if use_multi {
+        // This hook function (which applies the multi-pattern rules) will be called at the
+        // beginning of each iteration in equality saturation
         Runner::<Mdl, TensorAnalysis, ()>::default()
             .with_time_limit(time_limit_sec)
             .with_iter_limit(iter_limit)

@@ -899,7 +899,7 @@ fn canonicalize(pat: &Pattern<Mdl>) -> (Pattern<Mdl>, HashMap<egg::Var, egg::Var
                     name.parse().unwrap()
                 });
                 ENodeOrVar::Var(*var)
-            },
+            }
         })
         .collect();
 

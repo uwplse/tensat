@@ -421,8 +421,8 @@ impl Analysis<Mdl> for TensorAnalysis {
                     assert!(op != Op_INVALID_OP);
                     g.add_edge((*t_inpt).op, op, (*t_inpt).idx, 0);
                     let x1 = Box::new((*op.ptr).outputs[0].clone());
-                    let res = Box::into_raw(x1);
-                    (*res).op = op;
+                    let res_1 = Box::into_raw(x1);
+                    (*res_1).op = op;
                     let x2 = Box::new((*op.ptr).outputs[1].clone());
                     let res_2 = Box::into_raw(x2);
                     (*res_2).op = op;
@@ -430,7 +430,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                         dtype: DataKind::TnsrTuple,
                         val: 0,
                         name: String::new(),
-                        meta: res,
+                        meta: res_1,
                         meta_2: res_2,
                     }
                 }
