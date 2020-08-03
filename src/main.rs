@@ -53,6 +53,38 @@ fn main() {
                 .takes_value(true)
                 .help("Provide a file with the input model"),
         )
+        .arg(
+            Arg::with_name("multi_rules")
+                .short("t")
+                .long("multi_rules")
+                .takes_value(true)
+                .help("File with multi-pattern rules. Every two lines belong to one multi-pattern rule"),
+        )
+        .arg(
+            Arg::with_name("save_graph")
+                .short("s")
+                .long("save_graph")
+                .takes_value(true)
+                .help("Whether to save graphs as dot files. Can be: all, io, none"),
+        )
+        .arg(
+            Arg::with_name("use_multi")
+                .short("u")
+                .long("use_multi")
+                .help("Set this flag will enable use of multi-pattern rules"),
+        )
+        .arg(
+            Arg::with_name("n_iter")
+                .long("n_iter")
+                .takes_value(true)
+                .help("Max number of iterations for egg to run"),
+        )
+        .arg(
+            Arg::with_name("n_sec")
+                .long("n_sec")
+                .takes_value(true)
+                .help("Max number of seconds for egg to run"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -62,12 +94,12 @@ fn main() {
         "optimize" => optimize(matches),
         "verify" => prove_taso_rules(matches),
         "test" => test(matches),
-        "convert" => convert_rw_rules(matches),
+        "convert" => convert_learned_rules(matches),
         _ => panic!("Running mode not supported"),
     }
 }
 
-fn convert_rw_rules(matches: clap::ArgMatches) {
+fn convert_learned_rules(matches: clap::ArgMatches) {
     env_logger::init();
 
     let file = matches
@@ -84,42 +116,13 @@ fn convert_rw_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     env_logger::init();
 
-    let start = nasrnn::get_nasrnn();
-
-    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    println!("Runner complete!");
-    runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
-}
-
-/// Main procedure to run optimization
-///
-/// Gets input graph and rewrite rules; runs saturation with TensorAnalysis dealing with metadata; runs
-/// greedy extraction with TensorCost getting the cost per node/op; evaluates
-/// full graph runtime of the starting graph and extracted graph.
-fn optimize(matches: clap::ArgMatches) {
-    env_logger::init();
-
-    // Get input graph and rules
-    let rule_file = matches
-        .value_of("rules")
-        .expect("Pls supply rewrite rules file.");
-    // rw_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
-    let rw_rules = read_to_string(rule_file).expect("Something went wrong reading the rule file");
-    let split_rules: Vec<&str> = rw_rules.split("\n").chain(pre_defined_rules()).collect();
-
     let start = match matches.value_of("model") {
-        Some(model_name) => match model_name {
-            "resnet50" => resnet50::get_resnet50(),
-            "testnet" => testnet::get_testnet(),
-            "benchnet" => benchnet::get_benchnet(),
-            "nasrnn" => nasrnn::get_nasrnn(),
-            "resnext50" => resnext50::get_resnext50(),
-            _ => panic!("The model name is not supported"),
-        },
+        Some("resnet50") => resnet50::get_resnet50(),
+        Some("testnet") => testnet::get_testnet(),
+        Some("benchnet") => benchnet::get_benchnet(),
+        Some("nasrnn") => nasrnn::get_nasrnn(),
+        Some("resnext50") => resnext50::get_resnext50(),
+        Some(_) => panic!("The model name is not supported"),
         None => {
             let model_file = matches
                 .value_of("model_file")
@@ -130,16 +133,92 @@ fn optimize(matches: clap::ArgMatches) {
         }
     };
 
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    runner_start
+        .egraph
+        .dot()
+        .to_svg("target/start.svg")
+        .unwrap();
+    let time_start = get_full_graph_runtime(&runner_start);
+    println!("Start graph runtime: {}", time_start);
+}
+
+/// Main procedure to run optimization
+///
+/// Gets input graph and rewrite rules; runs saturation with TensorAnalysis dealing with metadata; runs
+/// greedy extraction with TensorCost getting the cost per node/op; evaluates
+/// full graph runtime of the starting graph and extracted graph.
+fn optimize(matches: clap::ArgMatches) {
+    env_logger::init();
+
+    // Read settings from args
+    let rule_file = matches
+        .value_of("rules")
+        .expect("Pls supply rewrite rules file.");
+    let save_graph = matches.value_of("save_graph").unwrap_or("all");
+    let use_multi = matches.is_present("use_multi");
+
+    // Get input graph and rules
+    // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
+    let learned_rules =
+        read_to_string(rule_file).expect("Something went wrong reading the rule file");
+    let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
+    let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
     let rules = rules_from_str(split_rules);
 
-    // Run saturation
-    let time_limit_sec = Duration::new(10, 0);
-    let iter_limit = 10;
+    let start = match matches.value_of("model") {
+        Some("resnet50") => resnet50::get_resnet50(),
+        Some("testnet") => testnet::get_testnet(),
+        Some("benchnet") => benchnet::get_benchnet(),
+        Some("nasrnn") => nasrnn::get_nasrnn(),
+        Some("resnext50") => resnext50::get_resnext50(),
+        Some(_) => panic!("The model name is not supported"),
+        None => {
+            let model_file = matches
+                .value_of("model_file")
+                .expect("Pls supply input graph file.");
+            let input_graph =
+                read_to_string(model_file).expect("Something went wrong reading the model file");
+            input_graph.parse().unwrap()
+        }
+    };
 
-    let runner = Runner::<Mdl, TensorAnalysis, ()>::default()
-        .with_time_limit(time_limit_sec)
-        .with_iter_limit(iter_limit)
-        .with_expr(&start);
+    // Get multi-pattern rules. learned_rules are the learned rules from TASO,
+    // pre_defined_multi are the hand-specified rules from TASO
+    let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
+        let learned_rules =
+            read_to_string(rule_file).expect("Something went wrong reading the rule file");
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
+        let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
+        MultiPatterns::with_rules(multi_rules)
+    } else {
+        let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
+        MultiPatterns::with_rules(multi_rules)
+    };
+
+    // Run saturation
+    let n_sec = matches
+        .value_of("n_sec")
+        .map_or(10, |s| s.parse::<u64>().unwrap());
+    let time_limit_sec = Duration::new(n_sec, 0);
+    let iter_limit = matches
+        .value_of("n_iter")
+        .map_or(3, |s| s.parse::<usize>().unwrap());
+
+    let runner = if use_multi {
+        // This hook function (which applies the multi-pattern rules) will be called at the
+        // beginning of each iteration in equality saturation
+        Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
+            .with_hook(move |runner| multi_patterns.run_one(runner))
+    } else {
+        Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
+    };
     let start_time = Instant::now();
     let runner = runner.run(&rules[..]);
     let duration = start_time.elapsed();
@@ -149,10 +228,13 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Classes: {}", runner.egraph.number_of_classes());
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
+    println!("  Number of iterations: {:?}", runner.iterations.len());
 
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
-    egraph.dot().to_svg("target/tamago.svg").unwrap();
+    if save_graph == "all" {
+        egraph.dot().to_svg("target/tamago.svg").unwrap();
+    }
 
     // Run extraction
     let tnsr_cost = TensorCost { egraph: &egraph };
@@ -167,16 +249,20 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Evaluation starting and extracted graph runtime, save graphs
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
+
+    if save_graph != "none" {
+        runner_start
+            .egraph
+            .dot()
+            .to_svg("target/start.svg")
+            .unwrap();
+        runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
+    }
+
     let time_start = get_full_graph_runtime(&runner_start);
     println!("Start graph runtime: {}", time_start);
 
-    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
-    runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     let time_ext = get_full_graph_runtime(&runner_ext);
     println!("Extracted graph runtime: {}", time_ext);
 }
