@@ -212,12 +212,14 @@ fn optimize(matches: clap::ArgMatches) {
         // This hook function (which applies the multi-pattern rules) will be called at the
         // beginning of each iteration in equality saturation
         Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_node_limit(100000)
             .with_time_limit(time_limit_sec)
             .with_iter_limit(iter_limit)
             .with_expr(&start)
             .with_hook(move |runner| multi_patterns.run_one(runner))
     } else {
         Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_node_limit(100000)
             .with_time_limit(time_limit_sec)
             .with_iter_limit(iter_limit)
             .with_expr(&start)
@@ -232,6 +234,10 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
     println!("  Number of iterations: {:?}", runner.iterations.len());
+
+    let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
+    println!("  Average nodes per class: {}", avg_nodes_per_class);
+    println!("  Number of edges: {}", num_edges);
 
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
@@ -268,6 +274,21 @@ fn optimize(matches: clap::ArgMatches) {
 
     let time_ext = get_full_graph_runtime(&runner_ext);
     println!("Extracted graph runtime: {}", time_ext);
+}
+
+/// This function gets the following stats:
+///     Total number of enodes
+///     Total number of eclasses
+///     Average number of enodes per class
+///     Total number of edges (children relationships)
+fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize) {
+    let num_enodes = egraph.total_size();
+    let num_classes = egraph.number_of_classes();
+    let avg_nodes_per_class = num_enodes as f32 / (num_classes as f32);
+    let num_edges = egraph.classes().fold(0, |acc, c| {
+        c.iter().fold(0, |sum, n| n.len()+sum) + acc
+    });
+    (num_enodes, num_classes, avg_nodes_per_class, num_edges)
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {

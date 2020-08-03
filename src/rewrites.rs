@@ -798,7 +798,7 @@ impl MultiPatterns {
     /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
     /// the same eclass. It always returns Ok()
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
-        if runner.iterations.len() < 1 {
+        if runner.iterations.len() < 2 {
             println!("Run one");
             // Construct Vec to store matches for each canonicalized pattern
             let matches: Vec<Vec<SearchMatches>> = self
