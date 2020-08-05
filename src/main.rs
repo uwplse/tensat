@@ -16,6 +16,10 @@ use tamago::testnet;
 use tamago::bert;
 use tamago::{parse::*, verify::*};
 
+use std::io::Error;
+use std::process::{Command, Stdio};
+use std::thread;
+
 fn main() {
     // Parse arguments
     let matches = App::new("Tamago")
@@ -115,34 +119,24 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 }
 
 fn test(matches: clap::ArgMatches) {
-    env_logger::init();
+    create_dir_all("./tmp");
+    let outf = "./tmp/test.txt";
+    write(outf, "2").expect("Unable to write file");
+    let child = Command::new("python")
+        .args(&["extractor/test.py"])
+        .spawn()
+        .expect("failed to execute child");
 
-    let start = match matches.value_of("model") {
-        Some("resnet50") => resnet50::get_resnet50(),
-        Some("testnet") => testnet::get_testnet(),
-        Some("benchnet") => benchnet::get_benchnet(),
-        Some("nasrnn") => nasrnn::get_nasrnn(),
-        Some("resnext50") => resnext50::get_resnext50(),
-        Some("bert") => bert::get_bert(),
-        Some(_) => panic!("The model name is not supported"),
-        None => {
-            let model_file = matches
-                .value_of("model_file")
-                .expect("Pls supply input graph file.");
-            let input_graph =
-                read_to_string(model_file).expect("Something went wrong reading the model file");
-            input_graph.parse().unwrap()
-        }
-    };
+    let output = child
+        .wait_with_output()
+        .expect("failed to get output");
 
-    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    runner_start
-        .egraph
-        .dot()
-        .to_svg("target/start.svg")
-        .unwrap();
-    let time_start = get_full_graph_runtime(&runner_start);
-    println!("Start graph runtime: {}", time_start);
+    if output.status.success() {
+        let new_num = read_to_string("./tmp/new.txt").expect("Something went wrong reading the file");
+        println!("New number: {}", new_num);
+    } else {
+        println!("Failed");
+}
 }
 
 /// Main procedure to run optimization
@@ -233,7 +227,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Classes: {}", runner.egraph.number_of_classes());
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
-    println!("  Number of iterations: {:?}", runner.iterations.len());
+    println!("  Number of iterations: {:?}", runner.iterations.len()-1);
 
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
