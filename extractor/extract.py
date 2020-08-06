@@ -12,6 +12,8 @@ def get_args():
         help='Use integer variable for t')
     parser.add_argument('--class_constraint', action='store_true', default=False,
         help='Add constraint that each eclass sum to 1')
+    parser.add_argument('--no_order', action='store_true', default=False,
+        help='No ordering constraints')
 
     return parser.parse_args()
 
@@ -74,10 +76,11 @@ def main():
             # Children
             solver.Add(sum([x[j] for j in e[m]]) - x[i] >= 0)
             # Order
-            if args.order_var_int:
-                solver.Add(t[g[i]] - t[m] + A * (1 - x[i]) >= 1)
-            else:
-                solver.Add(t[g[i]] - t[m] - epsilon + A * (1 - x[i]) >= 0)
+            if not args.no_order:
+                if args.order_var_int:
+                    solver.Add(t[g[i]] - t[m] + A * (1 - x[i]) >= 1)
+                else:
+                    solver.Add(t[g[i]] - t[m] - epsilon + A * (1 - x[i]) >= 0)
 
     # Define objective
     obj_expr = [costs[j] * x[j] for j in range(num_nodes)]

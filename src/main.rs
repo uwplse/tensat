@@ -109,6 +109,11 @@ fn main() {
                 .long("class_constraint")
                 .help("Add constraint in ILP that each eclass sum to 1"),
         )
+        .arg(
+            Arg::with_name("no_order")
+                .long("no_order")
+                .help("No ordering constraints in ILP"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -404,6 +409,7 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap
     // Call python script to run ILP
     let order_var_int = matches.is_present("order_var_int");
     let class_constraint = matches.is_present("class_constraint");
+    let no_order = matches.is_present("no_order");
     let mut arg_vec = vec!["extractor/extract.py"];
     if order_var_int {
         arg_vec.push("--order_var_int");
@@ -411,11 +417,13 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap
     if class_constraint {
         arg_vec.push("--class_constraint");
     }
+    if no_order {
+        arg_vec.push("--no_order");
+    }
     let child = Command::new("python")
         .args(&arg_vec)
         .spawn()
         .expect("failed to execute child");
-
     let output = child
         .wait_with_output()
         .expect("failed to get output");
