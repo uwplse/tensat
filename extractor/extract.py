@@ -10,6 +10,8 @@ def get_args():
         help='Time limit in seconds (default: 10)')
     parser.add_argument('--order_var_int', action='store_true', default=False,
         help='Use integer variable for t')
+    parser.add_argument('--class_constraint', action='store_true', default=False,
+        help='Add constraint that each eclass sum to 1')
 
     return parser.parse_args()
 
@@ -61,6 +63,11 @@ def main():
     # Define constraints
     # Root
     solver.Add(sum([x[j] for j in e[root_m]]) == 1)
+
+    if args.class_constraint:
+        print("Add class constraints")
+        for m in range(num_classes):
+            solver.Add(sum([x[j] for j in e[m]]) <= 1)
     
     for i in range(num_nodes):
         for m in h[i]:

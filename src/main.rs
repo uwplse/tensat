@@ -104,6 +104,11 @@ fn main() {
                 .long("order_var_int")
                 .help("Set this flag will let ILP use integer var for ordering"),
         )
+        .arg(
+            Arg::with_name("class_constraint")
+                .long("class_constraint")
+                .help("Add constraint in ILP that each eclass sum to 1"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -398,17 +403,18 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap
 
     // Call python script to run ILP
     let order_var_int = matches.is_present("order_var_int");
-    let child = if order_var_int {
-        Command::new("python")
-            .args(&["extractor/extract.py", "--order_var_int"])
-            .spawn()
-            .expect("failed to execute child")
-    } else {
-        Command::new("python")
-            .args(&["extractor/extract.py"])
-            .spawn()
-            .expect("failed to execute child")
-    };
+    let class_constraint = matches.is_present("class_constraint");
+    let mut arg_vec = vec!["extractor/extract.py"];
+    if order_var_int {
+        arg_vec.push("--order_var_int");
+    }
+    if class_constraint {
+        arg_vec.push("--class_constraint");
+    }
+    let child = Command::new("python")
+        .args(&arg_vec)
+        .spawn()
+        .expect("failed to execute child");
 
     let output = child
         .wait_with_output()
