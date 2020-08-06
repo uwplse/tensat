@@ -99,6 +99,11 @@ fn main() {
                 .takes_value(true)
                 .help("Extraction method, can be greedy, ilp"),
         )
+        .arg(
+            Arg::with_name("order_var_int")
+                .long("order_var_int")
+                .help("Set this flag will let ILP use integer var for ordering"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap_or("optimize");
@@ -132,7 +137,7 @@ fn test(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
-    let save_graph = matches.value_of("save_graph").unwrap_or("all");
+    let save_graph = matches.value_of("save_graph").unwrap_or("io");
     let use_multi = matches.is_present("use_multi");
 
     // Get input graph and rules
@@ -247,7 +252,7 @@ fn optimize(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
-    let save_graph = matches.value_of("save_graph").unwrap_or("all");
+    let save_graph = matches.value_of("save_graph").unwrap_or("io");
     let use_multi = matches.is_present("use_multi");
 
     // Get input graph and rules
@@ -339,7 +344,7 @@ fn optimize(matches: clap::ArgMatches) {
     let extract_mode = matches.value_of("extract").unwrap_or("greedy");
     let best = match extract_mode {
         "ilp" => {
-            extract_by_ilp(&egraph, root)
+            extract_by_ilp(&egraph, root, &matches)
         },
         "greedy" => {
             let tnsr_cost = TensorCost { egraph: &egraph };
@@ -376,7 +381,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extracted graph runtime: {}", time_ext);
 }
 
-fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id) -> RecExpr<Mdl> {
+fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap::ArgMatches) -> RecExpr<Mdl> {
     // Prepare data for ILP formulation, save to json
     let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root);
 
@@ -392,10 +397,18 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id) -> RecExpr<Mdl
     write("./tmp/ilp_data.json", data_str).expect("Unable to write file");
 
     // Call python script to run ILP
-    let child = Command::new("python")
-        .args(&["extractor/extract.py"])
-        .spawn()
-        .expect("failed to execute child");
+    let order_var_int = matches.is_present("order_var_int");
+    let child = if order_var_int {
+        Command::new("python")
+            .args(&["extractor/extract.py", "--order_var_int"])
+            .spawn()
+            .expect("failed to execute child")
+    } else {
+        Command::new("python")
+            .args(&["extractor/extract.py"])
+            .spawn()
+            .expect("failed to execute child")
+    };
 
     let output = child
         .wait_with_output()
