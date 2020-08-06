@@ -3,6 +3,7 @@ use egg::*;
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 
 /// Custom struct implementing our cost function
 pub struct TensorCost<'a> {
@@ -295,4 +296,44 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
             0.0
         }
     }
+}
+
+/// # Returns
+///
+/// - `m_id_map`: list of EClass Id's each index m refers to
+/// - `e_m`: each entry is the list of nodes i within eclass m
+/// - `h_i`: each entry is the list of children EClass indices for node i
+/// - `cost_i`: self cost for each node i
+/// - `g_i`: which EClass index does node i belong to
+/// - `root_m`: EClass index of the root eclass
+/// - `i_to_nodes: Vector of enodes, ordered by index i
+pub fn prep_ilp_data(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id) -> (Vec<Id>, Vec<Vec<usize>>, Vec<Vec<usize>>, Vec<f32>, Vec<usize>, usize, Vec<Mdl>) {
+    let m_id_map: Vec<Id> = egraph.classes().map(|c| egraph.find(c.id)).collect();
+    assert!(m_id_map.len() == egraph.number_of_classes());
+    let id_m_map: HashMap<Id, usize> = m_id_map.iter().enumerate().map(|(i, id)| (*id, i)).collect();
+
+    let num_classes = egraph.number_of_classes();
+    let num_nodes = egraph.total_size();
+    let mut i_to_nodes: Vec<Mdl> = Vec::with_capacity(num_nodes);
+    let mut e_m: Vec<Vec<usize>> = vec![Vec::new(); num_classes];
+    let mut h_i: Vec<Vec<usize>> = Vec::with_capacity(num_nodes);
+    let mut cost_i: Vec<f32> = Vec::with_capacity(num_nodes);
+    let mut g_i: Vec<usize> = Vec::with_capacity(num_nodes);
+
+    let mut i = 0;
+    for class in egraph.classes() {
+        let m = *id_m_map.get(&egraph.find(class.id)).unwrap();
+        for node in class.iter() {
+            i_to_nodes.push(node.clone());
+            e_m[m].push(i);
+            h_i.push(node.children().iter().map(|id| *id_m_map.get(&egraph.find(*id)).unwrap()).collect());
+            cost_i.push(get_self_cost(egraph, node));
+            g_i.push(m);
+            i += 1;
+        }
+    }
+
+    let root_m = *id_m_map.get(&egraph.find(root)).unwrap();
+
+    (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes)
 }

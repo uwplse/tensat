@@ -6,7 +6,7 @@ pub fn get_testnet() -> RecExpr<Mdl> {
     // Step 1: create a GraphConverter instance, and a NameGen to generate new names
     let mut graph = GraphConverter::default();
 
-    if true {
+    if false {
         let input = graph.new_input(&[32, 24, 24]);
         let tmp = graph.reshape(input, &[64, 12, 24]);
         let tmp = graph.transpose(tmp, &[1,0,2], true);
