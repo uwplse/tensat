@@ -339,37 +339,7 @@ fn optimize(matches: clap::ArgMatches) {
     let extract_mode = matches.value_of("extract").unwrap_or("greedy");
     let best = match extract_mode {
         "ilp" => {
-            /*
-            // Prepare data for ILP formulation, save to json
-            let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(&egraph, root);
-
-            let data = json!({
-                "e_m": e_m,
-                "h_i": h_i,
-                "cost_i": cost_i,
-                "g_i": g_i, 
-                "root_m": root_m,
-            });
-            let data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
-            create_dir_all("./tmp");
-            write("./tmp/ilp_data.json", data_str).expect("Unable to write file");
-
-            // Call python script to run ILP
-            let child = Command::new("python")
-                .args(&["extractor/extract.py"])
-                .spawn()
-                .expect("failed to execute child");
-
-            let output = child
-                .wait_with_output()
-                .expect("failed to get output");
-
-            if output.status.success() {
-                // Read back solved results, construct optimized graph
-            } else {
-                panic!("Python script failed");
-            }*/
-            panic!("Extracting mode not supported");
+            extract_by_ilp(&egraph, root)
         },
         "greedy" => {
             let tnsr_cost = TensorCost { egraph: &egraph };
@@ -404,6 +374,54 @@ fn optimize(matches: clap::ArgMatches) {
 
     let time_ext = get_full_graph_runtime(&runner_ext);
     println!("Extracted graph runtime: {}", time_ext);
+}
+
+fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id) -> RecExpr<Mdl> {
+    // Prepare data for ILP formulation, save to json
+    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root);
+
+    let data = json!({
+        "e_m": e_m,
+        "h_i": h_i,
+        "cost_i": cost_i,
+        "g_i": g_i, 
+        "root_m": root_m,
+    });
+    let data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
+    create_dir_all("./tmp");
+    write("./tmp/ilp_data.json", data_str).expect("Unable to write file");
+
+    // Call python script to run ILP
+    let child = Command::new("python")
+        .args(&["extractor/extract.py"])
+        .spawn()
+        .expect("failed to execute child");
+
+    let output = child
+        .wait_with_output()
+        .expect("failed to get output");
+
+    if output.status.success() {
+        // Read back solved results, construct optimized graph
+        let solved_str = read_to_string("./tmp/solved.json").expect("Something went wrong reading the solved file");
+        let solved_data: SolvedResults = serde_json::from_str(&solved_str).expect("JSON was not well-formatted");
+
+        let mut node_picked: HashMap<Id, Mdl> = HashMap::new();
+        for (i, x_i) in solved_data.solved_x.iter().enumerate() {
+            if *x_i == 1 {
+                let eclass_id = m_id_map[g_i[i]];
+                assert!(!node_picked.contains_key(&eclass_id));
+                node_picked.insert(eclass_id, i_to_nodes[i].clone());
+            }
+        }
+
+        let mut expr = RecExpr::default();
+        let mut added_memo: HashMap<Id, Id> = Default::default();
+        let _ = construct_best_rec(&node_picked, &mut expr, root, &mut added_memo, egraph);
+        expr
+    } else {
+        panic!("Python script failed");
+    }
 }
 
 /// This function gets the following stats:

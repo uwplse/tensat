@@ -53,11 +53,10 @@ def main():
     status = solver.Solve()
     if status == pywraplp.Solver.OPTIMAL:
         print('Objective value =', solver.Objective().Value())
-        for j in range(num_nodes):
-            print(x[j].name(), ' = ', x[j].solution_value())
-        for j in range(num_classes):
-            print(t[j].name(), ' = ', t[j].solution_value())
-        print()
+        #for j in range(num_nodes):
+        #    print(x[j].name(), ' = ', x[j].solution_value())
+        #for j in range(num_classes):
+        #    print(t[j].name(), ' = ', t[j].solution_value())
         print('Problem solved in %f milliseconds' % solver.wall_time())
         print('Problem solved in %d iterations' % solver.iterations())
         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
@@ -65,9 +64,10 @@ def main():
         print('The problem does not have an optimal solution.')
 
     # Store results
-    solved_x = [x[j].solution_value() for j in range(num_nodes)]
+    solved_x = [int(x[j].solution_value()) for j in range(num_nodes)]
     result_dict = {}
     result_dict["solved_x"] = solved_x
+    result_dict["cost"] = solver.Objective().Value()
     with open('./tmp/solved.json', 'w') as f:
         json.dump(result_dict, f)
 

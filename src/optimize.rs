@@ -4,6 +4,7 @@ use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 /// Custom struct implementing our cost function
 pub struct TensorCost<'a> {
@@ -336,4 +337,31 @@ pub fn prep_ilp_data(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id) -> (Vec<Id>
     let root_m = *id_m_map.get(&egraph.find(root)).unwrap();
 
     (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes)
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SolvedResults {
+    pub solved_x: Vec<i32>,
+    pub cost: f32,
+}
+
+pub fn construct_best_rec(
+    node_picked: &HashMap<Id, Mdl>,
+    expr: &mut RecExpr<Mdl>,
+    eclass: Id,
+    added_memo: &mut HashMap<Id, Id>,
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+) -> Id {
+    let id = egraph.find(eclass);
+
+    match added_memo.get(&id) {
+        Some(id_expr) => *id_expr,
+        None => {
+            let node = node_picked.get(&id).unwrap().clone().map_children(|child| construct_best_rec(node_picked, expr, child, added_memo, egraph));
+            let id_expr = expr.add(node);
+            assert!(added_memo.insert(id, id_expr).is_none());
+            id_expr
+        }
+    }
 }
