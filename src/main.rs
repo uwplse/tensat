@@ -6,6 +6,7 @@ use std::fs::*;
 use std::time::*;
 use std::time::{Duration, Instant};
 use tamago::benchnet;
+use tamago::bert;
 use tamago::model::*;
 use tamago::nasrnn;
 use tamago::optimize::*;
@@ -13,14 +14,13 @@ use tamago::resnet50;
 use tamago::resnext50;
 use tamago::rewrites::*;
 use tamago::testnet;
-use tamago::bert;
 use tamago::{parse::*, verify::*};
 
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::io::Error;
 use std::process::{Command, Stdio};
 use std::thread;
-use serde::{Deserialize, Serialize};
-use serde_json::{json};
 
 fn main() {
     // Parse arguments
@@ -223,7 +223,7 @@ fn test(matches: clap::ArgMatches) {
     println!("  Classes: {}", runner.egraph.number_of_classes());
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
-    println!("  Number of iterations: {:?}", runner.iterations.len()-1);
+    println!("  Number of iterations: {:?}", runner.iterations.len() - 1);
 
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
@@ -242,7 +242,7 @@ fn test(matches: clap::ArgMatches) {
         "e_m": e_m,
         "h_i": h_i,
         "cost_i": cost_i,
-        "g_i": g_i, 
+        "g_i": g_i,
         "root_m": root_m,
     });
     let data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
@@ -338,7 +338,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Classes: {}", runner.egraph.number_of_classes());
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", duration);
-    println!("  Number of iterations: {:?}", runner.iterations.len()-1);
+    println!("  Number of iterations: {:?}", runner.iterations.len() - 1);
 
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
@@ -353,9 +353,7 @@ fn optimize(matches: clap::ArgMatches) {
     // Run extraction
     let extract_mode = matches.value_of("extract").unwrap_or("greedy");
     let best = match extract_mode {
-        "ilp" => {
-            extract_by_ilp(&egraph, root, &matches)
-        },
+        "ilp" => extract_by_ilp(&egraph, root, &matches),
         "greedy" => {
             let tnsr_cost = TensorCost { egraph: &egraph };
             let start_time = Instant::now();
@@ -367,10 +365,10 @@ fn optimize(matches: clap::ArgMatches) {
             println!("  Time taken: {:?}", duration);
             println!("  Best cost: {:?}", best_cost);
             best
-        },
+        }
         _ => panic!("Extracting mode not supported"),
     };
-    
+
     // Evaluation starting and extracted graph runtime, save graphs
     let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
     let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
@@ -391,7 +389,16 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extracted graph runtime: {}", time_ext);
 }
 
-fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap::ArgMatches) -> RecExpr<Mdl> {
+/// Extract the optimal graph from EGraph by ILP
+///
+/// This function prepares the data for the ILP formulation, save it as json, call the python
+/// script to read the data + solve ILP + save the solved results. After the python script
+/// finishes, it reads back the solved result and construct the RecExpr for the optimized graph.
+fn extract_by_ilp(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    root: Id,
+    matches: &clap::ArgMatches,
+) -> RecExpr<Mdl> {
     // Prepare data for ILP formulation, save to json
     let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root);
 
@@ -399,7 +406,7 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap
         "e_m": e_m,
         "h_i": h_i,
         "cost_i": cost_i,
-        "g_i": g_i, 
+        "g_i": g_i,
         "root_m": root_m,
     });
     let data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
@@ -424,14 +431,14 @@ fn extract_by_ilp(egraph: &EGraph<Mdl, TensorAnalysis>, root: Id, matches: &clap
         .args(&arg_vec)
         .spawn()
         .expect("failed to execute child");
-    let output = child
-        .wait_with_output()
-        .expect("failed to get output");
+    let output = child.wait_with_output().expect("failed to get output");
 
     if output.status.success() {
         // Read back solved results, construct optimized graph
-        let solved_str = read_to_string("./tmp/solved.json").expect("Something went wrong reading the solved file");
-        let solved_data: SolvedResults = serde_json::from_str(&solved_str).expect("JSON was not well-formatted");
+        let solved_str = read_to_string("./tmp/solved.json")
+            .expect("Something went wrong reading the solved file");
+        let solved_data: SolvedResults =
+            serde_json::from_str(&solved_str).expect("JSON was not well-formatted");
 
         let mut node_picked: HashMap<Id, Mdl> = HashMap::new();
         for (i, x_i) in solved_data.solved_x.iter().enumerate() {
@@ -460,9 +467,9 @@ fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize)
     let num_enodes = egraph.total_size();
     let num_classes = egraph.number_of_classes();
     let avg_nodes_per_class = num_enodes as f32 / (num_classes as f32);
-    let num_edges = egraph.classes().fold(0, |acc, c| {
-        c.iter().fold(0, |sum, n| n.len()+sum) + acc
-    });
+    let num_edges = egraph
+        .classes()
+        .fold(0, |acc, c| c.iter().fold(0, |sum, n| n.len() + sum) + acc);
     (num_enodes, num_classes, avg_nodes_per_class, num_edges)
 }
 

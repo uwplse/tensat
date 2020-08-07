@@ -494,12 +494,16 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(inpt).dtype == DataKind::Tnsr);
 
                 // Get arguments
-                let dims: Vec<i32> = x(shape_name).name.split("_").map(|x| x.parse::<i32>().unwrap()).collect();
+                let dims: Vec<i32> = x(shape_name)
+                    .name
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
                 let t_inpt = x(inpt).meta;
 
                 // Create tensorhandle and get metadata
-                let res = unsafe { 
-                    let cpp_dims = [dims.as_ptr(), dims.as_ptr().offset(dims.len().try_into().unwrap()), dims.as_ptr().offset(dims.capacity().try_into().unwrap())];
+                let res = unsafe {
+                    let cpp_dims = convert_to_cpp_vec(&dims);
                     let ptr = cpp_dims.as_ptr() as *const [u64; 3];
                     g.reshape(t_inpt, ptr)
                 };
@@ -519,15 +523,18 @@ impl Analysis<Mdl> for TensorAnalysis {
                 assert!(x(shuffle).dtype == DataKind::Scalar);
 
                 // Get arguments
-                let perms: Vec<i32> = x(perm_name).name.split("_").map(|x| x.parse::<i32>().unwrap()).collect();
+                let perms: Vec<i32> = x(perm_name)
+                    .name
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
                 let t_inpt = x(inpt).meta;
                 let shuffle_val = x(shuffle).val;
                 let shuffle_bool = (shuffle_val == SHUFFLE);
 
                 // Create tensorhandle and get metadata
-                let res = unsafe { 
-                    let cpp_perms = [perms.as_ptr(), perms.as_ptr().offset(perms.len().try_into().unwrap()), perms.as_ptr().offset(perms.capacity().try_into().unwrap())];
-                
+                let res = unsafe {
+                    let cpp_perms = convert_to_cpp_vec(&perms);
                     let ptr = cpp_perms.as_ptr() as *const [u64; 3];
                     g.transpose(t_inpt, ptr, shuffle_bool)
                 };
@@ -565,4 +572,16 @@ impl Analysis<Mdl> for TensorAnalysis {
 
     // Not needed to modify anything
     fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {}
+}
+
+/// Convert rust vector to C++ vector, for ffi
+///
+/// The returned C++ format for vector is:
+/// [pointer_to_first_element, pointer_to_last_element, pointer_to_the_end_of_vector_capacity]
+unsafe fn convert_to_cpp_vec(v: &Vec<i32>) -> [*const i32; 3] {
+    [
+        v.as_ptr(),
+        v.as_ptr().offset(v.len().try_into().unwrap()),
+        v.as_ptr().offset(v.capacity().try_into().unwrap()),
+    ]
 }

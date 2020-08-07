@@ -14,6 +14,10 @@ def get_args():
         help='Add constraint that each eclass sum to 1')
     parser.add_argument('--no_order', action='store_true', default=False,
         help='No ordering constraints')
+    parser.add_argument('--num_thread', type=int, default=1, metavar='N',
+        help='Number of thread for the solver (default: 1)')
+    parser.add_argument('--print_solution', action='store_true', default=False,
+        help='To print out solution')
 
     return parser.parse_args()
 
@@ -42,9 +46,9 @@ def main():
 
     # Create solver
     solver = pywraplp.Solver('simple_mip_program', pywraplp.Solver.SCIP_MIXED_INTEGER_PROGRAMMING)
-    #solver.SetNumThreads(8)
+    if args.num_thread != 1:
+        solver.SetNumThreads(8)
     solver.SetTimeLimit(args.time_lim_sec * 1000)
-    infinity = solver.infinity()
 
     # Define variables
     x = {}
@@ -90,13 +94,16 @@ def main():
     status = solver.Solve()
     if status == pywraplp.Solver.OPTIMAL:
         print('Objective value =', solver.Objective().Value())
-        #for j in range(num_nodes):
-        #    print(x[j].name(), ' = ', x[j].solution_value())
-        #for j in range(num_classes):
-        #    print(t[j].name(), ' = ', t[j].solution_value())
         print('Problem solved in %f milliseconds' % solver.wall_time())
         print('Problem solved in %d iterations' % solver.iterations())
         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
+
+        if args.print_solution:
+            for j in range(num_nodes):
+                print(x[j].name(), ' = ', x[j].solution_value())
+            for j in range(num_classes):
+                print(t[j].name(), ' = ', t[j].solution_value())
+                
     else:
         print('The problem does not have an optimal solution.')
 

@@ -826,7 +826,7 @@ impl MultiPatterns {
 
             runner.egraph.rebuild();
         }
-        
+
         Ok(())
     }
 

@@ -4,7 +4,6 @@ use egg::*;
 const SEQ_LENGTH: i32 = 64;
 const HIDDEN_DIMS: i32 = 1024;
 
-
 fn attention(graph: &mut GraphConverter, input: Id, heads: i32, input_dim_1: i32) -> (Id, Id) {
     let d_model = input_dim_1;
     let d_k = d_model / heads;
@@ -22,14 +21,14 @@ fn attention(graph: &mut GraphConverter, input: Id, heads: i32, input_dim_1: i32
     let k = graph.reshape(k, &[64, 16, 64]);
     let v = graph.reshape(v, &[64, 16, 64]);
     // transpose query, key, value for batched matmul
-    let q = graph.transpose(q, &[1,0,2], true);
-    let k = graph.transpose(k, &[1,0,2], true);
-    let v = graph.transpose(v, &[1,0,2], true);
+    let q = graph.transpose(q, &[1, 0, 2], /*shuffle=*/ true);
+    let k = graph.transpose(k, &[1, 0, 2], /*shuffle=*/ true);
+    let v = graph.transpose(v, &[1, 0, 2], /*shuffle=*/ true);
     // perform matrix multiplications
     let logits = graph.matmul(q, k);
     let output = graph.matmul(logits, v);
     // transpose the output back
-    let output = graph.transpose(output,&[1,0,2], true);
+    let output = graph.transpose(output, &[1, 0, 2], /*shuffle=*/ true);
     let output = graph.reshape(output, &[64, 1024]);
 
     // a final linear layer
@@ -54,7 +53,7 @@ pub fn get_bert() -> RecExpr<Mdl> {
         if i == 0 {
             current = output;
         } else {
-            current = graph.concat(0, 2, current, output);
+            current = graph.concat(/*axis=*/ 0, /*ndim=*/ 2, current, output);
         }
     }
 
