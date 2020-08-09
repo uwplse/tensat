@@ -378,20 +378,20 @@ pub struct SolvedResults {
 /// # Parameters
 ///
 /// - `node_picked`: hashmap storing which node is picked for each EClass ID
-/// - `expr`: the RecExpr storing the optimized graph, it is constructed within this function
 /// - `eclass`: The EClass ID that we aim to construct as root
 /// - `added_memo`: Map from EClass ID to RecExpr ID. Storing the eclasses that were already added
 /// - `egraph`: E-graph of interest
+/// - `expr`: the RecExpr storing the optimized graph, it is constructed within this function
 ///
 /// # Returns
 ///
-/// - The ID in the RecExpr for the eclass passed in as argument
+/// - The ID (index) in the output RecExpr for the eclass passed in as argument
 pub fn construct_best_rec(
     node_picked: &HashMap<Id, Mdl>,
-    expr: &mut RecExpr<Mdl>,
     eclass: Id,
     added_memo: &mut HashMap<Id, Id>,
     egraph: &EGraph<Mdl, TensorAnalysis>,
+    expr: &mut RecExpr<Mdl>,
 ) -> Id {
     let id = egraph.find(eclass);
 
@@ -399,7 +399,7 @@ pub fn construct_best_rec(
         Some(id_expr) => *id_expr,
         None => {
             let node = node_picked.get(&id).unwrap().clone().map_children(|child| {
-                construct_best_rec(node_picked, expr, child, added_memo, egraph)
+                construct_best_rec(node_picked, child, added_memo, egraph, expr)
             });
             let id_expr = expr.add(node);
             assert!(added_memo.insert(id, id_expr).is_none());

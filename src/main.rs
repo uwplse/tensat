@@ -30,6 +30,7 @@ fn main() {
                 .short("m")
                 .long("mode")
                 .takes_value(true)
+                .default_value("optimize")
                 .help("Mode to run, can be verify, optimize, test, convert"),
         )
         .arg(
@@ -72,6 +73,7 @@ fn main() {
                 .short("s")
                 .long("save_graph")
                 .takes_value(true)
+                .default_value("io")
                 .help("Whether to save graphs as dot files. Can be: all, io, none"),
         )
         .arg(
@@ -84,12 +86,14 @@ fn main() {
             Arg::with_name("n_iter")
                 .long("n_iter")
                 .takes_value(true)
+                .default_value("3")
                 .help("Max number of iterations for egg to run"),
         )
         .arg(
             Arg::with_name("n_sec")
                 .long("n_sec")
                 .takes_value(true)
+                .default_value("10")
                 .help("Max number of seconds for egg to run"),
         )
         .arg(
@@ -97,6 +101,7 @@ fn main() {
                 .short("e")
                 .long("extract")
                 .takes_value(true)
+                .default_value("greedy")
                 .help("Extraction method, can be greedy, ilp"),
         )
         .arg(
@@ -116,7 +121,7 @@ fn main() {
         )
         .get_matches();
 
-    let run_mode = matches.value_of("mode").unwrap_or("optimize");
+    let run_mode = matches.value_of("mode").unwrap();
     println!("Running mode is: {}", run_mode);
 
     match run_mode {
@@ -147,7 +152,7 @@ fn test(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
-    let save_graph = matches.value_of("save_graph").unwrap_or("io");
+    let save_graph = matches.value_of("save_graph").unwrap();
     let use_multi = matches.is_present("use_multi");
 
     // Get input graph and rules
@@ -190,13 +195,13 @@ fn test(matches: clap::ArgMatches) {
     };
 
     // Run saturation
-    let n_sec = matches
-        .value_of("n_sec")
-        .map_or(10, |s| s.parse::<u64>().unwrap());
+    let n_sec = matches.value_of("n_sec").unwrap().parse::<u64>().unwrap();
     let time_limit_sec = Duration::new(n_sec, 0);
     let iter_limit = matches
         .value_of("n_iter")
-        .map_or(1, |s| s.parse::<usize>().unwrap());
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     let runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
@@ -262,7 +267,7 @@ fn optimize(matches: clap::ArgMatches) {
     let rule_file = matches
         .value_of("rules")
         .expect("Pls supply rewrite rules file.");
-    let save_graph = matches.value_of("save_graph").unwrap_or("io");
+    let save_graph = matches.value_of("save_graph").unwrap();
     let use_multi = matches.is_present("use_multi");
 
     // Get input graph and rules
@@ -305,13 +310,13 @@ fn optimize(matches: clap::ArgMatches) {
     };
 
     // Run saturation
-    let n_sec = matches
-        .value_of("n_sec")
-        .map_or(10, |s| s.parse::<u64>().unwrap());
+    let n_sec = matches.value_of("n_sec").unwrap().parse::<u64>().unwrap();
     let time_limit_sec = Duration::new(n_sec, 0);
     let iter_limit = matches
         .value_of("n_iter")
-        .map_or(3, |s| s.parse::<usize>().unwrap());
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     let runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
@@ -351,7 +356,7 @@ fn optimize(matches: clap::ArgMatches) {
     }
 
     // Run extraction
-    let extract_mode = matches.value_of("extract").unwrap_or("greedy");
+    let extract_mode = matches.value_of("extract").unwrap();
     let best = match extract_mode {
         "ilp" => extract_by_ilp(&egraph, root, &matches),
         "greedy" => {
@@ -382,11 +387,11 @@ fn optimize(matches: clap::ArgMatches) {
         runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     }
 
-    let time_start = get_full_graph_runtime(&runner_start);
-    println!("Start graph runtime: {}", time_start);
-
-    let time_ext = get_full_graph_runtime(&runner_ext);
+    let time_ext = get_full_graph_runtime(&runner_ext, true);
     println!("Extracted graph runtime: {}", time_ext);
+
+    let time_start = get_full_graph_runtime(&runner_start, false);
+    println!("Start graph runtime: {}", time_start);
 }
 
 /// Extract the optimal graph from EGraph by ILP
@@ -422,7 +427,7 @@ fn extract_by_ilp(
         arg_vec.push("--order_var_int");
     }
     if class_constraint {
-        arg_vec.push("--class_constraint");
+        arg_vec.push("--eclass_constraint");
     }
     if no_order {
         arg_vec.push("--no_order");
@@ -451,7 +456,7 @@ fn extract_by_ilp(
 
         let mut expr = RecExpr::default();
         let mut added_memo: HashMap<Id, Id> = Default::default();
-        let _ = construct_best_rec(&node_picked, &mut expr, root, &mut added_memo, egraph);
+        let _ = construct_best_rec(&node_picked, root, &mut added_memo, egraph, &mut expr);
         expr
     } else {
         panic!("Python script failed");
@@ -473,14 +478,18 @@ fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize)
     (num_enodes, num_classes, avg_nodes_per_class, num_edges)
 }
 
-fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>) -> f32 {
+fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: bool) -> f32 {
     let mut g = runner.egraph.analysis.graph.borrow_mut();
     unsafe {
         // This is calling TASO's preprocess_weights function before evaluating full graph
         // run time. It removes op that has only weights as its inputs. Since TASO only cares
         // about inference time, such ops can be pre-computed
-        let processed_g = g.preprocess_weights();
-        (*processed_g).run()
+        if process {
+            let processed_g = g.preprocess_weights();
+            (*processed_g).run()
+        } else {
+            (*g).run()
+        }
     }
 }
 

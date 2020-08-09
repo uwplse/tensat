@@ -9,9 +9,9 @@ def get_args():
     parser.add_argument('--time_lim_sec', type=int, default=10, metavar='N',
         help='Time limit in seconds (default: 10)')
     parser.add_argument('--order_var_int', action='store_true', default=False,
-        help='Use integer variable for t')
-    parser.add_argument('--class_constraint', action='store_true', default=False,
-        help='Add constraint that each eclass sum to 1')
+        help='Use integer variable for t (variable for topological order)')
+    parser.add_argument('--eclass_constraint', action='store_true', default=False,
+        help='Add constraint that each eclass sum to at most 1')
     parser.add_argument('--no_order', action='store_true', default=False,
         help='No ordering constraints')
     parser.add_argument('--num_thread', type=int, default=1, metavar='N',
@@ -27,6 +27,10 @@ def main():
     args = get_args()
 
     # Load ILP data
+    # - costs: cost for each node
+    # - e: e[m] is the set of nodes within eclass m
+    # - h: h[i] is the set of children eclasses for node i
+    # - g: g(i) gives the eclass of node i
     with open('./tmp/ilp_data.json') as f:
         data = json.load(f)
 
@@ -47,10 +51,13 @@ def main():
     # Create solver
     solver = pywraplp.Solver('simple_mip_program', pywraplp.Solver.SCIP_MIXED_INTEGER_PROGRAMMING)
     if args.num_thread != 1:
-        solver.SetNumThreads(8)
+        solver.SetNumThreads(args.num_thread)
     solver.SetTimeLimit(args.time_lim_sec * 1000)
 
     # Define variables
+    # - x: an integer variable for each node. x[i] = 1 means node i is picked
+    # - t: a variable for each eclass reflecting topological ordering. This is to ensure the 
+    #      extracted graph has a valid topological order, thus does not contain cycles
     x = {}
     for j in range(num_nodes):
         x[j] = solver.IntVar(0, 1, 'x[%i]' % j)
@@ -70,8 +77,11 @@ def main():
     # Root
     solver.Add(sum([x[j] for j in e[root_m]]) == 1)
 
-    if args.class_constraint:
-        print("Add class constraints")
+    if args.eclass_constraint:
+        # eclass_constraints are optional because in most cases, the solution that minimizes
+        # the total cost will only contain 1 picked node for each picked eclass, so we don't 
+        # have to explicity include this.
+        print("Add eclass constraints")
         for m in range(num_classes):
             solver.Add(sum([x[j] for j in e[m]]) <= 1)
     
@@ -80,6 +90,9 @@ def main():
             # Children
             solver.Add(sum([x[j] for j in e[m]]) - x[i] >= 0)
             # Order
+            # We only need to add ordering costraints when there are potentially cycles in the
+            # extracted graph. If the EGraph itself does not contain cycles, then we don't need
+            # these constraints
             if not args.no_order:
                 if args.order_var_int:
                     solver.Add(t[g[i]] - t[m] + A * (1 - x[i]) >= 1)
