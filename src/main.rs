@@ -121,6 +121,11 @@ fn main() {
                 .long("no_order")
                 .help("No ordering constraints in ILP"),
         )
+        .arg(
+            Arg::with_name("initial_with_greedy")
+                .long("initial_with_greedy")
+                .help("Initialize ILP with greedy solution"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap();
@@ -336,6 +341,24 @@ fn extract_by_ilp(
     create_dir_all("./tmp");
     write("./tmp/ilp_data.json", data_str).expect("Unable to write file");
 
+    let initialize = matches.is_present("initial_with_greedy");
+    if initialize {
+        // Get node_to_i map
+        let node_to_i: HashMap<Mdl, usize> = (&i_to_nodes).iter().enumerate().map(|(i, node)| (node.clone(), i)).collect();
+
+        let tnsr_cost = TensorCost { egraph: egraph };
+        let mut extractor = Extractor::new(egraph, tnsr_cost);
+        let (i_list, m_list) = get_init_solution(egraph, root, &extractor.costs, &g_i, &node_to_i);
+
+        // Store initial solution
+        let solution_data = json!({
+            "i_list": i_list,
+            "m_list": m_list,
+        });
+        let sol_data_str = serde_json::to_string(&solution_data).expect("Fail to convert json to string");
+        write("./tmp/init_sol.json", sol_data_str).expect("Unable to write file");
+    }
+
     // Call python script to run ILP
     let order_var_int = matches.is_present("order_var_int");
     let class_constraint = matches.is_present("class_constraint");
@@ -349,6 +372,9 @@ fn extract_by_ilp(
     }
     if no_order {
         arg_vec.push("--no_order");
+    }
+    if initialize {
+        arg_vec.push("--initialize")
     }
     let child = Command::new("python")
         .args(&arg_vec)

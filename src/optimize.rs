@@ -3,6 +3,7 @@ use egg::*;
 use root::taso::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
@@ -405,5 +406,41 @@ pub fn construct_best_rec(
             assert!(added_memo.insert(id, id_expr).is_none());
             id_expr
         }
+    }
+}
+
+
+pub fn get_init_solution(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    root: Id,
+    costs: &HashMap<Id, (f32, Mdl)>,
+    g_i: &[usize],
+    nodes_to_i: &HashMap<Mdl, usize>,
+) -> (
+    Vec<usize>,
+    Vec<usize>,
+) {
+    let mut nodes: Vec<Mdl> = Vec::new();
+    // added_memo maps eclass id to id in expr
+    let mut added_memo: HashSet<Id> = Default::default();
+    get_init_rec(egraph, root, &mut added_memo, costs, &mut nodes);
+
+    let i_list: Vec<usize> = nodes.iter().map(|node| *nodes_to_i.get(node).unwrap()).collect();
+    let m_list: Vec<usize> = i_list.iter().map(|i| g_i[*i]).collect();
+
+    (i_list, m_list)
+}
+
+fn get_init_rec(egraph: &EGraph<Mdl, TensorAnalysis>, eclass: Id, added_memo: &mut HashSet<Id>, costs: &HashMap<Id, (f32, Mdl)>, nodes: &mut Vec<Mdl>) {
+    let id = egraph.find(eclass);
+
+    if !added_memo.contains(&id) {
+        let (_, best_node) = match costs.get(&id) {
+            Some(result) => result.clone(),
+            None => panic!("Failed to extract from eclass {}", id),
+        };
+        best_node.for_each(|child| get_init_rec(egraph, child, added_memo, costs, nodes));
+        nodes.push(best_node);
+        added_memo.insert(id);
     }
 }
