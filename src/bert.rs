@@ -56,6 +56,7 @@ pub fn get_bert() -> RecExpr<Mdl> {
             current = graph.noop(current, output);
         }
     }
+    current = graph.noop(current, tmp);
 
     // Step 3: get the RexExpr
     graph.rec_expr()
