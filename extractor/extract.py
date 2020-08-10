@@ -53,7 +53,9 @@ def main():
     # Create solver
     solver = pywraplp.Solver('simple_mip_program', pywraplp.Solver.SCIP_MIXED_INTEGER_PROGRAMMING)
     if args.num_thread != 1:
+        print("Set number of threads to {}".format(args.num_thread))
         solver.SetNumThreads(args.num_thread)
+    print("Set time limit to {} seconds".format(args.time_lim_sec))
     solver.SetTimeLimit(args.time_lim_sec * 1000)
 
     # Define variables
@@ -149,6 +151,8 @@ def main():
                 
     else:
         print('The problem does not have an optimal solution.')
+        print(status)
+        print('Objective value =', solver.Objective().Value())
 
     # Store results
     solved_x = [int(x[j].solution_value()) for j in range(num_nodes)]

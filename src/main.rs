@@ -126,6 +126,18 @@ fn main() {
                 .long("initial_with_greedy")
                 .help("Initialize ILP with greedy solution"),
         )
+        .arg(
+            Arg::with_name("ilp_time_sec")
+                .long("ilp_time_sec")
+                .takes_value(true)
+                .help("Time limit for ILP solver (seconds)"),
+        )
+        .arg(
+            Arg::with_name("ilp_num_threads")
+                .long("ilp_num_threads")
+                .takes_value(true)
+                .help("Number of threads for ILP solver"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap();
@@ -375,6 +387,20 @@ fn extract_by_ilp(
     }
     if initialize {
         arg_vec.push("--initialize")
+    }
+    match matches.value_of("ilp_time_sec") {
+        Some(time_lim) => {
+            arg_vec.push("--time_lim_sec");
+            arg_vec.push(time_lim);
+        },
+        None => (),
+    }
+    match matches.value_of("ilp_num_threads") {
+        Some(num_thread) => {
+            arg_vec.push("--num_thread");
+            arg_vec.push(num_thread);
+        },
+        None => (),
     }
     let child = Command::new("python")
         .args(&arg_vec)
