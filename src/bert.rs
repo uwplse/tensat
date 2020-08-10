@@ -53,7 +53,7 @@ pub fn get_bert() -> RecExpr<Mdl> {
         if i == 0 {
             current = output;
         } else {
-            current = graph.concat(/*axis=*/ 0, /*ndim=*/ 2, current, output);
+            current = graph.noop(current, output);
         }
     }
 

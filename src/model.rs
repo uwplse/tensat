@@ -50,6 +50,7 @@ define_language! {
         "Iewmul"    = Iewmul,
         "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
         "reshape"   = Reshape([Id; 2]), // input, shape_name (format: dim1_dim2...)
+        "noop"      = Noop([Id; 2]), // No op, use to combine the outputs of a graph in case there are multiple, since egg works with single root graph
         Num(i32),
         Var(Symbol),
     }
@@ -543,6 +544,20 @@ impl Analysis<Mdl> for TensorAnalysis {
                     val: 0,
                     name: String::new(),
                     meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
+            Mdl::Noop([a, b]) => {
+                // Check types
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: std::ptr::null_mut(),
                     meta_2: std::ptr::null_mut(),
                 }
             }

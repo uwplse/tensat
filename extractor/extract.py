@@ -55,8 +55,10 @@ def main():
     if args.num_thread != 1:
         print("Set number of threads to {}".format(args.num_thread))
         solver.SetNumThreads(args.num_thread)
-    print("Set time limit to {} seconds".format(args.time_lim_sec))
-    solver.SetTimeLimit(args.time_lim_sec * 1000)
+        
+    if args.time_lim_sec > 0:
+        print("Set time limit to {} seconds".format(args.time_lim_sec))
+        solver.SetTimeLimit(args.time_lim_sec * 1000)
 
     # Define variables
     # - x: an integer variable for each node. x[i] = 1 means node i is picked

@@ -179,6 +179,11 @@ impl GraphConverter {
         self.rec_expr.add(new_node)
     }
 
+    pub fn noop(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
+        let new_node = Mdl::Noop([inpt_1, inpt_2]);
+        self.rec_expr.add(new_node)
+    }
+
     /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
     fn add_or_get_val(&mut self, val: i32) -> Id {
         match self.scalar_map.get(&val) {
