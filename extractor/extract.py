@@ -18,6 +18,8 @@ def get_args():
         help='Number of thread for the solver (default: 1)')
     parser.add_argument('--print_solution', action='store_true', default=False,
         help='To print out solution')
+    parser.add_argument('--initialize', action='store_true', default=False,
+        help='initialize with greedy solution')
 
     return parser.parse_args()
 
@@ -102,6 +104,34 @@ def main():
     # Define objective
     obj_expr = [costs[j] * x[j] for j in range(num_nodes)]
     solver.Minimize(sum(obj_expr))
+
+    # Set initial solutions
+    if args.initialize:
+        print("Initialize with greedy")
+        with open('./tmp/init_sol.json') as f:
+            sol_data = json.load(f)
+
+        i_list = sol_data['i_list']
+        m_list = sol_data['m_list']
+
+        i_var_list = [x[i] for i in range(num_nodes)]
+        i_init_val_list = [0 for i in range(num_nodes)]
+        for i in i_list:
+            i_init_val_list[i] = 1
+
+        t_var_list = [t[m] for m in range(num_classes)]
+        t_init_val_list = [0 for m in range(num_classes)]
+        num_picked = len(m_list)
+        gap = 1 / num_picked
+        count = 0
+        for m in m_list:
+            if args.order_var_int:
+                t_init_val_list[m] = count
+            else:
+                t_init_val_list[m] = count * gap
+            count += 1
+
+        solver.SetHint(i_var_list + t_var_list, i_init_val_list + t_init_val_list)
 
     # Solve
     status = solver.Solve()
