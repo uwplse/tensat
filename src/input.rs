@@ -158,6 +158,27 @@ impl GraphConverter {
         (split_0_id, split_1_id)
     }
 
+    pub fn reshape(&mut self, inpt: Id, shape: &[i32]) -> Id {
+        let shape_name = &shape.iter().join("_");
+        let node = Mdl::Var(Symbol::from(shape_name));
+        let shape_name_id = self.rec_expr.add(node);
+
+        let new_node = Mdl::Reshape([inpt, shape_name_id]);
+        self.rec_expr.add(new_node)
+    }
+
+    pub fn transpose(&mut self, inpt: Id, perm: &[i32], shuffle: bool) -> Id {
+        let perm_name = &perm.iter().join("_");
+        let node = Mdl::Var(Symbol::from(perm_name));
+        let perm_name_id = self.rec_expr.add(node);
+
+        let shuffle_val = if shuffle { SHUFFLE } else { NOSHUFFLE };
+        let shuffle_id = self.add_or_get_val(shuffle_val);
+
+        let new_node = Mdl::Transpose([inpt, perm_name_id, shuffle_id]);
+        self.rec_expr.add(new_node)
+    }
+
     /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
     fn add_or_get_val(&mut self, val: i32) -> Id {
         match self.scalar_map.get(&val) {

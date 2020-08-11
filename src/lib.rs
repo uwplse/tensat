@@ -1,4 +1,5 @@
 pub mod benchnet;
+pub mod bert;
 pub mod input;
 pub mod model;
 pub mod nasrnn;

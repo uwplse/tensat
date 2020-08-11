@@ -21,6 +21,9 @@ pub const ACTSIGMOID: i32 = 1;
 pub const ACTRELU: i32 = 2;
 pub const ACTTANH: i32 = 3;
 
+pub const NOSHUFFLE: i32 = 0;
+pub const SHUFFLE: i32 = 1;
+
 define_language! {
     pub enum Mdl {
         "input"     = Input([Id; 1]), // takes a Var, format: name@dim1_dim2...
@@ -28,7 +31,7 @@ define_language! {
         "ewadd"     = Ewadd([Id; 2]),
         "ewmul"     = Ewmul([Id; 2]),
         "smul"      = Smul([Id; 2]),
-        "transpose" = Transpose(Id),
+        "transpose" = Transpose([Id; 3]), // input, perm_name (format: dim1_dim2...), shuffle
         "matmul"    = Matmul([Id; 3]), // activation, input1, input2
         "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 2]), // input_to_enlarge, ref_input
@@ -46,6 +49,7 @@ define_language! {
         "Imatmul"   = Imatmul,
         "Iewmul"    = Iewmul,
         "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
+        "reshape"   = Reshape([Id; 2]), // input, shape_name (format: dim1_dim2...)
         Num(i32),
         Var(Symbol),
     }
@@ -484,6 +488,65 @@ impl Analysis<Mdl> for TensorAnalysis {
                 }
             }
 
+            Mdl::Reshape([inpt, shape_name]) => {
+                // Check types
+                assert!(x(shape_name).dtype == DataKind::Name);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let dims: Vec<i32> = x(shape_name)
+                    .name
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
+                let t_inpt = x(inpt).meta;
+
+                // Create tensorhandle and get metadata
+                let res = unsafe {
+                    let cpp_dims = convert_to_cpp_vec(&dims);
+                    let ptr = cpp_dims.as_ptr() as *const [u64; 3];
+                    g.reshape(t_inpt, ptr)
+                };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
+            Mdl::Transpose([inpt, perm_name, shuffle]) => {
+                // Check types
+                assert!(x(perm_name).dtype == DataKind::Name);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+                assert!(x(shuffle).dtype == DataKind::Scalar);
+
+                // Get arguments
+                let perms: Vec<i32> = x(perm_name)
+                    .name
+                    .split("_")
+                    .map(|x| x.parse::<i32>().unwrap())
+                    .collect();
+                let t_inpt = x(inpt).meta;
+                let shuffle_val = x(shuffle).val;
+                let shuffle_bool = (shuffle_val == SHUFFLE);
+
+                // Create tensorhandle and get metadata
+                let res = unsafe {
+                    let cpp_perms = convert_to_cpp_vec(&perms);
+                    let ptr = cpp_perms.as_ptr() as *const [u64; 3];
+                    g.transpose(t_inpt, ptr, shuffle_bool)
+                };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                }
+            }
+
             Mdl::Num(_n) => Self::Data {
                 dtype: DataKind::Scalar,
                 val: *_n,
@@ -509,4 +572,16 @@ impl Analysis<Mdl> for TensorAnalysis {
 
     // Not needed to modify anything
     fn modify(egraph: &mut EGraph<Mdl, Self>, id: Id) {}
+}
+
+/// Convert rust vector to C++ vector, for ffi
+///
+/// The returned C++ format for vector is:
+/// [pointer_to_first_element, pointer_to_last_element, pointer_to_the_end_of_vector_capacity]
+unsafe fn convert_to_cpp_vec(v: &Vec<i32>) -> [*const i32; 3] {
+    [
+        v.as_ptr(),
+        v.as_ptr().offset(v.len().try_into().unwrap()),
+        v.as_ptr().offset(v.capacity().try_into().unwrap()),
+    ]
 }

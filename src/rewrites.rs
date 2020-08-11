@@ -798,31 +798,35 @@ impl MultiPatterns {
     /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
     /// the same eclass. It always returns Ok()
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
-        // Construct Vec to store matches for each canonicalized pattern
-        let matches: Vec<Vec<SearchMatches>> = self
-            .canonical_src_pat
-            .iter()
-            .map(|x| x.search(&runner.egraph))
-            .collect();
+        if runner.iterations.len() < 1 {
+            println!("Run one");
+            // Construct Vec to store matches for each canonicalized pattern
+            let matches: Vec<Vec<SearchMatches>> = self
+                .canonical_src_pat
+                .iter()
+                .map(|x| x.search(&runner.egraph))
+                .collect();
 
-        // For each multi rule
-        for (i, rule) in self.rules.iter().enumerate() {
-            let map_1 = &self.src_pat_maps[i].0;
-            let map_2 = &self.src_pat_maps[i].1;
-            let matches_1 = &matches[map_1.index];
-            let matches_2 = &matches[map_2.index];
-            for match_1 in matches_1 {
-                for match_2 in matches_2 {
-                    if match_1.eclass == match_2.eclass {
-                        // We don't want to apply multi-pattern rules on the same eclass
-                        continue;
+            // For each multi rule
+            for (i, rule) in self.rules.iter().enumerate() {
+                let map_1 = &self.src_pat_maps[i].0;
+                let map_2 = &self.src_pat_maps[i].1;
+                let matches_1 = &matches[map_1.index];
+                let matches_2 = &matches[map_2.index];
+                for match_1 in matches_1 {
+                    for match_2 in matches_2 {
+                        if match_1.eclass == match_2.eclass {
+                            // We don't want to apply multi-pattern rules on the same eclass
+                            continue;
+                        }
+                        self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                     }
-                    self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                 }
             }
+
+            runner.egraph.rebuild();
         }
 
-        runner.egraph.rebuild();
         Ok(())
     }
 

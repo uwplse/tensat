@@ -1,6 +1,8 @@
 use crate::{model::*, rewrites::*};
 use egg::*;
 use root::taso::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
@@ -44,7 +46,9 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
         | Mdl::Weight(_)
         | Mdl::Merge(_)
         | Mdl::Split0(_)
-        | Mdl::Split1(_) => 0.0,
+        | Mdl::Split1(_)
+        | Mdl::Reshape(_)
+        | Mdl::Transpose(_) => 0.0,
 
         Mdl::Relu(_a) => {
             // Check types
@@ -291,6 +295,115 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
         other => {
             println!("Get cost not implemented for: {:?}", other);
             0.0
+        }
+    }
+}
+
+/// Prepare the data for formulation ILP
+///
+/// # Returns
+///
+/// - `m_id_map`: list of EClass Id's each index m refers to
+/// - `e_m`: each entry is the list of nodes i within eclass m
+/// - `h_i`: each entry is the list of children EClass indices for node i
+/// - `cost_i`: self cost for each node i
+/// - `g_i`: which EClass index does node i belong to
+/// - `root_m`: EClass index of the root eclass
+/// - `i_to_nodes: Vector of enodes, ordered by index i
+pub fn prep_ilp_data(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    root: Id,
+) -> (
+    Vec<Id>,
+    Vec<Vec<usize>>,
+    Vec<Vec<usize>>,
+    Vec<f32>,
+    Vec<usize>,
+    usize,
+    Vec<Mdl>,
+) {
+    let m_id_map: Vec<Id> = egraph.classes().map(|c| egraph.find(c.id)).collect();
+    assert!(m_id_map.len() == egraph.number_of_classes());
+    let id_m_map: HashMap<Id, usize> = m_id_map
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (*id, i))
+        .collect();
+
+    let num_classes = egraph.number_of_classes();
+    let num_nodes = egraph.total_size();
+    let mut i_to_nodes: Vec<Mdl> = Vec::with_capacity(num_nodes);
+    let mut e_m: Vec<Vec<usize>> = vec![Vec::new(); num_classes];
+    let mut h_i: Vec<Vec<usize>> = Vec::with_capacity(num_nodes);
+    let mut cost_i: Vec<f32> = Vec::with_capacity(num_nodes);
+    let mut g_i: Vec<usize> = Vec::with_capacity(num_nodes);
+
+    let mut i = 0;
+    for class in egraph.classes() {
+        let m = *id_m_map.get(&egraph.find(class.id)).unwrap();
+        for node in class.iter() {
+            i_to_nodes.push(node.clone());
+            e_m[m].push(i);
+            h_i.push(
+                node.children()
+                    .iter()
+                    .map(|id| *id_m_map.get(&egraph.find(*id)).unwrap())
+                    .collect(),
+            );
+            cost_i.push(get_self_cost(egraph, node));
+            g_i.push(m);
+            i += 1;
+        }
+    }
+
+    let root_m = *id_m_map.get(&egraph.find(root)).unwrap();
+
+    (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes)
+}
+
+/// Struct for storing the solved results from ILP
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SolvedResults {
+    /// The solved values for the variables associated with each node
+    pub solved_x: Vec<i32>,
+    /// The minimum total cost found
+    pub cost: f32,
+}
+
+/// Construct the RecExpr of the optimized graph extracted
+///
+/// This function does the construction recursively with memoization. Call it with eclass=root
+/// will construct the whole extracted graph
+///
+/// # Parameters
+///
+/// - `node_picked`: hashmap storing which node is picked for each EClass ID
+/// - `eclass`: The EClass ID that we aim to construct as root
+/// - `added_memo`: Map from EClass ID to RecExpr ID. Storing the eclasses that were already added
+/// - `egraph`: E-graph of interest
+/// - `expr`: the RecExpr storing the optimized graph, it is constructed within this function
+///
+/// # Returns
+///
+/// - The ID (index) in the output RecExpr for the eclass passed in as argument
+pub fn construct_best_rec(
+    node_picked: &HashMap<Id, Mdl>,
+    eclass: Id,
+    added_memo: &mut HashMap<Id, Id>,
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    expr: &mut RecExpr<Mdl>,
+) -> Id {
+    let id = egraph.find(eclass);
+
+    match added_memo.get(&id) {
+        Some(id_expr) => *id_expr,
+        None => {
+            let node = node_picked.get(&id).unwrap().clone().map_children(|child| {
+                construct_best_rec(node_picked, child, added_memo, egraph, expr)
+            });
+            let id_expr = expr.add(node);
+            assert!(added_memo.insert(id, id_expr).is_none());
+            id_expr
         }
     }
 }
