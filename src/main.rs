@@ -138,6 +138,18 @@ fn main() {
                 .takes_value(true)
                 .help("Number of threads for ILP solver"),
         )
+        .arg(
+            Arg::with_name("iter_multi")
+                .long("iter_multi")
+                .takes_value(true)
+                .default_value("1")
+                .help("Max number of iterations to apply multi-pattern rules"),
+        )
+        .arg(
+            Arg::with_name("no_cycle")
+                .long("no_cycle")
+                .help("Not allowing cycles in EGraph"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap();
@@ -222,15 +234,17 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
+    let no_cycle = matches.is_present("no_cycle");
+    let iter_multi = matches.value_of("iter_multi").unwrap().parse::<usize>().unwrap();
     let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
         let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
         let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
-        MultiPatterns::with_rules(multi_rules)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     } else {
         let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
-        MultiPatterns::with_rules(multi_rules)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     };
 
     // Run saturation

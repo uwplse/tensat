@@ -2,7 +2,7 @@ use crate::model::*;
 use egg::{rewrite as rw, *};
 use itertools::Itertools;
 use root::taso::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
@@ -732,6 +732,10 @@ pub struct MultiPatterns {
     canonical_src_pat: Vec<Pattern<Mdl>>,
     /// Mapping information for each src pattern. The order is the same as in rules
     src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
+    /// Whether to allow cycles in EGraph
+    no_cycle: bool,
+    /// Number of iterations to run multi-pattern rules
+    iter_limit: usize,
 }
 
 impl MultiPatterns {
@@ -740,7 +744,7 @@ impl MultiPatterns {
     /// # Parameters
     ///
     /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
-    pub fn with_rules(rules: Vec<&str>) -> MultiPatterns {
+    pub fn with_rules(rules: Vec<&str>, no_cycle: bool, iter_limit: usize) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
         let mut multi_rules =
@@ -788,6 +792,8 @@ impl MultiPatterns {
             rules: multi_rules,
             canonical_src_pat: canonical_pats,
             src_pat_maps: src_pat_maps,
+            no_cycle: no_cycle,
+            iter_limit: iter_limit,
         }
     }
 
@@ -798,7 +804,7 @@ impl MultiPatterns {
     /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
     /// the same eclass. It always returns Ok()
     pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
-        if runner.iterations.len() < 2 {
+        if runner.iterations.len() < self.iter_limit {
             println!("Run one");
             // Construct Vec to store matches for each canonicalized pattern
             let matches: Vec<Vec<SearchMatches>> = self
@@ -840,6 +846,7 @@ impl MultiPatterns {
         map_2: &MapToCanonical,
         runner: &mut Runner<Mdl, TensorAnalysis, ()>,
     ) {
+        let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
         for subst_1 in &match_1.substs {
             for subst_2 in &match_2.substs {
                 // De-canonicalize the substitutions
@@ -849,21 +856,26 @@ impl MultiPatterns {
                 if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
                     // If so, merge two substitutions
                     let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
-
                     // check_pat on both dst patterns
                     if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                         if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
-                            // apply dst patterns, union
-                            let id_1 =
-                                rule.2
-                                    .apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)
-                                    [0];
-                            runner.egraph.union(id_1, match_1.eclass);
-                            let id_2 =
-                                rule.3
-                                    .apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)
-                                    [0];
-                            runner.egraph.union(id_2, match_2.eclass);
+                            let cycle_check_passed = if self.no_cycle {
+                                println!("No cycle");
+                                true
+                            } else { true };
+                            if cycle_check_passed {
+                                // apply dst patterns, union
+                                let id_1 =
+                                    rule.2
+                                        .apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)
+                                        [0];
+                                runner.egraph.union(id_1, match_1.eclass);
+                                let id_2 =
+                                    rule.3
+                                        .apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)
+                                        [0];
+                                runner.egraph.union(id_2, match_2.eclass);
+                            }
                         }
                     }
                 }

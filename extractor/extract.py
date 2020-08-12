@@ -155,6 +155,9 @@ def main():
         print('The problem does not have an optimal solution.')
         print(status)
         print('Objective value =', solver.Objective().Value())
+        print('Problem solved in %f milliseconds' % solver.wall_time())
+        print('Problem solved in %d iterations' % solver.iterations())
+        print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
 
     # Store results
     solved_x = [int(x[j].solution_value()) for j in range(num_nodes)]
