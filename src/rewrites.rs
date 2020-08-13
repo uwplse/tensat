@@ -860,20 +860,31 @@ impl MultiPatterns {
                     if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                         if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                             let cycle_check_passed = if self.no_cycle {
-                                println!("No cycle");
+                                check_cycle(
+                                    &runner.egraph,
+                                    &merged_subst,
+                                    &map_1.var_map,
+                                    &map_2.var_map,
+                                    match_1.eclass,
+                                    match_2.eclass,
+                                    &mut descendents,
+                                )
+                            } else {
                                 true
-                            } else { true };
+                            };
                             if cycle_check_passed {
                                 // apply dst patterns, union
-                                let id_1 =
-                                    rule.2
-                                        .apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)
-                                        [0];
+                                let id_1 = rule.2.apply_one(
+                                    &mut runner.egraph,
+                                    match_1.eclass,
+                                    &merged_subst,
+                                )[0];
                                 runner.egraph.union(id_1, match_1.eclass);
-                                let id_2 =
-                                    rule.3
-                                        .apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)
-                                        [0];
+                                let id_2 = rule.3.apply_one(
+                                    &mut runner.egraph,
+                                    match_2.eclass,
+                                    &merged_subst,
+                                )[0];
                                 runner.egraph.union(id_2, match_2.eclass);
                             }
                         }
@@ -881,6 +892,50 @@ impl MultiPatterns {
                 }
             }
         }
+    }
+}
+
+/// Returns true if there will not be a cycle
+fn check_cycle(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    input_subst: &Subst,
+    var_map_1: &HashMap<egg::Var, egg::Var>,
+    var_map_2: &HashMap<egg::Var, egg::Var>,
+    out_class_1: Id,
+    out_class_2: Id,
+    descendents: &mut HashMap<Id, HashSet<Id>>,
+) -> bool {
+    // Get all input eclass IDs
+    let input_ids: HashSet<Id> = var_map_1.iter().chain(var_map_2.iter()).map(|(var, _)| *input_subst.get(*var).unwrap()).collect();
+    // Get a map from eclass IDs to eclass
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> = egraph.classes().map(|class| (class.id, class)).collect();
+    // Check descendents of the input eclasses
+    for id in input_ids.iter() {
+        get_descendents(egraph, *id, &id_to_class, descendents);
+        let descendents_input = descendents.get(id).unwrap();
+        if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2) {
+            return false;
+        }
+    }
+    true
+}
+
+fn get_descendents(egraph: &EGraph<Mdl, TensorAnalysis>, eclass: Id, id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>, descendents: &mut HashMap<Id, HashSet<Id>>) {
+    match descendents.get(&eclass) {
+        Some(desc) => (),
+        None => {
+            let class = id_to_class.get(&eclass).unwrap();
+            let mut result_desc = HashSet::<Id>::new();
+            for node in class.iter() {
+                for child in node.children().iter() {
+                    get_descendents(egraph, *child, id_to_class, descendents);
+                    let child_desc = descendents.get(child).unwrap();
+                    result_desc = result_desc.union(child_desc).map(|&id| id).collect();
+                    result_desc.insert(*child);
+                }
+            }
+            descendents.insert(eclass, result_desc);
+        },
     }
 }
 

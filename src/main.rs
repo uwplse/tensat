@@ -19,10 +19,10 @@ use tamago::{parse::*, verify::*};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::OpenOptions;
+use std::io::prelude::*;
 use std::io::Error;
 use std::process::{Command, Stdio};
 use std::thread;
-use std::io::prelude::*;
 
 fn main() {
     // Parse arguments
@@ -181,7 +181,11 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 fn test(matches: clap::ArgMatches) {
     match matches.value_of("out_file") {
         Some(outf) => {
-            let mut file = OpenOptions::new().append(true).create(true).open(outf).unwrap();
+            let mut file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(outf)
+                .unwrap();
 
             if let Err(e) = writeln!(file, "{}\t{}", 11, 22) {
                 eprintln!("Couldn't write to file: {}", e);
@@ -235,7 +239,11 @@ fn optimize(matches: clap::ArgMatches) {
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
     let no_cycle = matches.is_present("no_cycle");
-    let iter_multi = matches.value_of("iter_multi").unwrap().parse::<usize>().unwrap();
+    let iter_multi = matches
+        .value_of("iter_multi")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
     let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
@@ -333,7 +341,11 @@ fn optimize(matches: clap::ArgMatches) {
 
     match matches.value_of("out_file") {
         Some(outf) => {
-            let mut file = OpenOptions::new().append(true).create(true).open(outf).unwrap();
+            let mut file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(outf)
+                .unwrap();
 
             if let Err(e) = writeln!(file, "{}\t{}", time_start, time_ext) {
                 eprintln!("Couldn't write to file: {}", e);
@@ -370,7 +382,11 @@ fn extract_by_ilp(
     let initialize = matches.is_present("initial_with_greedy");
     if initialize {
         // Get node_to_i map
-        let node_to_i: HashMap<Mdl, usize> = (&i_to_nodes).iter().enumerate().map(|(i, node)| (node.clone(), i)).collect();
+        let node_to_i: HashMap<Mdl, usize> = (&i_to_nodes)
+            .iter()
+            .enumerate()
+            .map(|(i, node)| (node.clone(), i))
+            .collect();
 
         let tnsr_cost = TensorCost { egraph: egraph };
         let mut extractor = Extractor::new(egraph, tnsr_cost);
@@ -381,7 +397,8 @@ fn extract_by_ilp(
             "i_list": i_list,
             "m_list": m_list,
         });
-        let sol_data_str = serde_json::to_string(&solution_data).expect("Fail to convert json to string");
+        let sol_data_str =
+            serde_json::to_string(&solution_data).expect("Fail to convert json to string");
         write("./tmp/init_sol.json", sol_data_str).expect("Unable to write file");
     }
 
@@ -406,14 +423,14 @@ fn extract_by_ilp(
         Some(time_lim) => {
             arg_vec.push("--time_lim_sec");
             arg_vec.push(time_lim);
-        },
+        }
         None => (),
     }
     match matches.value_of("ilp_num_threads") {
         Some(num_thread) => {
             arg_vec.push("--num_thread");
             arg_vec.push(num_thread);
-        },
+        }
         None => (),
     }
     let child = Command::new("python")
