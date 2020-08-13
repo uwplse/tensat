@@ -247,11 +247,11 @@ fn optimize(matches: clap::ArgMatches) {
     let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
-        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| x);
-        let multi_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_multi).collect();
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false));
+        let multi_rules: Vec<(&str, bool)> = learned_rules.split("\n").map(|x| (x, /*symmetric=*/true)).chain(pre_defined_multi).collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     } else {
-        let multi_rules: Vec<&str> = PRE_DEFINED_MULTI.iter().map(|&x| x).collect();
+        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false)).collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     };
 

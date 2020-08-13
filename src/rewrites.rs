@@ -726,8 +726,8 @@ struct MapToCanonical {
 /// applying the rewrite.
 #[derive(Debug)]
 pub struct MultiPatterns {
-    /// Vec of (src_1, src_2, dst_1, dst_2)
-    rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>,
+    /// Vec of (src_1, src_2, dst_1, dst_2, symmetric)
+    rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool)>,
     /// Vec of all unique canonical source patterns (for src_1's and src_2's)
     canonical_src_pat: Vec<Pattern<Mdl>>,
     /// Mapping information for each src pattern. The order is the same as in rules
@@ -744,11 +744,11 @@ impl MultiPatterns {
     /// # Parameters
     ///
     /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
-    pub fn with_rules(rules: Vec<&str>, no_cycle: bool, iter_limit: usize) -> MultiPatterns {
+    pub fn with_rules(rules: Vec<(&str, bool)>, no_cycle: bool, iter_limit: usize) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
         let mut multi_rules =
-            Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
+            Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool)>::new();
         let mut canonical_pats = Vec::<Pattern<Mdl>>::new();
         let mut src_pat_maps = Vec::<(MapToCanonical, MapToCanonical)>::new();
 
@@ -776,13 +776,16 @@ impl MultiPatterns {
         };
 
         for i in 0..(rules.len() / 2) {
-            let (src_1, dst_1) = get_pats(rules[2 * i]);
-            let (src_2, dst_2) = get_pats(rules[2 * i + 1]);
+            let (src_1, dst_1) = get_pats(rules[2 * i].0);
+            let (src_2, dst_2) = get_pats(rules[2 * i + 1].0);
 
             let src_1_map = canonicalize_and_add(&src_1);
             let src_2_map = canonicalize_and_add(&src_2);
 
-            multi_rules.push((src_1, src_2, dst_1, dst_2));
+            assert!(rules[2 * i].1 == rules[2 * i + 1].1);
+            let symmetric = rules[2 * i].1;
+
+            multi_rules.push((src_1, src_2, dst_1, dst_2, symmetric));
             src_pat_maps.push((src_1_map, src_2_map));
         }
 
@@ -817,15 +820,29 @@ impl MultiPatterns {
             for (i, rule) in self.rules.iter().enumerate() {
                 let map_1 = &self.src_pat_maps[i].0;
                 let map_2 = &self.src_pat_maps[i].1;
-                let matches_1 = &matches[map_1.index];
-                let matches_2 = &matches[map_2.index];
-                for match_1 in matches_1 {
-                    for match_2 in matches_2 {
-                        if match_1.eclass == match_2.eclass {
-                            // We don't want to apply multi-pattern rules on the same eclass
-                            continue;
+                // If the rule is fully symmetrical
+                if map_1.index == map_2.index && rule.4 {
+                    let matches_both = &matches[map_1.index];
+                    for (i, match_1) in matches_both.iter().enumerate() {
+                        for match_2 in (&matches_both[(i + 1)..]).iter() {
+                            if match_1.eclass == match_2.eclass {
+                                // We don't want to apply multi-pattern rules on the same eclass
+                                continue;
+                            }
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                         }
-                        self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                    }
+                } else {
+                    let matches_1 = &matches[map_1.index];
+                    let matches_2 = &matches[map_2.index];
+                    for match_1 in matches_1 {
+                        for match_2 in matches_2 {
+                            if match_1.eclass == match_2.eclass {
+                                // We don't want to apply multi-pattern rules on the same eclass
+                                continue;
+                            }
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                        }
                     }
                 }
             }
@@ -839,7 +856,7 @@ impl MultiPatterns {
     /// Apply a rule with a pair of matches for its src patterns
     fn apply_match_pair(
         &self,
-        rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>),
+        rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool),
         match_1: &SearchMatches,
         match_2: &SearchMatches,
         map_1: &MapToCanonical,
