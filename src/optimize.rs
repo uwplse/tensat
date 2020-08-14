@@ -10,6 +10,8 @@ use std::time::{Duration, Instant};
 /// Custom struct implementing our cost function
 pub struct TensorCost<'a> {
     pub egraph: &'a EGraph<Mdl, TensorAnalysis>,
+    /// To have zero cost for all weight op only
+    pub ignore_all_weight_only: bool,
 }
 
 impl CostFunction<Mdl> for TensorCost<'_> {
@@ -17,7 +19,7 @@ impl CostFunction<Mdl> for TensorCost<'_> {
     /// Getting total cost for the subtree rooted at enode. See egg::CostFunction
     /// trait for more information on interface.
     fn cost<C: FnMut(Id) -> Self::Cost>(&mut self, enode: &Mdl, mut costs: C) -> Self::Cost {
-        let self_cost = get_self_cost(self.egraph, enode);
+        let self_cost = get_self_cost(self.egraph, enode, self.ignore_all_weight_only);
         enode.fold(self_cost, |sum, id| sum + costs(id))
     }
 }
@@ -37,7 +39,7 @@ impl CostFunction<Mdl> for TensorCost<'_> {
 /// # Returns
 ///
 /// Cost for this enode.
-fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
+fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl, ignore_all_weight_only: bool) -> f32 {
     let x = |i: &Id| &egraph[*i].data;
     let mut g = egraph.analysis.graph.borrow_mut();
     match enode {
@@ -206,7 +208,11 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
                 std::mem::forget(inputs);
 
                 // Get op
-                let mut need_copy = [false, false];
+                let mut need_copy = if ignore_all_weight_only && !(x(_a).all_weights && x(_b).all_weights){
+                    [true, true]
+                } else {
+                    [false, false]
+                };
                 let op = (*g.model).get_or_create_concat(axis, 2, ptr, need_copy.as_mut_ptr());
                 assert!(op != Op_INVALID_OP);
                 (*op.ptr).runtime.clone()
@@ -315,6 +321,7 @@ fn get_self_cost(egraph: &EGraph<Mdl, TensorAnalysis>, enode: &Mdl) -> f32 {
 pub fn prep_ilp_data(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     root: Id,
+    ignore_all_weight_only: bool,
 ) -> (
     Vec<Id>,
     Vec<Vec<usize>>,
@@ -352,7 +359,7 @@ pub fn prep_ilp_data(
                     .map(|id| *id_m_map.get(&egraph.find(*id)).unwrap())
                     .collect(),
             );
-            cost_i.push(get_self_cost(egraph, node));
+            cost_i.push(get_self_cost(egraph, node, ignore_all_weight_only));
             g_i.push(m);
             i += 1;
         }

@@ -903,6 +903,12 @@ impl MultiPatterns {
                                     &merged_subst,
                                 )[0];
                                 runner.egraph.union(id_2, match_2.eclass);
+                            } else {
+                                //println!("{}", rule.0.pretty(1000));
+                                //println!("{}", rule.1.pretty(1000));
+                                //println!("{}", rule.2.pretty(1000));
+                                //println!("{}", rule.3.pretty(1000));
+                                //assert!(false);
                             }
                         }
                     }
@@ -931,6 +937,14 @@ fn check_cycle(
         get_descendents(egraph, *id, &id_to_class, descendents);
         let descendents_input = descendents.get(id).unwrap();
         if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2) {
+            //println!("Out class 1:");
+            //for node in id_to_class.get(&out_class_1).unwrap().iter() {
+            //    println!("{}", node.display_op());
+            //}
+            //println!("Out class 2:");
+            //for node in id_to_class.get(&out_class_2).unwrap().iter() {
+            //    println!("{}", node.display_op());
+            //}
             return false;
         }
     }

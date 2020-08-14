@@ -150,6 +150,11 @@ fn main() {
                 .long("no_cycle")
                 .help("Not allowing cycles in EGraph"),
         )
+        .arg(
+            Arg::with_name("all_weight_only")
+                .long("all_weight_only")
+                .help("Treat zero cost for all weight concat only"),
+        )
         .get_matches();
 
     let run_mode = matches.value_of("mode").unwrap();
@@ -179,19 +184,134 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 }
 
 fn test(matches: clap::ArgMatches) {
-    match matches.value_of("out_file") {
-        Some(outf) => {
-            let mut file = OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(outf)
-                .unwrap();
+    // Read settings from args
+    let rule_file = matches
+        .value_of("rules")
+        .expect("Pls supply rewrite rules file.");
+    let save_graph = matches.value_of("save_graph").unwrap();
+    let use_multi = matches.is_present("use_multi");
 
-            if let Err(e) = writeln!(file, "{}\t{}", 11, 22) {
-                eprintln!("Couldn't write to file: {}", e);
-            }
+    // Get input graph and rules
+    // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
+    let learned_rules =
+        read_to_string(rule_file).expect("Something went wrong reading the rule file");
+    let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
+    let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
+    let rules = rules_from_str(split_rules);
+
+    let start = match matches.value_of("model") {
+        Some("resnet50") => resnet50::get_resnet50(),
+        Some("testnet") => testnet::get_testnet(),
+        Some("benchnet") => benchnet::get_benchnet(),
+        Some("nasrnn") => nasrnn::get_nasrnn(),
+        Some("resnext50") => resnext50::get_resnext50(),
+        Some("bert") => bert::get_bert(),
+        Some(_) => panic!("The model name is not supported"),
+        None => {
+            let model_file = matches
+                .value_of("model_file")
+                .expect("Pls supply input graph file.");
+            let input_graph =
+                read_to_string(model_file).expect("Something went wrong reading the model file");
+            input_graph.parse().unwrap()
         }
-        None => (),
+    };
+
+    // Get multi-pattern rules. learned_rules are the learned rules from TASO,
+    // pre_defined_multi are the hand-specified rules from TASO
+    let no_cycle = matches.is_present("no_cycle");
+    let iter_multi = matches
+        .value_of("iter_multi")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+    let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
+        let learned_rules =
+            read_to_string(rule_file).expect("Something went wrong reading the rule file");
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false));
+        let multi_rules: Vec<(&str, bool)> = learned_rules.split("\n").map(|x| (x, /*symmetric=*/true)).chain(pre_defined_multi).collect();
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+    } else {
+        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false)).collect();
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+    };
+
+    // Run saturation
+    let n_sec = matches.value_of("n_sec").unwrap().parse::<u64>().unwrap();
+    let time_limit_sec = Duration::new(n_sec, 0);
+    let iter_limit = matches
+        .value_of("n_iter")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+
+    let runner = if use_multi {
+        // This hook function (which applies the multi-pattern rules) will be called at the
+        // beginning of each iteration in equality saturation
+        Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_node_limit(100000)
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
+            .with_hook(move |runner| multi_patterns.run_one(runner))
+    } else {
+        Runner::<Mdl, TensorAnalysis, ()>::default()
+            .with_node_limit(100000)
+            .with_time_limit(time_limit_sec)
+            .with_iter_limit(iter_limit)
+            .with_expr(&start)
+    };
+    let start_time = Instant::now();
+    let runner = runner.run(&rules[..]);
+    let duration = start_time.elapsed();
+
+    println!("Runner complete!");
+    println!("  Nodes: {}", runner.egraph.total_size());
+    println!("  Classes: {}", runner.egraph.number_of_classes());
+    println!("  Stopped: {:?}", runner.stop_reason.unwrap());
+    println!("  Time taken: {:?}", duration);
+    println!("  Number of iterations: {:?}", runner.iterations.len() - 1);
+
+    let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
+    println!("  Average nodes per class: {}", avg_nodes_per_class);
+    println!("  Number of edges: {}", num_edges);
+
+    // Save egraph
+    let (egraph, root) = (runner.egraph, runner.roots[0]);
+    if save_graph == "all" {
+        egraph.dot().to_svg("target/tamago.svg").unwrap();
+    }
+
+    // Run extraction
+    let extract_mode = matches.value_of("extract").unwrap();
+    let best = match extract_mode {
+        "ilp" => extract_by_ilp(&egraph, root, &matches),
+        "greedy" => {
+            let tnsr_cost = TensorCost { egraph: &egraph, ignore_all_weight_only: matches.is_present("all_weight_only") };
+            let start_time = Instant::now();
+            let mut extractor = Extractor::new(&egraph, tnsr_cost);
+            let (best_cost, best) = extractor.find_best(root);
+            let duration = start_time.elapsed();
+
+            println!("Extractor complete!");
+            println!("  Time taken: {:?}", duration);
+            println!("  Best cost: {:?}", best_cost);
+            best
+        }
+        _ => panic!("Extracting mode not supported"),
+    };
+
+    // Evaluation starting and extracted graph runtime, save graphs
+    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
+
+    if save_graph != "none" {
+        runner_start
+            .egraph
+            .dot()
+            .to_svg("target/start.svg")
+            .unwrap();
+        runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
     }
 }
 
@@ -306,7 +426,7 @@ fn optimize(matches: clap::ArgMatches) {
     let best = match extract_mode {
         "ilp" => extract_by_ilp(&egraph, root, &matches),
         "greedy" => {
-            let tnsr_cost = TensorCost { egraph: &egraph };
+            let tnsr_cost = TensorCost { egraph: &egraph, ignore_all_weight_only: matches.is_present("all_weight_only") };
             let start_time = Instant::now();
             let mut extractor = Extractor::new(&egraph, tnsr_cost);
             let (best_cost, best) = extractor.find_best(root);
@@ -366,7 +486,7 @@ fn extract_by_ilp(
     matches: &clap::ArgMatches,
 ) -> RecExpr<Mdl> {
     // Prepare data for ILP formulation, save to json
-    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root);
+    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root, matches.is_present("all_weight_only"));
 
     let data = json!({
         "e_m": e_m,
@@ -388,7 +508,7 @@ fn extract_by_ilp(
             .map(|(i, node)| (node.clone(), i))
             .collect();
 
-        let tnsr_cost = TensorCost { egraph: egraph };
+        let tnsr_cost = TensorCost { egraph: egraph, ignore_all_weight_only: matches.is_present("all_weight_only") };
         let mut extractor = Extractor::new(egraph, tnsr_cost);
         let (i_list, m_list) = get_init_solution(egraph, root, &extractor.costs, &g_i, &node_to_i);
 
