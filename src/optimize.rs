@@ -27,10 +27,20 @@ impl CostFunction<Mdl> for TensorCost<'_> {
 /// Class for our cost model
 pub struct CostModel {
     /// To have zero cost for all weight op only
-    pub ignore_all_weight_only: bool,
+    ignore_all_weight_only: bool,
+    /// Discount factor for all weight ops
+    all_weight_discount: f32,
 }
 
 impl CostModel {
+
+    pub fn with_setting(ignore_all_weight_only: bool) -> Self {
+        CostModel {
+            ignore_all_weight_only: ignore_all_weight_only, 
+            all_weight_discount: 1.0,
+        }
+    }
+
     /// Gets cost for the enode itself.
     ///
     /// This function gets the cost by calling TASO's get_or_create_{some_op}()
@@ -66,11 +76,17 @@ impl CostModel {
                 let a_t_data = x(_a);
                 assert!(a_t_data.dtype == DataKind::Tnsr);
 
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_RELU, true);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -79,11 +95,17 @@ impl CostModel {
                 let a_t_data = x(_a);
                 assert!(a_t_data.dtype == DataKind::Tnsr);
 
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_TANH, true);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -92,12 +114,18 @@ impl CostModel {
                 let a_t_data = x(_a);
                 assert!(a_t_data.dtype == DataKind::Tnsr);
 
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op =
                         (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -121,7 +149,7 @@ impl CostModel {
                 let stride_w = _stride_w_data.val;
                 let padding: PaddingMode = _pad_data.val.try_into().unwrap();
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
-                unsafe {
+                let runtime = unsafe {
                     let t_inpt = *_inpt_data.meta;
                     let t_wght = *_wght_data.meta;
                     // Get op
@@ -129,6 +157,12 @@ impl CostModel {
                         .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_inpt).all_weights && x(_wght).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -142,11 +176,17 @@ impl CostModel {
                 // Get arguments
                 let t_a = _a_data.meta;
                 let t_b = _b_data.meta;
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op = (*g.model).get_or_create_element(OpType_OP_EW_ADD, t_a, t_b);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights && x(_b).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -160,11 +200,17 @@ impl CostModel {
                 // Get arguments
                 let t_a = _a_data.meta;
                 let t_b = _b_data.meta;
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op = (*g.model).get_or_create_element(OpType_OP_EW_MUL, t_a, t_b);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights && x(_b).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -179,13 +225,19 @@ impl CostModel {
 
                 // Get arguments
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
-                unsafe {
+                let runtime = unsafe {
                     let t_a = *_a_data.meta;
                     let t_b = *_b_data.meta;
                     // Get op
                     let op = (*g.model).get_or_create_matmul(t_a, t_b, activation);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights && x(_b).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -250,7 +302,7 @@ impl CostModel {
                 let stride_w = _stride_w_data.val;
                 let padding: PaddingMode = _pad_data.val.try_into().unwrap();
                 let activation: ActiMode = _act_data.val.try_into().unwrap();
-                unsafe {
+                let runtime = unsafe {
                     let t_inpt = *_inpt_data.meta;
                     let t_wght = t_inpt.clone(); // Just a placeholder, t_wght won't be used in get_or_create_pool2d here
 
@@ -268,6 +320,12 @@ impl CostModel {
                     );
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_inpt).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -281,11 +339,17 @@ impl CostModel {
                 // Get arguments
                 let t_inpt = _inpt_data.meta;
                 let axis = _axis_data.val;
-                unsafe {
+                let runtime = unsafe {
                     // Get op
                     let op = (*g.model).get_or_create_split1(t_inpt, axis, 2);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_inpt).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 
@@ -297,13 +361,19 @@ impl CostModel {
                 assert!(_b_data.dtype == DataKind::Tnsr);
 
                 // Get arguments
-                unsafe {
+                let runtime = unsafe {
                     let t_a = *_a_data.meta;
                     let t_b = *_b_data.meta;
                     // Get op
                     let op = (*g.model).get_or_create_enlarge(t_a, t_b);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_a).all_weights && x(_b).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
                 }
             }
 

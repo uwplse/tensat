@@ -744,7 +744,11 @@ impl MultiPatterns {
     /// # Parameters
     ///
     /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
-    pub fn with_rules(rules: Vec<(&str, bool)>, no_cycle: bool, iter_limit: usize) -> MultiPatterns {
+    pub fn with_rules(
+        rules: Vec<(&str, bool)>,
+        no_cycle: bool,
+        iter_limit: usize,
+    ) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
         let mut multi_rules =
@@ -929,9 +933,14 @@ fn check_cycle(
     descendents: &mut HashMap<Id, HashSet<Id>>,
 ) -> bool {
     // Get all input eclass IDs
-    let input_ids: HashSet<Id> = var_map_1.iter().chain(var_map_2.iter()).map(|(var, _)| *input_subst.get(*var).unwrap()).collect();
+    let input_ids: HashSet<Id> = var_map_1
+        .iter()
+        .chain(var_map_2.iter())
+        .map(|(var, _)| *input_subst.get(*var).unwrap())
+        .collect();
     // Get a map from eclass IDs to eclass
-    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> = egraph.classes().map(|class| (class.id, class)).collect();
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
+        egraph.classes().map(|class| (class.id, class)).collect();
     // Check descendents of the input eclasses
     for id in input_ids.iter() {
         get_descendents(egraph, *id, &id_to_class, descendents);
@@ -951,7 +960,12 @@ fn check_cycle(
     true
 }
 
-fn get_descendents(egraph: &EGraph<Mdl, TensorAnalysis>, eclass: Id, id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>, descendents: &mut HashMap<Id, HashSet<Id>>) {
+fn get_descendents(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    eclass: Id,
+    id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>,
+    descendents: &mut HashMap<Id, HashSet<Id>>,
+) {
     match descendents.get(&eclass) {
         Some(desc) => (),
         None => {
@@ -966,7 +980,7 @@ fn get_descendents(egraph: &EGraph<Mdl, TensorAnalysis>, eclass: Id, id_to_class
                 }
             }
             descendents.insert(eclass, result_desc);
-        },
+        }
     }
 }
 

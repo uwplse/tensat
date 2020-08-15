@@ -228,11 +228,18 @@ fn test(matches: clap::ArgMatches) {
     let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
-        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false));
-        let multi_rules: Vec<(&str, bool)> = learned_rules.split("\n").map(|x| (x, /*symmetric=*/true)).chain(pre_defined_multi).collect();
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/ false));
+        let multi_rules: Vec<(&str, bool)> = learned_rules
+            .split("\n")
+            .map(|x| (x, /*symmetric=*/ true))
+            .chain(pre_defined_multi)
+            .collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     } else {
-        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false)).collect();
+        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
+            .iter()
+            .map(|&x| (x, /*symmetric=*/ false))
+            .collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     };
 
@@ -284,11 +291,14 @@ fn test(matches: clap::ArgMatches) {
 
     // Run extraction
     let extract_mode = matches.value_of("extract").unwrap();
-    let cost_model = CostModel { ignore_all_weight_only: matches.is_present("all_weight_only") };
+    let cost_model = CostModel::with_setting(/*ignore_all_weight_only=*/matches.is_present("all_weight_only"));
     let best = match extract_mode {
         "ilp" => extract_by_ilp(&egraph, root, &matches, &cost_model),
         "greedy" => {
-            let tnsr_cost = TensorCost { egraph: &egraph, cost_model: &cost_model };
+            let tnsr_cost = TensorCost {
+                egraph: &egraph,
+                cost_model: &cost_model,
+            };
             let start_time = Instant::now();
             let mut extractor = Extractor::new(&egraph, tnsr_cost);
             let (best_cost, best) = extractor.find_best(root);
@@ -368,11 +378,18 @@ fn optimize(matches: clap::ArgMatches) {
     let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
-        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false));
-        let multi_rules: Vec<(&str, bool)> = learned_rules.split("\n").map(|x| (x, /*symmetric=*/true)).chain(pre_defined_multi).collect();
+        let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/ false));
+        let multi_rules: Vec<(&str, bool)> = learned_rules
+            .split("\n")
+            .map(|x| (x, /*symmetric=*/ true))
+            .chain(pre_defined_multi)
+            .collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     } else {
-        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/false)).collect();
+        let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
+            .iter()
+            .map(|&x| (x, /*symmetric=*/ false))
+            .collect();
         MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
     };
 
@@ -424,11 +441,14 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Run extraction
     let extract_mode = matches.value_of("extract").unwrap();
-    let cost_model = CostModel { ignore_all_weight_only: matches.is_present("all_weight_only") };
+    let cost_model = CostModel::with_setting(/*ignore_all_weight_only=*/matches.is_present("all_weight_only"));
     let best = match extract_mode {
         "ilp" => extract_by_ilp(&egraph, root, &matches, &cost_model),
         "greedy" => {
-            let tnsr_cost = TensorCost { egraph: &egraph, cost_model: &cost_model };
+            let tnsr_cost = TensorCost {
+                egraph: &egraph,
+                cost_model: &cost_model,
+            };
             let start_time = Instant::now();
             let mut extractor = Extractor::new(&egraph, tnsr_cost);
             let (best_cost, best) = extractor.find_best(root);
@@ -489,7 +509,8 @@ fn extract_by_ilp(
     cost_model: &CostModel,
 ) -> RecExpr<Mdl> {
     // Prepare data for ILP formulation, save to json
-    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) = prep_ilp_data(egraph, root, cost_model);
+    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) =
+        prep_ilp_data(egraph, root, cost_model);
 
     let data = json!({
         "e_m": e_m,
@@ -511,7 +532,10 @@ fn extract_by_ilp(
             .map(|(i, node)| (node.clone(), i))
             .collect();
 
-        let tnsr_cost = TensorCost { egraph: egraph, cost_model: cost_model };
+        let tnsr_cost = TensorCost {
+            egraph: egraph,
+            cost_model: cost_model,
+        };
         let mut extractor = Extractor::new(egraph, tnsr_cost);
         let (i_list, m_list) = get_init_solution(egraph, root, &extractor.costs, &g_i, &node_to_i);
 
