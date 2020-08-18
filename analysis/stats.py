@@ -50,6 +50,55 @@ def plot_runtime_and_speed(benchmark_name, result):
     plt.savefig("{}.png".format(benchmark_name), bbox_inches='tight')
     plt.close()
 
+def plot_runtime_and_speed_2(benchmark_name, result):
+
+    width = 0.8
+    x_locs = [0, 1, 2, 3]
+    x_locs = [a + width/2 for a in x_locs]
+    colors = ['b', 'g', 'r', 'c']
+
+    fig, ax1 = plt.subplots()
+    ax1.bar(x_locs[0], result['orig_runtime'], width=width, label='Original', color=colors[0])
+    ax1.bar(x_locs[1], result['taso'], width=width, label='TASO', color=colors[1])
+    ax1.bar(x_locs[2], result['greedy'], width=width, label='Sat.+Greedy', color=colors[2])
+    ax1.bar(x_locs[3], result['ilp'], width=width, label='Sat.+ILP', color=colors[3])
+
+    runtimes = [result['orig_runtime'], result['taso'], result['greedy'], result['ilp']]
+
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
+    plt.xticks(x_locs, ['' for _ in range(len(x_locs))])
+    ax1.set_ylabel('Graph runtime (milliseconds)')
+    ax1.set_xlabel(benchmark_name)
+
+
+    plt.savefig("{}_runtime.png".format(benchmark_name), bbox_inches='tight')
+    plt.close()
+
+    #low = min(runtimes)
+    #high = max(runtimes)
+    #ax1.set_ylim(low-0.5*(high-low), high+0.5*(high-low))
+    x_locs = [0, 1]
+    x_locs = [a + width/2 for a in x_locs]
+    colors = ['b', 'g', 'r', 'c']
+
+    fig, ax2 = plt.subplots()
+    ax2.bar(x_locs[0], result['taso_total_time'], width=width, label='TASO total', color=colors[0])
+    ax2.bar(x_locs[0], result['taso_best_time'], width=width, label='TASO best', color=colors[1])
+    ax2.bar(x_locs[1], result['ilp_time'], width=width, label='Sat.+ILP', color=colors[2])
+
+    ax2.set_ylabel('Optimizer time (seconds)')
+    ax2.set_xlabel(benchmark_name)
+    fig = plt.gcf()
+    fig.set_size_inches(3, 5)
+    plt.xticks(x_locs, ['' for _ in range(len(x_locs))])
+
+    #ax2.legend(lines + lines2, labels + labels2, fontsize=10)
+    ax2.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
+
+    plt.savefig("{}_optimizer.png".format(benchmark_name), bbox_inches='tight')
+    plt.close()
+    
+
 
 
 def runtime_stats(args):
@@ -105,7 +154,8 @@ def plot_bars(args):
     #plt.rcParams.update({'figure.autolayout': True})
 
     for (benchmark, result) in results.items():
-        plot_runtime_and_speed(benchmark, result)
+        #plot_runtime_and_speed(benchmark, result)
+        plot_runtime_and_speed_2(benchmark, result)
 
 
 
