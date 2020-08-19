@@ -796,7 +796,7 @@ pub struct MultiPatterns {
     src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
     /// Whether to allow cycles in EGraph
     no_cycle: bool,
-    /// Whether to do cycle filtering after applying
+    /// Whether to do cycle filtering after applying. This is always false when no_cycle is false
     filter_after: bool,
     /// Number of iterations to run multi-pattern rules
     iter_limit: usize,
@@ -868,7 +868,7 @@ impl MultiPatterns {
             src_pat_maps: src_pat_maps,
             no_cycle: no_cycle,
             iter_limit: iter_limit,
-            filter_after: filter_after,
+            filter_after: filter_after && no_cycle,
             descendents: None,
         }
     }
@@ -896,7 +896,7 @@ impl MultiPatterns {
 
             // Make a pass to get descendents
             if self.filter_after {
-                self.descendents = Some(compute_all_descendents(&runner.egraph))
+                self.descendents = Some(compute_all_descendents(&runner.egraph, /*check_blacklist=*/true))
             }
 
             // For each multi rule
@@ -960,7 +960,7 @@ impl MultiPatterns {
                     // If so, merge two substitutions
                     let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
                     // Check if any source pattern contains blacklisted nodes
-                    if self.no_cycle && self.filter_after {
+                    if self.filter_after {
                         if constains_blacklist(rule.0.ast.as_ref(), &mut runner.egraph, &merged_subst).0 || constains_blacklist(rule.1.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                             continue;
                         }
@@ -1081,7 +1081,7 @@ fn check_cycle(
         egraph.classes().map(|class| (class.id, class)).collect();
     // Check descendents of the input eclasses
     for id in input_ids.iter() {
-        get_descendents(egraph, *id, &id_to_class, descendents);
+        get_descendents(egraph, *id, &id_to_class, /*check_blacklist=*/false, descendents);
         let descendents_input = descendents.get(id).unwrap();
         if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2) {
             //println!("Out class 1:");
@@ -1099,14 +1099,14 @@ fn check_cycle(
 }
 
 /// Get a map of all eclass to their descendent eclasses
-fn compute_all_descendents(egraph: &EGraph<Mdl, TensorAnalysis>) -> HashMap<Id, HashSet<Id>> {
+fn compute_all_descendents(egraph: &EGraph<Mdl, TensorAnalysis>, check_blacklist: bool) -> HashMap<Id, HashSet<Id>> {
     // Get a map from eclass IDs to eclass
     let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
         egraph.classes().map(|class| (class.id, class)).collect();
 
     let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
     for (id, _) in &id_to_class {
-        get_descendents(egraph, *id, &id_to_class, &mut descendents);
+        get_descendents(egraph, *id, &id_to_class, check_blacklist, &mut descendents);
     }
     descendents
 }
@@ -1116,6 +1116,7 @@ fn get_descendents(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     eclass: Id,
     id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>,
+    check_blacklist: bool,
     descendents: &mut HashMap<Id, HashSet<Id>>,
 ) {
     match descendents.get(&eclass) {
@@ -1124,8 +1125,13 @@ fn get_descendents(
             let class = id_to_class.get(&eclass).unwrap();
             let mut result_desc = HashSet::<Id>::new();
             for node in class.iter() {
+                if check_blacklist {
+                    if egraph.analysis.blacklist_nodes.contains(node) {
+                        continue;
+                    }
+                }
                 for child in node.children().iter() {
-                    get_descendents(egraph, *child, id_to_class, descendents);
+                    get_descendents(egraph, *child, id_to_class, check_blacklist, descendents);
                     let child_desc = descendents.get(child).unwrap();
                     result_desc = result_desc.union(child_desc).map(|&id| id).collect();
                     result_desc.insert(*child);
