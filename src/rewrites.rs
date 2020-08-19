@@ -959,56 +959,61 @@ impl MultiPatterns {
                 if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
                     // If so, merge two substitutions
                     let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
+                    // Check if any source pattern contains blacklisted nodes
+                    if self.no_cycle && self.filter_after {
+                        if constains_blacklist(rule.0.ast.as_ref(), &mut runner.egraph, &merged_subst).0 || constains_blacklist(rule.1.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                            continue;
+                        }
+                    }
+                    
                     // check_pat on both dst patterns
-                    if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
-                        if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
-                            let cycle_check_passed = if self.no_cycle {
-                                if self.filter_after {
-                                    self.check_cycle_partial(
-                                        &runner.egraph,
-                                        &merged_subst,
-                                        &map_1.var_map,
-                                        &map_2.var_map,
-                                        match_1.eclass,
-                                        match_2.eclass,
-                                    )
-                                } else {
-                                    let mut descendents: HashMap<Id, HashSet<Id>> =
-                                        Default::default();
-                                    check_cycle(
-                                        &runner.egraph,
-                                        &merged_subst,
-                                        &map_1.var_map,
-                                        &map_2.var_map,
-                                        match_1.eclass,
-                                        match_2.eclass,
-                                        &mut descendents,
-                                    )
-                                }
-                            } else {
-                                true
-                            };
-                            if cycle_check_passed {
-                                // apply dst patterns, union
-                                let id_1 = rule.2.apply_one(
-                                    &mut runner.egraph,
+                    if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 && check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                        let cycle_check_passed = if self.no_cycle {
+                            if self.filter_after {
+                                self.check_cycle_partial(
+                                    &runner.egraph,
+                                    &merged_subst,
+                                    &map_1.var_map,
+                                    &map_2.var_map,
                                     match_1.eclass,
-                                    &merged_subst,
-                                )[0];
-                                runner.egraph.union(id_1, match_1.eclass);
-                                let id_2 = rule.3.apply_one(
-                                    &mut runner.egraph,
                                     match_2.eclass,
-                                    &merged_subst,
-                                )[0];
-                                runner.egraph.union(id_2, match_2.eclass);
+                                )
                             } else {
-                                //println!("{}", rule.0.pretty(1000));
-                                //println!("{}", rule.1.pretty(1000));
-                                //println!("{}", rule.2.pretty(1000));
-                                //println!("{}", rule.3.pretty(1000));
-                                //assert!(false);
+                                let mut descendents: HashMap<Id, HashSet<Id>> =
+                                    Default::default();
+                                check_cycle(
+                                    &runner.egraph,
+                                    &merged_subst,
+                                    &map_1.var_map,
+                                    &map_2.var_map,
+                                    match_1.eclass,
+                                    match_2.eclass,
+                                    &mut descendents,
+                                )
                             }
+                        } else {
+                            true
+                        };
+                        if cycle_check_passed {
+                            // apply dst patterns, union
+                            let id_1 = rule.2.apply_one(
+                                &mut runner.egraph,
+                                match_1.eclass,
+                                &merged_subst,
+                            )[0];
+                            runner.egraph.union(id_1, match_1.eclass);
+                            let id_2 = rule.3.apply_one(
+                                &mut runner.egraph,
+                                match_2.eclass,
+                                &merged_subst,
+                            )[0];
+                            runner.egraph.union(id_2, match_2.eclass);
+                        } else {
+                            //println!("{}", rule.0.pretty(1000));
+                            //println!("{}", rule.1.pretty(1000));
+                            //println!("{}", rule.2.pretty(1000));
+                            //println!("{}", rule.3.pretty(1000));
+                            //assert!(false);
                         }
                     }
                 }
