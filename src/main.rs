@@ -197,6 +197,8 @@ fn test(matches: clap::ArgMatches) {
         .expect("Pls supply rewrite rules file.");
     let save_graph = matches.value_of("save_graph").unwrap();
     let use_multi = matches.is_present("use_multi");
+    let no_cycle = matches.is_present("no_cycle");
+    let filter_after = !matches.is_present("filter_before");
 
     // Get input graph and rules
     // learned_rules are the learned rules from TASO, pre_defined_rules are the hand-specified rules from TASO
@@ -204,7 +206,8 @@ fn test(matches: clap::ArgMatches) {
         read_to_string(rule_file).expect("Something went wrong reading the rule file");
     let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
     let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
-    let rules = rules_from_str(split_rules);
+    let check_blacklist = no_cycle && filter_after;
+    let rules = rules_from_str(split_rules, check_blacklist);
 
     let start = match matches.value_of("model") {
         Some("resnet50") => resnet50::get_resnet50(),
@@ -226,8 +229,6 @@ fn test(matches: clap::ArgMatches) {
 
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
-    let no_cycle = matches.is_present("no_cycle");
-    let filter_after = !matches.is_present("filter_before");
     let iter_multi = matches
         .value_of("iter_multi")
         .unwrap()
@@ -298,6 +299,7 @@ fn test(matches: clap::ArgMatches) {
 /// greedy extraction with TensorCost getting the cost per node/op; evaluates
 /// full graph runtime of the starting graph and extracted graph.
 fn optimize(matches: clap::ArgMatches) {
+    /*
     env_logger::init();
 
     // Read settings from args
@@ -462,6 +464,7 @@ fn optimize(matches: clap::ArgMatches) {
         }
         None => (),
     }
+    */
 }
 
 /// Extract the optimal graph from EGraph by ILP

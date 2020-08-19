@@ -33,10 +33,9 @@ pub struct CostModel {
 }
 
 impl CostModel {
-
     pub fn with_setting(ignore_all_weight_only: bool) -> Self {
         CostModel {
-            ignore_all_weight_only: ignore_all_weight_only, 
+            ignore_all_weight_only: ignore_all_weight_only,
             all_weight_discount: 1.0,
         }
     }
@@ -78,7 +77,8 @@ impl CostModel {
 
                 let runtime = unsafe {
                     // Get op
-                    let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_RELU, true);
+                    let op =
+                        (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_RELU, true);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
                 };
@@ -97,7 +97,8 @@ impl CostModel {
 
                 let runtime = unsafe {
                     // Get op
-                    let op = (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_TANH, true);
+                    let op =
+                        (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_TANH, true);
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
                 };
@@ -116,8 +117,11 @@ impl CostModel {
 
                 let runtime = unsafe {
                     // Get op
-                    let op =
-                        (*g.model).get_or_create_activation(*a_t_data.meta, OpType_OP_SIGMOID, true);
+                    let op = (*g.model).get_or_create_activation(
+                        *a_t_data.meta,
+                        OpType_OP_SIGMOID,
+                        true,
+                    );
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
                 };
@@ -153,8 +157,9 @@ impl CostModel {
                     let t_inpt = *_inpt_data.meta;
                     let t_wght = *_wght_data.meta;
                     // Get op
-                    let op = (*g.model)
-                        .get_or_create_conv2d(t_inpt, t_wght, stride_h, stride_w, padding, activation);
+                    let op = (*g.model).get_or_create_conv2d(
+                        t_inpt, t_wght, stride_h, stride_w, padding, activation,
+                    );
                     assert!(op != Op_INVALID_OP);
                     (*op.ptr).runtime.clone()
                 };
@@ -267,7 +272,9 @@ impl CostModel {
                     std::mem::forget(inputs);
 
                     // Get op
-                    let mut need_copy = if self.ignore_all_weight_only && !(x(_a).all_weights && x(_b).all_weights){
+                    let mut need_copy = if self.ignore_all_weight_only
+                        && !(x(_a).all_weights && x(_b).all_weights)
+                    {
                         [true, true]
                     } else {
                         [false, false]
@@ -384,8 +391,6 @@ impl CostModel {
         }
     }
 }
-
-
 
 /// Prepare the data for formulation ILP
 ///

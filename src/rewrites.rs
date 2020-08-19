@@ -103,14 +103,18 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
 ]}
 
-pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
+pub fn rules_from_str(rs: Vec<&str>, check_blacklist: bool) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
     for (pos, rule) in rs.iter().enumerate() {
         let eqn: Vec<&str> = rule.split("=>").collect();
         let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
         let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
         let rule_name = format!("rule{}", pos);
-        rule_vec.push(rw!(rule_name; lhs => { CheckApply {pat: rhs} }));
+        rule_vec.push(rw!(rule_name; { lhs.clone() } => { CheckApply {
+            pat: rhs, 
+            src_pat: lhs, 
+            check_blacklist: check_blacklist,
+        } }));
     }
     rule_vec
 }
@@ -169,6 +173,10 @@ struct CheckApply {
     /// the pattern of the right hand side of the rewrite rule, the one
     /// to be constructed.
     pat: Pattern<Mdl>,
+    /// Source graph pattern, used in cycle filtering
+    src_pat: Pattern<Mdl>,
+    /// Whether we need to check if any node in matched source graph is in blacklist
+    check_blacklist: bool,
 }
 
 impl Applier<Mdl, TensorAnalysis> for CheckApply {
@@ -180,6 +188,11 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         matched_id: Id,
         subst: &Subst,
     ) -> Vec<Id> {
+        if self.check_blacklist {
+            if constains_blacklist(self.src_pat.ast.as_ref(), egraph, subst).0 {
+                return vec![];
+            }
+        }
         if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
             self.pat.apply_one(egraph, matched_id, subst)
         } else {
@@ -189,6 +202,55 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 
     fn vars(&self) -> Vec<Var> {
         self.pat.vars()
+    }
+}
+
+/// Check if the matched graph of the pattern contains any blacklisted nodes
+///
+/// # Returns
+///
+/// A tuple of (bool, Option<Id>) where
+///
+/// - bool: true if the nodes in this pattern contains some node in blacklist
+/// - Option<Id>: if the nodes in this pattern do not contain blacklisted
+///     nodes, then this is the Id of the matched EClass of the root of this pattern(pat.last())
+fn constains_blacklist(
+    pat: &[ENodeOrVar<Mdl>],
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    subst: &Subst,
+) -> (bool, Option<Id>) {
+    match pat.last().unwrap() {
+        ENodeOrVar::Var(w) => (false, Some(subst[*w])),
+        ENodeOrVar::ENode(e) => {
+            let children = e.children();
+            let results: Vec<(bool, Option<Id>)> = children
+                .iter()
+                .map(|child| constains_blacklist(&pat[..usize::from(*child) + 1], egraph, subst))
+                .collect();
+
+            let mut contains = false;
+            for res in &results {
+                if res.0 {
+                    contains = true;
+                }
+            }
+
+            if contains {
+                (true, None)
+            } else {
+                let mut new_e = e.clone();
+                let new_e_ch = new_e.children_mut();
+                for (i, res) in results.iter().enumerate() {
+                    new_e_ch[i] = res.1.unwrap();
+                }
+                if egraph.analysis.blacklist_nodes.contains(&new_e) {
+                    (true, None)
+                } else {
+                    let looked = egraph.lookup(new_e);
+                    (false, looked)
+                }
+            }
+        }
     }
 }
 
@@ -869,6 +931,10 @@ impl MultiPatterns {
             }
 
             runner.egraph.rebuild();
+            // Update blacklist_nodes
+            if self.filter_after {
+                update_blacklist(&mut runner.egraph);
+            }
         }
 
         Ok(())
@@ -907,7 +973,8 @@ impl MultiPatterns {
                                         match_2.eclass,
                                     )
                                 } else {
-                                    let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
+                                    let mut descendents: HashMap<Id, HashSet<Id>> =
+                                        Default::default();
                                     check_cycle(
                                         &runner.egraph,
                                         &merged_subst,
@@ -969,7 +1036,8 @@ impl MultiPatterns {
         for id in input_ids.iter() {
             let descendents = self.descendents.as_ref().unwrap();
             let descendents_input = descendents.get(id).unwrap();
-            if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2) {
+            if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2)
+            {
                 return false;
             }
         }
@@ -979,7 +1047,12 @@ impl MultiPatterns {
 
 /// Update the blacklist_nodes in egraph.analysis with the new canonical EClass IDs
 fn update_blacklist(egraph: &mut EGraph<Mdl, TensorAnalysis>) {
-    egraph.analysis.blacklist_nodes = egraph.analysis.blacklist_nodes.iter().map(|node| node.clone().map_children(|id| egraph.find(id))).collect();
+    egraph.analysis.blacklist_nodes = egraph
+        .analysis
+        .blacklist_nodes
+        .iter()
+        .map(|node| node.clone().map_children(|id| egraph.find(id)))
+        .collect();
 }
 
 /// Returns true if there will not be a cycle

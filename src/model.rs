@@ -7,9 +7,9 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 //use rand::prelude::*;
 use rand;
 use root::taso::*;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
-use std::collections::HashSet;
 
 use egg::*;
 
