@@ -193,7 +193,7 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
                 return vec![];
             }
         }
-        if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
+        if check_pat(self.pat.ast.as_ref(), egraph, subst, /*get_exist_nodes=*/false).0 {
             self.pat.apply_one(egraph, matched_id, subst)
         } else {
             vec![]
@@ -263,6 +263,7 @@ fn constains_blacklist(
 /// - `pat`: the AST representation of the pattern. See egg::Pattern for more info
 /// - `egraph`: E-graph of interest
 /// - `subst`: mapping variable to eclass ID. See egg::Subst for more info.
+/// - `get_exist_nodes`: whether to get a set of existing nodes in this pattern
 ///
 /// # Returns
 ///
@@ -274,11 +275,15 @@ fn constains_blacklist(
 /// - TData: The TData for the root node of this pattern. This is read from
 ///     egraph if the root node is in egraph, otherwise constructed by calling
 ///     TASO functions.
+/// - Option<HashSet<Mdl>>: if get_exist_nodes is true, this returns the set of 
+///     existing nodes in this pattern
+
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
     egraph: &mut EGraph<Mdl, TensorAnalysis>,
     subst: &Subst,
-) -> (bool, Option<Id>, TData) {
+    get_exist_nodes: bool,
+) -> (bool, Option<Id>, TData, Option<HashSet<Mdl>>) {
     match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
             // The root node is a variable, then use subst to get metadata from egraph
@@ -299,14 +304,18 @@ fn check_pat(
                     tnsr_2: None,
                 }
             };
-            return (true, Some(cid), t_data);
+            if get_exist_nodes {
+                return (true, Some(cid), t_data, Some(HashSet::<Mdl>::new()));
+            } else {
+                return (true, Some(cid), t_data, None);
+            }
         }
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
             let children = e.children();
-            let results: Vec<(bool, Option<Id>, TData)> = children
+            let results: Vec<(bool, Option<Id>, TData, Option<HashSet<Mdl>>)> = children
                 .iter()
-                .map(|child| check_pat(&pat[..usize::from(*child) + 1], egraph, subst))
+                .map(|child| check_pat(&pat[..usize::from(*child) + 1], egraph, subst, get_exist_nodes))
                 .collect();
 
             // Check if any children contains invalid nodes
@@ -318,7 +327,7 @@ fn check_pat(
             }
             if violated {
                 let default_data: TData = Default::default();
-                return (false, None, default_data);
+                return (false, None, default_data, None);
             } else {
                 // Check if all children are in egraph
                 let mut all_in = true;
@@ -338,7 +347,7 @@ fn check_pat(
                     for (i, res) in results.iter().enumerate() {
                         new_e_ch[i] = res.1.unwrap();
                     }
-                    let looked = egraph.lookup(new_e);
+                    let looked = egraph.lookup(new_e.clone());
                     match looked {
                         Some(id) => {
                             // Get metadata from egraph
@@ -362,7 +371,18 @@ fn check_pat(
                                     tnsr_2: None,
                                 },
                             };
-                            return (true, looked, t_data);
+                            if get_exist_nodes {
+                                let mut existing_nodes = HashSet::<Mdl>::new();
+                                for res in results.iter() {
+                                    for node in res.3.as_ref().unwrap().iter() {
+                                        existing_nodes.insert(node.clone());
+                                    }
+                                }
+                                existing_nodes.insert(new_e);
+                                return (true, looked, t_data, Some(existing_nodes));
+                            } else {
+                                return (true, looked, t_data, None);
+                            }
                         }
                         None => (),
                     };
@@ -769,7 +789,17 @@ fn check_pat(
                         todo!()
                     }
                 };
-                return result;
+                if get_exist_nodes && result.0 {
+                    let mut existing_nodes = HashSet::<Mdl>::new();
+                    for res in results.iter() {
+                        for node in res.3.as_ref().unwrap().iter() {
+                            existing_nodes.insert(node.clone());
+                        }
+                    }
+                    return (result.0, result.1, result.2, Some(existing_nodes));
+                } else {
+                    return (result.0, result.1, result.2, None);
+                }
             }
         }
     };
@@ -967,7 +997,9 @@ impl MultiPatterns {
                     }
                     
                     // check_pat on both dst patterns
-                    if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 && check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                    let (valid_1, _, _, existing_1) = check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst, /*get_exist_nodes=*/self.filter_after);
+                    let (valid_2, _, _, existing_2) = check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst, /*get_exist_nodes=*/self.filter_after);
+                    if valid_1 && valid_2 {
                         let cycle_check_passed = if self.no_cycle {
                             if self.filter_after {
                                 self.check_cycle_partial(
