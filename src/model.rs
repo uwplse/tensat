@@ -9,6 +9,7 @@ use rand;
 use root::taso::*;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
+use std::collections::HashSet;
 
 use egg::*;
 
@@ -105,6 +106,8 @@ impl Default for ValTnsr {
 pub struct TensorAnalysis {
     /// Points to the graph object on the TASO side
     pub graph: std::cell::RefCell<Box<Graph>>,
+    /// Record blacklisted nodes for filtering cycles
+    pub blacklist_nodes: HashSet<Mdl>,
 }
 
 impl Default for TensorAnalysis {
@@ -116,6 +119,7 @@ impl Default for TensorAnalysis {
             Graph_Graph(&mut *graph);
             TensorAnalysis {
                 graph: std::cell::RefCell::new(graph),
+                blacklist_nodes: HashSet::<Mdl>::new(),
             }
         }
     }

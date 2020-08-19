@@ -1,6 +1,6 @@
 use clap::{App, Arg};
 use egg::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::*;
 use std::fs::*;
 use std::time::*;
@@ -151,6 +151,11 @@ fn main() {
                 .help("Not allowing cycles in EGraph"),
         )
         .arg(
+            Arg::with_name("filter_before")
+                .long("filter_before")
+                .help("Filter cycles before applying rules"),
+        )
+        .arg(
             Arg::with_name("all_weight_only")
                 .long("all_weight_only")
                 .help("Treat zero cost for all weight concat only"),
@@ -184,6 +189,8 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
 }
 
 fn test(matches: clap::ArgMatches) {
+    env_logger::init();
+
     // Read settings from args
     let rule_file = matches
         .value_of("rules")
@@ -220,12 +227,13 @@ fn test(matches: clap::ArgMatches) {
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
     let no_cycle = matches.is_present("no_cycle");
+    let filter_after = !matches.is_present("filter_before");
     let iter_multi = matches
         .value_of("iter_multi")
         .unwrap()
         .parse::<usize>()
         .unwrap();
-    let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
+    let mut multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
         let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/ false));
@@ -234,13 +242,13 @@ fn test(matches: clap::ArgMatches) {
             .map(|x| (x, /*symmetric=*/ true))
             .chain(pre_defined_multi)
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
     } else {
         let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
             .iter()
             .map(|&x| (x, /*symmetric=*/ false))
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
     };
 
     // Run saturation
@@ -282,48 +290,6 @@ fn test(matches: clap::ArgMatches) {
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
     println!("  Number of edges: {}", num_edges);
-
-    // Save egraph
-    let (egraph, root) = (runner.egraph, runner.roots[0]);
-    if save_graph == "all" {
-        egraph.dot().to_svg("target/tamago.svg").unwrap();
-    }
-
-    // Run extraction
-    let extract_mode = matches.value_of("extract").unwrap();
-    let cost_model = CostModel::with_setting(/*ignore_all_weight_only=*/matches.is_present("all_weight_only"));
-    let best = match extract_mode {
-        "ilp" => extract_by_ilp(&egraph, root, &matches, &cost_model),
-        "greedy" => {
-            let tnsr_cost = TensorCost {
-                egraph: &egraph,
-                cost_model: &cost_model,
-            };
-            let start_time = Instant::now();
-            let mut extractor = Extractor::new(&egraph, tnsr_cost);
-            let (best_cost, best) = extractor.find_best(root);
-            let duration = start_time.elapsed();
-
-            println!("Extractor complete!");
-            println!("  Time taken: {:?}", duration);
-            println!("  Best cost: {:?}", best_cost);
-            best
-        }
-        _ => panic!("Extracting mode not supported"),
-    };
-
-    // Evaluation starting and extracted graph runtime, save graphs
-    let runner_start = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&start);
-    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
-
-    if save_graph != "none" {
-        runner_start
-            .egraph
-            .dot()
-            .to_svg("target/start.svg")
-            .unwrap();
-        runner_ext.egraph.dot().to_svg("target/ext.svg").unwrap();
-    }
 }
 
 /// Main procedure to run optimization
@@ -370,12 +336,13 @@ fn optimize(matches: clap::ArgMatches) {
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
     let no_cycle = matches.is_present("no_cycle");
+    let filter_after = !matches.is_present("filter_before");
     let iter_multi = matches
         .value_of("iter_multi")
         .unwrap()
         .parse::<usize>()
         .unwrap();
-    let multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
+    let mut multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
         let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/ false));
@@ -384,13 +351,13 @@ fn optimize(matches: clap::ArgMatches) {
             .map(|x| (x, /*symmetric=*/ true))
             .chain(pre_defined_multi)
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
     } else {
         let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
             .iter()
             .map(|&x| (x, /*symmetric=*/ false))
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
     };
 
     // Run saturation

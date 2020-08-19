@@ -734,8 +734,12 @@ pub struct MultiPatterns {
     src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
     /// Whether to allow cycles in EGraph
     no_cycle: bool,
+    /// Whether to do cycle filtering after applying
+    filter_after: bool,
     /// Number of iterations to run multi-pattern rules
     iter_limit: usize,
+    /// Descendents map. Only used if filter_after
+    descendents: Option<HashMap<Id, HashSet<Id>>>,
 }
 
 impl MultiPatterns {
@@ -748,6 +752,7 @@ impl MultiPatterns {
         rules: Vec<(&str, bool)>,
         no_cycle: bool,
         iter_limit: usize,
+        filter_after: bool,
     ) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
@@ -801,6 +806,8 @@ impl MultiPatterns {
             src_pat_maps: src_pat_maps,
             no_cycle: no_cycle,
             iter_limit: iter_limit,
+            filter_after: filter_after,
+            descendents: None,
         }
     }
 
@@ -810,7 +817,12 @@ impl MultiPatterns {
     /// of all canonicalized source patterns. Then for all compatible substitutions found,
     /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
     /// the same eclass. It always returns Ok()
-    pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
+    pub fn run_one(&mut self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
+        // Update blacklist_nodes
+        if self.filter_after {
+            update_blacklist(&mut runner.egraph);
+        }
+
         if runner.iterations.len() < self.iter_limit {
             println!("Run one");
             // Construct Vec to store matches for each canonicalized pattern
@@ -819,6 +831,11 @@ impl MultiPatterns {
                 .iter()
                 .map(|x| x.search(&runner.egraph))
                 .collect();
+
+            // Make a pass to get descendents
+            if self.filter_after {
+                self.descendents = Some(compute_all_descendents(&runner.egraph))
+            }
 
             // For each multi rule
             for (i, rule) in self.rules.iter().enumerate() {
@@ -867,7 +884,6 @@ impl MultiPatterns {
         map_2: &MapToCanonical,
         runner: &mut Runner<Mdl, TensorAnalysis, ()>,
     ) {
-        let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
         for subst_1 in &match_1.substs {
             for subst_2 in &match_2.substs {
                 // De-canonicalize the substitutions
@@ -881,15 +897,27 @@ impl MultiPatterns {
                     if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                         if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
                             let cycle_check_passed = if self.no_cycle {
-                                check_cycle(
-                                    &runner.egraph,
-                                    &merged_subst,
-                                    &map_1.var_map,
-                                    &map_2.var_map,
-                                    match_1.eclass,
-                                    match_2.eclass,
-                                    &mut descendents,
-                                )
+                                if self.filter_after {
+                                    self.check_cycle_partial(
+                                        &runner.egraph,
+                                        &merged_subst,
+                                        &map_1.var_map,
+                                        &map_2.var_map,
+                                        match_1.eclass,
+                                        match_2.eclass,
+                                    )
+                                } else {
+                                    let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
+                                    check_cycle(
+                                        &runner.egraph,
+                                        &merged_subst,
+                                        &map_1.var_map,
+                                        &map_2.var_map,
+                                        match_1.eclass,
+                                        match_2.eclass,
+                                        &mut descendents,
+                                    )
+                                }
                             } else {
                                 true
                             };
@@ -920,6 +948,38 @@ impl MultiPatterns {
             }
         }
     }
+
+    ///  Returns true if there will not be a cycle. Checking based on descendents at beginning of run_one()
+    fn check_cycle_partial(
+        &self,
+        egraph: &EGraph<Mdl, TensorAnalysis>,
+        input_subst: &Subst,
+        var_map_1: &HashMap<egg::Var, egg::Var>,
+        var_map_2: &HashMap<egg::Var, egg::Var>,
+        out_class_1: Id,
+        out_class_2: Id,
+    ) -> bool {
+        // Get all input eclass IDs
+        let input_ids: HashSet<Id> = var_map_1
+            .iter()
+            .chain(var_map_2.iter())
+            .map(|(var, _)| *input_subst.get(*var).unwrap())
+            .collect();
+        // Check descendents of the input eclasses
+        for id in input_ids.iter() {
+            let descendents = self.descendents.as_ref().unwrap();
+            let descendents_input = descendents.get(id).unwrap();
+            if descendents_input.contains(&out_class_1) || descendents_input.contains(&out_class_2) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+/// Update the blacklist_nodes in egraph.analysis with the new canonical EClass IDs
+fn update_blacklist(egraph: &mut EGraph<Mdl, TensorAnalysis>) {
+    egraph.analysis.blacklist_nodes = egraph.analysis.blacklist_nodes.iter().map(|node| node.clone().map_children(|id| egraph.find(id))).collect();
 }
 
 /// Returns true if there will not be a cycle
@@ -960,6 +1020,20 @@ fn check_cycle(
     true
 }
 
+/// Get a map of all eclass to their descendent eclasses
+fn compute_all_descendents(egraph: &EGraph<Mdl, TensorAnalysis>) -> HashMap<Id, HashSet<Id>> {
+    // Get a map from eclass IDs to eclass
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
+        egraph.classes().map(|class| (class.id, class)).collect();
+
+    let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
+    for (id, _) in &id_to_class {
+        get_descendents(egraph, *id, &id_to_class, &mut descendents);
+    }
+    descendents
+}
+
+/// Get the descendent of eclass. The result will be in descendents
 fn get_descendents(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     eclass: Id,
