@@ -206,8 +206,8 @@ fn test(matches: clap::ArgMatches) {
         read_to_string(rule_file).expect("Something went wrong reading the rule file");
     let pre_defined_rules = PRE_DEFINED_RULES.iter().map(|&x| x);
     let split_rules: Vec<&str> = learned_rules.split("\n").chain(pre_defined_rules).collect();
-    let check_blacklist = no_cycle && filter_after;
-    let rules = rules_from_str(split_rules, check_blacklist);
+    let do_filter_after = no_cycle && filter_after;
+    let rules = rules_from_str(split_rules, do_filter_after);
 
     let start = match matches.value_of("model") {
         Some("resnet50") => resnet50::get_resnet50(),

@@ -108,6 +108,8 @@ pub struct TensorAnalysis {
     pub graph: std::cell::RefCell<Box<Graph>>,
     /// Record blacklisted nodes for filtering cycles
     pub blacklist_nodes: HashSet<Mdl>,
+    /// Newly added nodes by order during single output rule application
+    pub newly_added: Vec<Mdl>,
 }
 
 impl Default for TensorAnalysis {
@@ -120,6 +122,7 @@ impl Default for TensorAnalysis {
             TensorAnalysis {
                 graph: std::cell::RefCell::new(graph),
                 blacklist_nodes: HashSet::<Mdl>::new(),
+                newly_added: Vec::<Mdl>::new(),
             }
         }
     }
