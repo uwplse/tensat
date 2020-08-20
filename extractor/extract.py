@@ -41,6 +41,7 @@ def main():
     h = data['h_i']
     g = data['g_i']
     root_m = data['root_m']
+    blacklist_i = data['blacklist_i']
     num_nodes = len(costs)
     num_classes = len(e)
 
@@ -104,6 +105,10 @@ def main():
                     solver.Add(t[g[i]] - t[m] + A * (1 - x[i]) >= 1)
                 else:
                     solver.Add(t[g[i]] - t[m] - epsilon + A * (1 - x[i]) >= 0)
+
+    # Blacklist constraints
+    for j in blacklist_i:
+        solver.Add(x[j] == 0)
 
     # Define objective
     obj_expr = [costs[j] * x[j] for j in range(num_nodes)]

@@ -403,6 +403,7 @@ impl CostModel {
 /// - `g_i`: which EClass index does node i belong to
 /// - `root_m`: EClass index of the root eclass
 /// - `i_to_nodes: Vector of enodes, ordered by index i
+/// - `blacklist_i: Vector of indices of nodes that are blacklisted
 pub fn prep_ilp_data(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     root: Id,
@@ -415,6 +416,7 @@ pub fn prep_ilp_data(
     Vec<usize>,
     usize,
     Vec<Mdl>,
+    Vec<usize>,
 ) {
     let m_id_map: Vec<Id> = egraph.classes().map(|c| egraph.find(c.id)).collect();
     assert!(m_id_map.len() == egraph.number_of_classes());
@@ -431,12 +433,16 @@ pub fn prep_ilp_data(
     let mut h_i: Vec<Vec<usize>> = Vec::with_capacity(num_nodes);
     let mut cost_i: Vec<f32> = Vec::with_capacity(num_nodes);
     let mut g_i: Vec<usize> = Vec::with_capacity(num_nodes);
+    let mut blacklist_i: Vec<usize> = Vec::new();
 
     let mut i = 0;
     for class in egraph.classes() {
         let m = *id_m_map.get(&egraph.find(class.id)).unwrap();
         for node in class.iter() {
             i_to_nodes.push(node.clone());
+            if egraph.analysis.blacklist_nodes.contains(node) {
+                blacklist_i.push(i);
+            }
             e_m[m].push(i);
             h_i.push(
                 node.children()
@@ -452,7 +458,7 @@ pub fn prep_ilp_data(
 
     let root_m = *id_m_map.get(&egraph.find(root)).unwrap();
 
-    (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes)
+    (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes, blacklist_i)
 }
 
 /// Struct for storing the solved results from ILP

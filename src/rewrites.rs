@@ -941,23 +941,7 @@ impl MultiPatterns {
     pub fn run_one(&mut self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
         // Update blacklist_nodes
         if self.filter_after {
-            update_blacklist(&mut runner.egraph);
-
-            println!("Number of newly_added {:?}", runner.egraph.analysis.newly_added.len());
-            // Do filtering after single rules
-            // Update newly_added and get hashmap
-            let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
-                .iter()
-                .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
-                .collect();
-            let mut added_node_to_order = HashMap::<Mdl, usize>::new();
-            for (i, node) in updated.iter().enumerate() {
-                added_node_to_order.entry(node.clone()).or_insert(i);
-            }
-            // Remove cycles by adding nodes to blacklist
-            remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
-            // Reinitialize added order in analysis
-            //runner.egraph.analysis.newly_added = Vec::<Mdl>::new();
+            remove_cycle_by_order(runner);
         }
 
         if runner.iterations.len() < self.iter_limit {
@@ -1046,26 +1030,7 @@ impl MultiPatterns {
             runner.egraph.rebuild();
 
             if self.filter_after {
-                // Update blacklist_nodes
-                update_blacklist(&mut runner.egraph);
-
-                // Update newly_added and get hashmap
-                //let updated: Vec<Mdl> = newly_added
-                let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
-                    .iter()
-                    .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
-                    .collect();
-                let mut added_node_to_order = HashMap::<Mdl, usize>::new();
-                for (i, node) in updated.iter().enumerate() {
-                    added_node_to_order.entry(node.clone()).or_insert(i);
-                }
-                // Remove cycles by adding nodes to blacklist
-                remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
-                //println!("Number of blacklisted {:?}", runner.egraph.analysis.blacklist_nodes.len());
-                //for node in runner.egraph.analysis.blacklist_nodes.iter() {
-                //    println!("{}", node.display_op());
-                //}
-                //println!("Successfully compute descendents");
+                remove_cycle_by_order(runner);
             }
         }
 
@@ -1231,6 +1196,24 @@ impl MultiPatterns {
         true
     }
 }
+
+pub fn remove_cycle_by_order(runner: &mut Runner<Mdl, TensorAnalysis, ()>) {
+    // Update blacklist
+    update_blacklist(&mut runner.egraph);
+
+    // Update newly_added and get hashmap
+    let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
+        .iter()
+        .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
+        .collect();
+    let mut added_node_to_order = HashMap::<Mdl, usize>::new();
+    for (i, node) in updated.iter().enumerate() {
+        added_node_to_order.entry(node.clone()).or_insert(i);
+    }
+    // Remove cycles by adding nodes to blacklist
+    remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
+}
+
 
 /// Add newly added nodes in this pattern to newly_added, and return all the nodes in this pattern, and the Id of matched root
 fn add_newly_added(

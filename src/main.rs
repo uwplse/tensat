@@ -278,7 +278,10 @@ fn test(matches: clap::ArgMatches) {
             .with_expr(&start)
     };
     let start_time = Instant::now();
-    let runner = runner.run(&rules[..]);
+    let mut runner = runner.run(&rules[..]);
+    if do_filter_after {
+        remove_cycle_by_order(&mut runner);
+    }
     let duration = start_time.elapsed();
 
     println!("Runner complete!");
@@ -291,6 +294,37 @@ fn test(matches: clap::ArgMatches) {
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
     println!("  Number of edges: {}", num_edges);
+
+
+    let (egraph, root) = (runner.egraph, runner.roots[0]);
+    // Run extraction
+    let extract_mode = matches.value_of("extract").unwrap();
+    let cost_model = CostModel::with_setting(/*ignore_all_weight_only=*/matches.is_present("all_weight_only"));
+    let best = match extract_mode {
+        "ilp" => extract_by_ilp(&egraph, root, &matches, &cost_model),
+        "greedy" => {
+            assert!(!do_filter_after);
+            let tnsr_cost = TensorCost {
+                egraph: &egraph,
+                cost_model: &cost_model,
+            };
+            let start_time = Instant::now();
+            let mut extractor = Extractor::new(&egraph, tnsr_cost);
+            let (best_cost, best) = extractor.find_best(root);
+            let duration = start_time.elapsed();
+
+            println!("Extractor complete!");
+            println!("  Time taken: {:?}", duration);
+            println!("  Best cost: {:?}", best_cost);
+            best
+        }
+        _ => panic!("Extracting mode not supported"),
+    };
+
+    let runner_ext = Runner::<Mdl, TensorAnalysis, ()>::default().with_expr(&best);
+
+    let time_ext = get_full_graph_runtime(&runner_ext, true);
+    println!("Extracted graph runtime: {}", time_ext);
 }
 
 /// Main procedure to run optimization
@@ -479,7 +513,7 @@ fn extract_by_ilp(
     cost_model: &CostModel,
 ) -> RecExpr<Mdl> {
     // Prepare data for ILP formulation, save to json
-    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes) =
+    let (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes, blacklist_i) =
         prep_ilp_data(egraph, root, cost_model);
 
     let data = json!({
@@ -488,6 +522,7 @@ fn extract_by_ilp(
         "cost_i": cost_i,
         "g_i": g_i,
         "root_m": root_m,
+        "blacklist_i": blacklist_i,
     });
     let data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
     create_dir_all("./tmp");
