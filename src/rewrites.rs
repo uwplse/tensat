@@ -924,10 +924,13 @@ impl MultiPatterns {
                 .map(|x| x.search(&runner.egraph))
                 .collect();
 
-            // Make a pass to get descendents
             if self.filter_after {
-                self.descendents = Some(compute_all_descendents(&runner.egraph, /*check_blacklist=*/true))
+                // Make a pass to get descendents
+                self.descendents = Some(compute_all_descendents(&runner.egraph, /*check_blacklist=*/true));
             }
+
+            // initialized newly added nodes
+            let mut newly_added: Vec<Mdl> = vec![];
 
             // For each multi rule
             for (i, rule) in self.rules.iter().enumerate() {
@@ -942,7 +945,7 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner, &mut newly_added);
                         }
                     }
                 } else {
@@ -954,7 +957,7 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner, &mut newly_added);
                         }
                     }
                 }
@@ -979,6 +982,7 @@ impl MultiPatterns {
         map_1: &MapToCanonical,
         map_2: &MapToCanonical,
         runner: &mut Runner<Mdl, TensorAnalysis, ()>,
+        newly_added: &mut Vec<Mdl>,
     ) {
         for subst_1 in &match_1.substs {
             for subst_2 in &match_2.substs {
@@ -1033,12 +1037,23 @@ impl MultiPatterns {
                                 match_1.eclass,
                                 &merged_subst,
                             )[0];
-                            runner.egraph.union(id_1, match_1.eclass);
+                            
                             let id_2 = rule.3.apply_one(
                                 &mut runner.egraph,
                                 match_2.eclass,
                                 &merged_subst,
                             )[0];
+
+                            // Add the newly added nodes to the ordering vector
+                            if self.filter_after {
+                                let existing_1 = existing_1.unwrap();
+                                let existing_2 = existing_2.unwrap();
+                                let (nodes_in_1, _) = self.add_newly_added(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst, &existing_1, newly_added);
+                                let existing_2_updated: HashSet<Mdl> = existing_2.iter().chain(nodes_in_1.iter()).map(|node| node.clone()).collect();
+                                self.add_newly_added(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst, &existing_2_updated, newly_added);
+                            }
+
+                            runner.egraph.union(id_1, match_1.eclass);
                             runner.egraph.union(id_2, match_2.eclass);
                         } else {
                             //println!("{}", rule.0.pretty(1000));
@@ -1049,6 +1064,48 @@ impl MultiPatterns {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /// Add newly added nodes in this pattern to self.newly_added, and return all the nodes in this pattern, and the Id of matched root
+    fn add_newly_added(
+        &self,
+        pat: &[ENodeOrVar<Mdl>],
+        egraph: &mut EGraph<Mdl, TensorAnalysis>,
+        subst: &Subst,
+        existing_nodes: &HashSet<Mdl>,
+        newly_added: &mut Vec<Mdl>,
+    ) -> (HashSet<Mdl>, Id) {
+        match pat.last().unwrap() {
+            ENodeOrVar::Var(w) => (HashSet::<Mdl>::new(), subst[*w]),
+            ENodeOrVar::ENode(e) => {
+                let children = e.children();
+                let results: Vec<(HashSet<Mdl>, Id)> = children
+                    .iter()
+                    .map(|child| self.add_newly_added(&pat[..usize::from(*child) + 1], egraph, subst, existing_nodes, newly_added))
+                    .collect();
+
+                let mut new_e = e.clone();
+                let new_e_ch = new_e.children_mut();
+                for (i, res) in results.iter().enumerate() {
+                    new_e_ch[i] = res.1;
+                }
+
+                let mut nodes_in_pat = HashSet::<Mdl>::new();
+                for res in results.iter() {
+                    for node in res.0.iter() {
+                        nodes_in_pat.insert(node.clone());
+                    }
+                }
+                nodes_in_pat.insert(new_e.clone());
+
+                // Add to order list
+                if !existing_nodes.contains(&new_e) {
+                    newly_added.push(new_e.clone());
+                }
+
+                (nodes_in_pat, egraph.lookup(new_e).unwrap())
             }
         }
     }
