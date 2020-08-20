@@ -941,11 +941,23 @@ impl MultiPatterns {
     pub fn run_one(&mut self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
         // Update blacklist_nodes
         if self.filter_after {
-            // Do filtering after single rules
-
             update_blacklist(&mut runner.egraph);
+
+            println!("Number of newly_added {:?}", runner.egraph.analysis.newly_added.len());
+            // Do filtering after single rules
+            // Update newly_added and get hashmap
+            let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
+                .iter()
+                .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
+                .collect();
+            let mut added_node_to_order = HashMap::<Mdl, usize>::new();
+            for (i, node) in updated.iter().enumerate() {
+                added_node_to_order.entry(node.clone()).or_insert(i);
+            }
+            // Remove cycles by adding nodes to blacklist
+            remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
             // Reinitialize added order in analysis
-            runner.egraph.analysis.newly_added = Vec::<Mdl>::new();
+            //runner.egraph.analysis.newly_added = Vec::<Mdl>::new();
         }
 
         if runner.iterations.len() < self.iter_limit {
@@ -1038,7 +1050,8 @@ impl MultiPatterns {
                 update_blacklist(&mut runner.egraph);
 
                 // Update newly_added and get hashmap
-                let updated: Vec<Mdl> = newly_added
+                //let updated: Vec<Mdl> = newly_added
+                let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
                     .iter()
                     .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
                     .collect();
@@ -1052,7 +1065,6 @@ impl MultiPatterns {
                 //for node in runner.egraph.analysis.blacklist_nodes.iter() {
                 //    println!("{}", node.display_op());
                 //}
-                compute_all_descendents(&runner.egraph, runner.roots[0], true);
                 //println!("Successfully compute descendents");
             }
         }
@@ -1158,7 +1170,7 @@ impl MultiPatterns {
                                     &mut runner.egraph,
                                     &merged_subst,
                                     &existing_1,
-                                    /*in_analysis=*/false,
+                                    /*in_analysis=*/true,
                                     newly_added,
                                 );
                                 let existing_2_updated: HashSet<Mdl> = existing_2
@@ -1171,7 +1183,7 @@ impl MultiPatterns {
                                     &mut runner.egraph,
                                     &merged_subst,
                                     &existing_2_updated,
-                                    /*in_analysis=*/false,
+                                    /*in_analysis=*/true,
                                     newly_added,
                                 );
                             }
