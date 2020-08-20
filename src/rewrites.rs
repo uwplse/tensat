@@ -1013,6 +1013,7 @@ impl MultiPatterns {
                 }
                 // Remove cycles by adding nodes to blacklist
                 remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
+                println!("Number of blacklisted {:?}", runner.egraph.analysis.blacklist_nodes.len());
             }
         }
 
@@ -1240,6 +1241,24 @@ fn remove_cycles(
         get_cycles(egraph, root, &mut paths_from_root, &mut cycles);
 
         if cycles.len() == 0 { break; }
+        for cycle in cycles.iter() {
+            resolve_cycle(egraph, cycle, added_node_to_order);
+        }
+    }
+}
+
+/// Resolve cycle by adding node to blacklist
+fn resolve_cycle(egraph: &mut EGraph<Mdl, TensorAnalysis>, cycle: &[Mdl], added_node_to_order: &HashMap<Mdl, usize>) {
+    // Check if any node in cycle is already in blacklist
+    let already_solved = cycle.iter().any(|node| egraph.analysis.blacklist_nodes.contains(node));
+    if !already_solved {
+        assert!(cycle.len() > 0);
+        let (ord, n) = cycle.iter().map(|node| {
+            let order = added_node_to_order.get(node).map_or(-1, |index| *index as i32);
+            (order, node.clone())
+        }).max_by_key(|(o, _)| *o).unwrap();
+        assert!(ord >= 0);
+        egraph.analysis.blacklist_nodes.insert(n.clone());
     }
 }
 
