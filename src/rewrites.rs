@@ -964,6 +964,16 @@ impl MultiPatterns {
             }
 
             runner.egraph.rebuild();
+
+            if self.filter_after {
+                // Update newly_added and get hashmap
+                let updated: Vec<Mdl> = newly_added.iter().map(|node| node.clone().map_children(|id| runner.egraph.find(id))).collect();
+                let mut added_node_to_order = HashMap::<Mdl, usize>::new();
+                for (i, node) in updated.iter().enumerate() {
+                    added_node_to_order.entry(node.clone()).or_insert(i);
+                }
+            }
+            
             // Update blacklist_nodes
             if self.filter_after {
                 update_blacklist(&mut runner.egraph);
