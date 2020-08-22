@@ -336,6 +336,57 @@ impl CostModel {
                 }
             }
 
+            Mdl::Poolavg([_inpt, _kernel_h, _kernel_w, _stride_h, _stride_w, _pad, _act]) => {
+                // Check types
+                let _kernel_h_data = x(_kernel_h);
+                let _kernel_w_data = x(_kernel_w);
+                let _stride_h_data = x(_stride_h);
+                let _stride_w_data = x(_stride_w);
+                let _pad_data = x(_pad);
+                let _act_data = x(_act);
+                let _inpt_data = x(_inpt);
+                assert!(_kernel_h_data.dtype == DataKind::Scalar);
+                assert!(_kernel_w_data.dtype == DataKind::Scalar);
+                assert!(_stride_h_data.dtype == DataKind::Scalar);
+                assert!(_stride_w_data.dtype == DataKind::Scalar);
+                assert!(_pad_data.dtype == DataKind::Scalar);
+                assert!(_act_data.dtype == DataKind::Scalar);
+                assert!(_inpt_data.dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let kernel_h = _kernel_h_data.val;
+                let kernel_w = _kernel_w_data.val;
+                let stride_h = _stride_h_data.val;
+                let stride_w = _stride_w_data.val;
+                let padding: PaddingMode = _pad_data.val.try_into().unwrap();
+                let activation: ActiMode = _act_data.val.try_into().unwrap();
+                let runtime = unsafe {
+                    let t_inpt = *_inpt_data.meta;
+                    let t_wght = t_inpt.clone(); // Just a placeholder, t_wght won't be used in get_or_create_pool2d here
+
+                    // Get op
+                    let op = (*g.model).get_or_create_pool2d(
+                        t_inpt,
+                        t_wght,
+                        OpType_OP_POOL2D_AVG,
+                        kernel_h,
+                        kernel_w,
+                        stride_h,
+                        stride_w,
+                        padding,
+                        activation,
+                    );
+                    assert!(op != Op_INVALID_OP);
+                    (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_inpt).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
+                }
+            }
+
             Mdl::Split([_axis, _inpt]) => {
                 // Check types
                 let _axis_data = x(_axis);

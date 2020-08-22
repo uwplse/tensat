@@ -238,6 +238,51 @@ impl GraphConverter {
         }
     }
 
+    pub fn avgpool2d(
+        &mut self,
+        inpt: TensorInfo,
+        kernel_h: i32,
+        kernel_w: i32,
+        stride_h: i32,
+        stride_w: i32,
+        padding: i32,
+    ) -> TensorInfo {
+        let kernel_h_id = self.add_or_get_val(kernel_h);
+        let kernel_w_id = self.add_or_get_val(kernel_w);
+        let stride_h_id = self.add_or_get_val(stride_h);
+        let stride_w_id = self.add_or_get_val(stride_w);
+        let padding_id = self.add_or_get_val(padding);
+        let activation = ACTNONE;
+        let act_id = self.add_or_get_val(activation);
+
+        let new_node = Mdl::Poolavg([
+            inpt.id,
+            kernel_h_id,
+            kernel_w_id,
+            stride_h_id,
+            stride_w_id,
+            padding_id,
+            act_id,
+        ]);
+
+        // Get shape
+        let mut shape = [0; MAX_DIM];
+        let input_h = inpt.shape[2];
+        let input_w = inpt.shape[3];
+
+        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        shape[0] = inpt.shape[0];
+        shape[1] = inpt.shape[1];
+        shape[2] = output_h;
+        shape[3] = output_w;
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: 4,
+        }
+    }
+
     pub fn enlarge(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
 
         let mut shape = inpt_1.shape;
