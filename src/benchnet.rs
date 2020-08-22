@@ -3,11 +3,11 @@ use egg::*;
 
 fn benchnet_block(
     graph: &mut GraphConverter,
-    mut input: Id,
+    mut input: TensorInfo,
     strides: (i32, i32),
     out_channels: i32,
     input_dim_1: i32,
-) -> Id {
+) -> TensorInfo {
     let w1 = graph.new_weight(&[out_channels, input_dim_1, 1, 1]);
     let t = graph.conv2d(input, w1, 1, 1, PSAME, ACTRELU);
     let w2 = graph.new_weight(&[out_channels, out_channels, 3, 3]);

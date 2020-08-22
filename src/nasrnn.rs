@@ -4,7 +4,7 @@ use egg::*;
 const LENGTH: i32 = 5;
 const HIDDEN_SIZE: i32 = 512;
 
-fn combine(graph: &mut GraphConverter, x: Id, h: Id) -> Id {
+fn combine(graph: &mut GraphConverter, x: TensorInfo, h: TensorInfo) -> TensorInfo {
     let w1 = graph.new_weight(&[HIDDEN_SIZE, HIDDEN_SIZE]);
     let w2 = graph.new_weight(&[HIDDEN_SIZE, HIDDEN_SIZE]);
     let t1 = graph.matmul(x, w1);
@@ -12,7 +12,7 @@ fn combine(graph: &mut GraphConverter, x: Id, h: Id) -> Id {
     graph.add(t1, t2)
 }
 
-fn nas_node(graph: &mut GraphConverter, input: Id, x: Id) -> Id {
+fn nas_node(graph: &mut GraphConverter, input: TensorInfo, x: TensorInfo) -> TensorInfo {
     let mut tmp = Vec::new();
     for i in 0..8 {
         tmp.push(combine(graph, x, input));

@@ -3,6 +3,9 @@ use egg::*;
 use itertools::Itertools;
 use std::collections::HashMap;
 
+
+const MAX_DIM: usize = 8;
+
 /// Struct for converting a model specified using our Rust interface to RecExpr
 ///
 /// The RecExpr is growed on the fly when member functions are called. Uses a
@@ -13,6 +16,13 @@ pub struct GraphConverter {
     rec_expr: RecExpr<Mdl>,
     scalar_map: HashMap<i32, Id>,
     name_gen: NameGen,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct TensorInfo {
+    pub id: Id, 
+    pub shape: [i32; MAX_DIM],
+    pub n_dim: usize,
 }
 
 /// The APIs of GraphConverter are (intended to) match TASO's so that we can easily
@@ -26,33 +36,43 @@ impl GraphConverter {
     /// Takes in the parameters for the new input, construct the node in RexExpr,
     /// return the Id (index) of this input node in the RecExpr. This is the
     /// pattern for all these op functions.
-    pub fn new_input(&mut self, dims: &[i32]) -> Id {
+    pub fn new_input(&mut self, dims: &[i32]) -> TensorInfo {
         let name = self.name_gen.new_input_name() + "@" + &dims.iter().join("_");
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
 
         let new_node = Mdl::Input([name_id]);
-        self.rec_expr.add(new_node)
+        let (shape, n_dim) = self.shape_from_dim(dims);
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
     }
 
-    pub fn new_weight(&mut self, dims: &[i32]) -> Id {
+    pub fn new_weight(&mut self, dims: &[i32]) -> TensorInfo {
         let name = self.name_gen.new_weight_name() + "@" + &dims.iter().join("_");
         let node = Mdl::Var(Symbol::from(name));
         let name_id = self.rec_expr.add(node);
 
         let new_node = Mdl::Weight([name_id]);
-        self.rec_expr.add(new_node)
+        let (shape, n_dim) = self.shape_from_dim(dims);
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
     }
 
     pub fn conv2d(
         &mut self,
-        inpt: Id,
-        wght: Id,
+        inpt: TensorInfo,
+        wght: TensorInfo,
         stride_h: i32,
         stride_w: i32,
         padding: i32,
         activation: i32,
-    ) -> Id {
+    ) -> TensorInfo {
         let stride_h_id = self.add_or_get_val(stride_h);
         let stride_w_id = self.add_or_get_val(stride_w);
         let padding_id = self.add_or_get_val(padding);
@@ -63,64 +83,125 @@ impl GraphConverter {
             stride_w_id,
             padding_id,
             activation_id,
-            inpt,
-            wght,
+            inpt.id,
+            wght.id,
         ]);
-        self.rec_expr.add(new_node)
+
+        // Get shape
+        let mut shape = [0; MAX_DIM];
+        let input_h = inpt.shape[2];
+        let input_w = inpt.shape[3];
+        let kernel_h = wght.shape[2];
+        let kernel_w = wght.shape[3];
+
+        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        shape[0] = inpt.shape[0];
+        shape[1] = wght.shape[0];
+        shape[2] = output_h;
+        shape[3] = output_w;
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: 4,
+        }
     }
 
-    pub fn relu(&mut self, inpt: Id) -> Id {
-        let new_node = Mdl::Relu(inpt);
-        self.rec_expr.add(new_node)
+    pub fn relu(&mut self, inpt: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Relu(inpt.id);
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: inpt.shape,
+            n_dim: inpt.n_dim,
+        }
     }
 
-    pub fn tanh(&mut self, inpt: Id) -> Id {
-        let new_node = Mdl::Tanh(inpt);
-        self.rec_expr.add(new_node)
+    pub fn tanh(&mut self, inpt: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Tanh(inpt.id);
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: inpt.shape,
+            n_dim: inpt.n_dim,
+        }
     }
 
-    pub fn sigmoid(&mut self, inpt: Id) -> Id {
-        let new_node = Mdl::Sigmoid(inpt);
-        self.rec_expr.add(new_node)
+    pub fn sigmoid(&mut self, inpt: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Sigmoid(inpt.id);
+        
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: inpt.shape,
+            n_dim: inpt.n_dim,
+        }
     }
 
-    pub fn add(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
-        let new_node = Mdl::Ewadd([inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+    pub fn add(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Ewadd([inpt_1.id, inpt_2.id]);
+        
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: inpt_1.shape,
+            n_dim: inpt_1.n_dim,
+        }
     }
 
-    pub fn matmul(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
+    pub fn matmul(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
         let activation = ACTNONE;
         let act_id = self.add_or_get_val(activation);
 
-        let new_node = Mdl::Matmul([act_id, inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+        let new_node = Mdl::Matmul([act_id, inpt_1.id, inpt_2.id]);
+
+        let mut shape = inpt_1.shape;
+        let n_dim = inpt_1.n_dim;
+        shape[n_dim - 1] = inpt_2.shape[n_dim - 1];
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
     }
 
-    pub fn mul(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
-        let new_node = Mdl::Ewmul([inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+    pub fn mul(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Ewmul([inpt_1.id, inpt_2.id]);
+        
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: inpt_1.shape,
+            n_dim: inpt_1.n_dim,
+        }
     }
 
-    pub fn concat(&mut self, axis: i32, ndim: i32, inpt_1: Id, inpt_2: Id) -> Id {
+    pub fn concat(&mut self, axis: i32, ndim: i32, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
         // Only support concat of 2 inputs for now
         // To support more, pass in a slice and create more concat nodes here
         let axis_id = self.add_or_get_val(axis);
         let ndim_id = self.add_or_get_val(ndim);
 
-        let new_node = Mdl::Concat([axis_id, ndim_id, inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+        let new_node = Mdl::Concat([axis_id, ndim_id, inpt_1.id, inpt_2.id]);
+
+        let mut shape = inpt_1.shape;
+        let n_dim = inpt_1.n_dim;
+        shape[axis as usize] += inpt_2.shape[axis as usize];
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
     }
 
     pub fn maxpool2d(
         &mut self,
-        inpt: Id,
+        inpt: TensorInfo,
         kernel_h: i32,
         kernel_w: i32,
         stride_h: i32,
         stride_w: i32,
         padding: i32,
-    ) -> Id {
+    ) -> TensorInfo {
         let kernel_h_id = self.add_or_get_val(kernel_h);
         let kernel_w_id = self.add_or_get_val(kernel_w);
         let stride_h_id = self.add_or_get_val(stride_h);
@@ -130,7 +211,7 @@ impl GraphConverter {
         let act_id = self.add_or_get_val(activation);
 
         let new_node = Mdl::Poolmax([
-            inpt,
+            inpt.id,
             kernel_h_id,
             kernel_w_id,
             stride_h_id,
@@ -138,36 +219,80 @@ impl GraphConverter {
             padding_id,
             act_id,
         ]);
-        self.rec_expr.add(new_node)
+
+        // Get shape
+        let mut shape = [0; MAX_DIM];
+        let input_h = inpt.shape[2];
+        let input_w = inpt.shape[3];
+
+        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        shape[0] = inpt.shape[0];
+        shape[1] = inpt.shape[1];
+        shape[2] = output_h;
+        shape[3] = output_w;
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: 4,
+        }
     }
 
-    pub fn enlarge(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
-        let new_node = Mdl::Enlarge([inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+    pub fn enlarge(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
+
+        let mut shape = inpt_1.shape;
+        shape[2] = inpt_2.shape[2];
+        shape[3] = inpt_2.shape[3];
+
+        let new_node = Mdl::Enlarge([inpt_1.id, inpt_2.id]);
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: 4,
+        }
     }
 
-    pub fn split(&mut self, axis: i32, inpt: Id) -> (Id, Id) {
+    pub fn split(&mut self, axis: i32, inpt: TensorInfo) -> (TensorInfo, TensorInfo) {
         let axis_id = self.add_or_get_val(axis);
 
-        let split_node = Mdl::Split([axis_id, inpt]);
+        let split_node = Mdl::Split([axis_id, inpt.id]);
         let split_id = self.rec_expr.add(split_node);
         let split_0_node = Mdl::Split0(split_id);
         let split_0_id = self.rec_expr.add(split_0_node);
         let split_1_node = Mdl::Split1(split_id);
         let split_1_id = self.rec_expr.add(split_1_node);
-        (split_0_id, split_1_id)
+
+        assert!(false, "Shape inference not implemented for split");
+
+        let out_0 = TensorInfo {
+            id: split_0_id,
+            shape: [0; MAX_DIM],
+            n_dim: inpt.n_dim,
+        };
+        let out_1 = TensorInfo {
+            id: split_1_id,
+            shape: [0; MAX_DIM],
+            n_dim: inpt.n_dim,
+        };
+        (out_0, out_1)
     }
 
-    pub fn reshape(&mut self, inpt: Id, shape: &[i32]) -> Id {
+    pub fn reshape(&mut self, inpt: TensorInfo, shape: &[i32]) -> TensorInfo {
         let shape_name = &shape.iter().join("_");
         let node = Mdl::Var(Symbol::from(shape_name));
         let shape_name_id = self.rec_expr.add(node);
 
-        let new_node = Mdl::Reshape([inpt, shape_name_id]);
-        self.rec_expr.add(new_node)
+        let new_node = Mdl::Reshape([inpt.id, shape_name_id]);
+        let (shape_new, n_dim) = self.shape_from_dim(shape);
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape_new,
+            n_dim: n_dim,
+        }
     }
 
-    pub fn transpose(&mut self, inpt: Id, perm: &[i32], shuffle: bool) -> Id {
+    pub fn transpose(&mut self, inpt: TensorInfo, perm: &[i32], shuffle: bool) -> TensorInfo {
         let perm_name = &perm.iter().join("_");
         let node = Mdl::Var(Symbol::from(perm_name));
         let perm_name_id = self.rec_expr.add(node);
@@ -175,13 +300,27 @@ impl GraphConverter {
         let shuffle_val = if shuffle { SHUFFLE } else { NOSHUFFLE };
         let shuffle_id = self.add_or_get_val(shuffle_val);
 
-        let new_node = Mdl::Transpose([inpt, perm_name_id, shuffle_id]);
-        self.rec_expr.add(new_node)
+        let new_node = Mdl::Transpose([inpt.id, perm_name_id, shuffle_id]);
+
+        let mut shape = [0; MAX_DIM];
+        let n_dim = inpt.n_dim;
+        for (i, perm_i) in perm.iter().enumerate() {
+            shape[i] = inpt.shape[*perm_i as usize];
+        }
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
     }
 
-    pub fn noop(&mut self, inpt_1: Id, inpt_2: Id) -> Id {
-        let new_node = Mdl::Noop([inpt_1, inpt_2]);
-        self.rec_expr.add(new_node)
+    pub fn noop(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Noop([inpt_1.id, inpt_2.id]);
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: [0; MAX_DIM],
+            n_dim: inpt_1.n_dim,
+        }
     }
 
     /// If a scalar value is in the RecExpr, gets the Id. Otherwise creates one.
@@ -194,6 +333,26 @@ impl GraphConverter {
                 self.scalar_map.insert(val, id);
                 id
             }
+        }
+    }
+
+    fn shape_from_dim(&self, dims: &[i32]) -> ([i32; MAX_DIM], usize) {
+        let mut shape = [0; MAX_DIM];
+        for (i, dim) in dims.iter().enumerate() {
+            shape[i] = *dim;
+        }
+        (shape, dims.len())
+    }
+
+    fn get_conv_shape(&self, input_h: i32, input_w: i32, stride_h: i32, stride_w: i32, kernel_h: i32, kernel_w: i32, padding: i32) -> (i32, i32) {
+        if padding == PSAME {
+            let output_h = (input_h + stride_h - 1) / stride_h;
+            let output_w = (input_w + stride_w - 1) / stride_w;
+            (output_h, output_w)
+        } else {
+            let output_h = (input_h - kernel_h) / stride_h + 1;
+            let output_w = (input_w - kernel_w) / stride_w + 1;
+            (output_h, output_w)
         }
     }
 }
