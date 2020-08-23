@@ -193,6 +193,29 @@ impl GraphConverter {
         }
     }
 
+    pub fn concat_multi(&mut self, axis: i32, ndim: i32, inputs: &[TensorInfo]) -> TensorInfo {
+        let n_inputs = inputs.len();
+        // TODO: add supports for other number of inputs later
+        assert!(n_inputs == 5);
+
+        let axis_id = self.add_or_get_val(axis);
+        let ndim_id = self.add_or_get_val(ndim);
+
+        let new_node = Mdl::Concat5([axis_id, ndim_id, inputs[0].id, inputs[1].id, inputs[2].id, inputs[3].id, inputs[4].id]);
+
+        let mut shape = inputs[0].shape;
+        let n_dim = inputs[0].n_dim;
+        for i in 1..n_inputs {
+            shape[axis as usize] += inputs[i].shape[axis as usize];
+        }
+        
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            shape: shape,
+            n_dim: n_dim,
+        }
+    }
+
     pub fn maxpool2d(
         &mut self,
         inpt: TensorInfo,

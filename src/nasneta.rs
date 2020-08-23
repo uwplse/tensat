@@ -46,11 +46,13 @@ fn normal_cell(graph: &mut GraphConverter, prev: TensorInfo, cur: TensorInfo, ou
     for i in 0..5 {
         outputs.push(graph.add(tmp[2*i], tmp[2*i+1]));
     }
-    let mut combined = outputs[0];
+
+    graph.concat_multi(/*axis=*/1, outputs[0].n_dim as i32, &outputs)
+    /*let mut combined = outputs[0];
     for i in 1..outputs.len() {
         combined = graph.concat(/*axis=*/1, combined.n_dim as i32, combined, outputs[i])
     }
-    combined
+    combined*/
 }
 
 fn reduction_cell(graph: &mut GraphConverter, prev: TensorInfo, cur: TensorInfo, out_channels: i32) -> TensorInfo {
@@ -74,11 +76,12 @@ fn reduction_cell(graph: &mut GraphConverter, prev: TensorInfo, cur: TensorInfo,
     tmp.push(outputs[1]);
     outputs.push(graph.add(tmp[8], tmp[9]));
 
-    let mut combined = outputs[0];
+    graph.concat_multi(/*axis=*/1, outputs[0].n_dim as i32, &outputs)
+    /*let mut combined = outputs[0];
     for i in 1..outputs.len() {
         combined = graph.concat(/*axis=*/1, combined.n_dim as i32, combined, outputs[i])
     }
-    combined
+    combined*/
 }
 
 /// Gets the RecExpr of a nasnet_a model

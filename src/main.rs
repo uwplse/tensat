@@ -607,7 +607,13 @@ fn extract_by_ilp(
         for (i, x_i) in solved_data.solved_x.iter().enumerate() {
             if *x_i == 1 {
                 let eclass_id = m_id_map[g_i[i]];
-                assert!(!node_picked.contains_key(&eclass_id));
+                if node_picked.contains_key(&eclass_id) {
+                    println!("Duplicate node in eclass");
+                    println!("{}", node_picked.get(&eclass_id).unwrap().display_op());
+                    println!("{}", i_to_nodes[i].display_op());
+                    assert!(false);
+                }
+                //assert!(!node_picked.contains_key(&eclass_id));
                 node_picked.insert(eclass_id, i_to_nodes[i].clone());
             }
         }

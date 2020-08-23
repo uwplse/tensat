@@ -42,6 +42,7 @@ define_language! {
         "poolmax"   = Poolmax([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
+        "concat5"    = Concat5([Id; 7]), // axis, ndim, input1, input2, input3, input4, input5. ndim is for using in CheckApply only
         "split_0"   = Split0(Id), // must take a split node as input
         "split_1"   = Split1(Id), // must take a split node as input
         "split"     = Split([Id; 2]), // axis, input
@@ -375,6 +376,38 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Create tensorhandle and get metadata
                 let t = [t_a, t_b];
                 let res = unsafe { g.concat(axis_val, 2, t.as_ptr()) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            }
+
+            Mdl::Concat5([axis, ndim, input1, input2, input3, input4, input5]) => {
+                // Check types
+                assert!(x(axis).dtype == DataKind::Scalar);
+                assert!(x(ndim).dtype == DataKind::Scalar);
+                assert!(x(input1).dtype == DataKind::Tnsr);
+                assert!(x(input2).dtype == DataKind::Tnsr);
+                assert!(x(input3).dtype == DataKind::Tnsr);
+                assert!(x(input4).dtype == DataKind::Tnsr);
+                assert!(x(input5).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_1 = x(input1).meta;
+                let t_2 = x(input2).meta;
+                let t_3 = x(input3).meta;
+                let t_4 = x(input4).meta;
+                let t_5 = x(input5).meta;
+                let axis_val = x(axis).val;
+                let all_weights = x(input1).all_weights && x(input2).all_weights && x(input3).all_weights && x(input4).all_weights && x(input5).all_weights;
+
+                // Create tensorhandle and get metadata
+                let t = [t_1, t_2, t_3, t_4, t_5];
+                let res = unsafe { g.concat(axis_val, 5, t.as_ptr()) };
                 Self::Data {
                     dtype: DataKind::Tnsr,
                     val: 0,

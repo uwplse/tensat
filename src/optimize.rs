@@ -285,6 +285,54 @@ impl CostModel {
                 }
             }
 
+            Mdl::Concat5([_axis, _ndim, _input1, _input2, _input3, _input4, _input5]) => {
+                // Check types
+                let _axis_data = x(_axis);
+                let _ndim_data = x(_ndim);
+                let _input1_data = x(_input1);
+                let _input2_data = x(_input2);
+                let _input3_data = x(_input3);
+                let _input4_data = x(_input4);
+                let _input5_data = x(_input5);
+                assert!(_axis_data.dtype == DataKind::Scalar);
+                assert!(_ndim_data.dtype == DataKind::Scalar);
+                assert!(_input1_data.dtype == DataKind::Tnsr);
+                assert!(_input2_data.dtype == DataKind::Tnsr);
+                assert!(_input3_data.dtype == DataKind::Tnsr);
+                assert!(_input4_data.dtype == DataKind::Tnsr);
+                assert!(_input5_data.dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let axis = _axis_data.val;
+                let ndim = _ndim_data.val;
+                unsafe {
+                    let t_1 = *_input1_data.meta;
+                    let t_2 = *_input2_data.meta;
+                    let t_3 = *_input3_data.meta;
+                    let t_4 = *_input4_data.meta;
+                    let t_5 = *_input5_data.meta;
+
+                    // Pass ownership to C++
+                    let mut inputs = vec![t_1, t_2, t_3, t_4, t_5];
+                    inputs.shrink_to_fit();
+                    assert!(inputs.len() == inputs.capacity());
+                    let ptr = inputs.as_mut_ptr();
+                    std::mem::forget(inputs);
+
+                    // Get op
+                    let mut need_copy = if self.ignore_all_weight_only
+                        && !(x(_input1).all_weights && x(_input2).all_weights && x(_input3).all_weights && x(_input4).all_weights && x(_input5).all_weights)
+                    {
+                        [true, true, true, true, true]
+                    } else {
+                        [false, false, false, false, false]
+                    };
+                    let op = (*g.model).get_or_create_concat(axis, 5, ptr, need_copy.as_mut_ptr());
+                    assert!(op != Op_INVALID_OP);
+                    (*op.ptr).runtime.clone()
+                }
+            }
+
             Mdl::Poolmax([_inpt, _kernel_h, _kernel_w, _stride_h, _stride_w, _pad, _act]) => {
                 // Check types
                 let _kernel_h_data = x(_kernel_h);
