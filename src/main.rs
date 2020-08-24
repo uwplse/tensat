@@ -100,6 +100,13 @@ fn main() {
                 .help("Max number of seconds for egg to run"),
         )
         .arg(
+            Arg::with_name("n_nodes")
+                .long("n_nodes")
+                .takes_value(true)
+                .default_value("100000")
+                .help("Max number of nodes for egraph"),
+        )
+        .arg(
             Arg::with_name("extract")
                 .short("e")
                 .long("extract")
@@ -407,19 +414,24 @@ fn optimize(matches: clap::ArgMatches) {
         .unwrap()
         .parse::<usize>()
         .unwrap();
+    let node_limit = matches
+        .value_of("n_nodes")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     let runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
         // beginning of each iteration in equality saturation
         Runner::<Mdl, TensorAnalysis, ()>::default()
-            .with_node_limit(100000)
+            .with_node_limit(node_limit)
             .with_time_limit(time_limit_sec)
             .with_iter_limit(iter_limit)
             .with_expr(&start)
             .with_hook(move |runner| multi_patterns.run_one(runner))
     } else {
         Runner::<Mdl, TensorAnalysis, ()>::default()
-            .with_node_limit(100000)
+            .with_node_limit(node_limit)
             .with_time_limit(time_limit_sec)
             .with_iter_limit(iter_limit)
             .with_expr(&start)
@@ -611,7 +623,7 @@ fn extract_by_ilp(
                     println!("Duplicate node in eclass");
                     println!("{}", node_picked.get(&eclass_id).unwrap().display_op());
                     println!("{}", i_to_nodes[i].display_op());
-                    assert!(false);
+                    continue;
                 }
                 //assert!(!node_picked.contains_key(&eclass_id));
                 node_picked.insert(eclass_id, i_to_nodes[i].clone());
