@@ -305,13 +305,14 @@ fn optimize(matches: clap::ArgMatches) {
         remove_cycle_by_order(&mut runner);
     }
     let sat_duration = start_time.elapsed();
+    let num_iter_sat = runner.iterations.len() - 1;
 
     println!("Runner complete!");
     println!("  Nodes: {}", runner.egraph.total_size());
     println!("  Classes: {}", runner.egraph.number_of_classes());
     println!("  Stopped: {:?}", runner.stop_reason.unwrap());
     println!("  Time taken: {:?}", sat_duration);
-    println!("  Number of iterations: {:?}", runner.iterations.len() - 1);
+    println!("  Number of iterations: {:?}", num_iter_sat);
 
     let (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
@@ -383,6 +384,7 @@ fn optimize(matches: clap::ArgMatches) {
                 "nodes": num_enodes,
                 "classes": num_classes,
                 "programs": num_programs,
+                "iter": num_iter_sat,
             });
             let sol_data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
 
