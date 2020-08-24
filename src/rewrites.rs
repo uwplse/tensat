@@ -188,8 +188,10 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         matched_id: Id,
         subst: &Subst,
     ) -> Vec<Id> {
-        if self.filter_after {
-            if constains_blacklist(self.src_pat.ast.as_ref(), egraph, subst).0 {
+        //if self.filter_after {
+        if true {
+            let (contains, id_found) = constains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
+            if contains {
                 return vec![];
             }
         }
@@ -263,12 +265,21 @@ fn constains_blacklist(
                 let mut new_e = e.clone();
                 let new_e_ch = new_e.children_mut();
                 for (i, res) in results.iter().enumerate() {
-                    new_e_ch[i] = res.1.unwrap();
+                    if let Some(id) = res.1 {
+                        new_e_ch[i] = id;
+                    } else {
+                        //println!("{}", e.display_op());
+                        //assert!(false);
+                        return (false, None)
+                    }
                 }
                 if egraph.analysis.blacklist_nodes.contains(&new_e) {
                     (true, None)
                 } else {
                     let looked = egraph.lookup(new_e);
+                    //if looked.is_none() {
+                    //    println!("Not found {}", e.display_op());
+                    //}
                     (false, looked)
                 }
             }
@@ -1032,6 +1043,7 @@ impl MultiPatterns {
             if self.filter_after {
                 remove_cycle_by_order(runner);
             }
+            println!("Done one");
         }
 
         Ok(())
