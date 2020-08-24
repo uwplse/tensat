@@ -313,9 +313,10 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Time taken: {:?}", sat_duration);
     println!("  Number of iterations: {:?}", runner.iterations.len() - 1);
 
-    let (num_enodes, num_classes, avg_nodes_per_class, num_edges) = get_stats(&runner.egraph);
+    let (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs) = get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
     println!("  Number of edges: {}", num_edges);
+    println!("  Number of programs: {}", num_programs);
 
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
@@ -381,7 +382,7 @@ fn optimize(matches: clap::ArgMatches) {
                 "extraction": ext_secs,
                 "nodes": num_enodes,
                 "classes": num_classes,
-                //"programs": num_programs,
+                "programs": num_programs,
             });
             let sol_data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
 
@@ -519,14 +520,16 @@ fn extract_by_ilp(
 ///     Total number of eclasses
 ///     Average number of enodes per class
 ///     Total number of edges (children relationships)
-fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize) {
+///     Total number of equivalent programs represented (power of 2)
+fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize, f32) {
     let num_enodes = egraph.total_size();
     let num_classes = egraph.number_of_classes();
     let avg_nodes_per_class = num_enodes as f32 / (num_classes as f32);
     let num_edges = egraph
         .classes()
         .fold(0, |acc, c| c.iter().fold(0, |sum, n| n.len() + sum) + acc);
-    (num_enodes, num_classes, avg_nodes_per_class, num_edges)
+    let num_programs = egraph.classes().fold(0.0, |acc, c| acc + (c.len() as f32).log2());
+    (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs)
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: bool) -> f32 {
