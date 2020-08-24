@@ -144,9 +144,10 @@ def main():
 
     # Solve
     status = solver.Solve()
+    solve_time = solver.wall_time()
     if status == pywraplp.Solver.OPTIMAL:
         print('Objective value =', solver.Objective().Value())
-        print('Problem solved in %f milliseconds' % solver.wall_time())
+        print('Problem solved in %f milliseconds' % solve_time)
         print('Problem solved in %d iterations' % solver.iterations())
         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
 
@@ -160,7 +161,7 @@ def main():
         print('The problem does not have an optimal solution.')
         print(status)
         print('Objective value =', solver.Objective().Value())
-        print('Problem solved in %f milliseconds' % solver.wall_time())
+        print('Problem solved in %f milliseconds' % solve_time)
         print('Problem solved in %d iterations' % solver.iterations())
         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
 
@@ -169,6 +170,7 @@ def main():
     result_dict = {}
     result_dict["solved_x"] = solved_x
     result_dict["cost"] = solver.Objective().Value()
+    result_dict["time"] = solve_time / 1000
     with open('./tmp/solved.json', 'w') as f:
         json.dump(result_dict, f)
 

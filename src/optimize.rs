@@ -567,6 +567,8 @@ pub struct SolvedResults {
     pub solved_x: Vec<i32>,
     /// The minimum total cost found
     pub cost: f32,
+    /// Time for solver
+    pub time: f32,
 }
 
 /// Construct the RecExpr of the optimized graph extracted
