@@ -229,7 +229,7 @@ def optimizer_time_bar(benchmark):
     tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
 
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
     taso_stats_file = os.path.join(taso_root, "examples/{}_stats.txt".format(benchmark))
 
     with open(egg_stats_file, 'r') as egg_f:
@@ -258,7 +258,7 @@ def optimizer_time_bar(benchmark):
     ext_time_mean = np.mean(egg_ext_times)
 
     print("{}, sat time {}, ext time {}".format(benchmark, sat_time_mean, ext_time_mean))
-    '''
+
     width = 0.8
     x_locs = [0, 1]
     x_locs = [a + width/2 for a in x_locs]
@@ -284,7 +284,7 @@ def optimizer_time_bar(benchmark):
 
     plt.savefig("{}_optim_time.png".format(benchmark), bbox_inches='tight')
     plt.close()
-    '''
+    
 
 def equivalent_graphs(benchmark):
     # Read in results
@@ -316,6 +316,137 @@ def equivalent_graphs(benchmark):
     print("{}: egg (power of 2) {}, taso {}".format(benchmark, egg_mean, taso_mean))
 
 
+def multi_trend(benchmark):
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(benchmark))
+
+    with open(taso_runtime_file, 'r') as f:
+        content = f.readlines()
+
+    orig_runtimes = []
+    for line in content[-5:]:
+        times = line.split('\t')
+        orig_runtimes.append(float(times[0]))
+    orig_mean = np.mean(orig_runtimes)
+
+    # iter=1
+    egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    egg_runtimes = []
+    egg_sat_times = []
+    egg_ext_times = []
+    egg_n_nodes = []
+    for res in egg_results[-5:]:
+        egg_runtimes.append(res['optimized'])
+        egg_sat_times.append(res['saturation'])
+        egg_ext_times.append(res['extraction'])
+        egg_n_nodes.append(res['nodes'])
+
+    mean_iter_1 = np.mean(egg_runtimes)
+    mean_sat_iter_1 = np.mean(egg_sat_times)
+    mean_ext_iter_1 = np.mean(egg_ext_times)
+    mean_nodes_iter_1 = np.mean(egg_n_nodes)
+
+    # iter=2
+    egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    egg_runtimes = []
+    egg_sat_times = []
+    egg_ext_times = []
+    egg_n_nodes = []
+    for res in egg_results[-5:]:
+        egg_runtimes.append(res['optimized'])
+        egg_sat_times.append(res['saturation'])
+        egg_ext_times.append(res['extraction'])
+        egg_n_nodes.append(res['nodes'])
+
+    mean_iter_2 = np.mean(egg_runtimes)
+    mean_sat_iter_2 = np.mean(egg_sat_times)
+    mean_ext_iter_2 = np.mean(egg_ext_times)
+    mean_nodes_iter_2 = np.mean(egg_n_nodes)
+
+    # iter=3
+    if benchmark == 'resnext50':
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_3_stats.txt".format(benchmark))
+        with open(egg_stats_file, 'r') as egg_f:
+            egg_results = egg_f.readlines()
+
+        egg_results = [json.loads(x) for x in egg_results]
+        egg_runtimes = []
+        egg_sat_times = []
+        egg_ext_times = []
+        egg_n_nodes = []
+        for res in egg_results[-5:]:
+            egg_runtimes.append(res['optimized'])
+            egg_sat_times.append(res['saturation'])
+            egg_ext_times.append(res['extraction'])
+            egg_n_nodes.append(res['nodes'])
+
+        mean_iter_3 = np.mean(egg_runtimes)
+        mean_sat_iter_3 = np.mean(egg_sat_times)
+        mean_ext_iter_3 = np.mean(egg_ext_times)
+        mean_nodes_iter_3 = np.mean(egg_n_nodes)
+
+    # Plot runtime & optimizer time v.s. iter
+
+    n_iter = [1,2,3]
+    speedup = [orig_mean/mean_iter_1, orig_mean/mean_iter_2]
+    optimizer_time = [mean_sat_iter_1+mean_ext_iter_1, mean_sat_iter_2+mean_ext_iter_2]
+    if mean_iter_3 > 0:
+        speedup.append(orig_mean/mean_iter_3)
+        optimizer_time.append(mean_sat_iter_3+mean_ext_iter_3)
+
+    speedup = [(i-1)*100 for i in speedup]
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    color = 'tab:red'
+    ax1.set_xlabel('#iter of multi pattern rewrites')
+    ax1.set_ylabel('Speedup percentage', color=color)
+    lns1 = ax1.plot(n_iter[:len(speedup)], speedup, marker='s', color=color, label='Speedup')
+    
+    #ax1.tick_params(axis='y', labelcolor=color)
+
+    plt.xticks(n_iter, ['{}'.format(i) for i in n_iter])
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    color = 'tab:blue'
+    ax2.set_ylabel('Optimizer time (seconds)', color=color)
+    lns2 = ax2.plot(n_iter[:len(speedup)], optimizer_time, marker='^', color=color, label='Optimizer time')
+
+    lns = lns1+lns2
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True)
+
+    plt.savefig("{}_trend_time.png".format(benchmark), bbox_inches='tight')
+    plt.close()
+
+    # Plot nodes v.s. iter
+    n_iter = [1,2,3]
+    nodes = [mean_nodes_iter_1, mean_nodes_iter_2, mean_nodes_iter_3]
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    color = 'tab:green'
+    ax1.set_xlabel('#iter of multi pattern rewrites')
+    ax1.set_ylabel('#enodes', color=color)
+    lns1 = ax1.plot(n_iter, nodes, marker='s', color=color)
+
+    plt.xticks(n_iter, ['{}'.format(i) for i in n_iter])
+    plt.savefig("{}_trend_nodes.png".format(benchmark), bbox_inches='tight')
+    plt.close()
+
+
 def plot_speedup(args):
     plt.rcParams.update({'font.size': 18})
     for benchmark in ['nasrnn', 'bert', 'resnext50', 'nasneta']:
@@ -330,6 +461,12 @@ def plot_optimizer_time(args):
     for benchmark in ['nasrnn', 'bert', 'resnext50', 'nasneta']:
         optimizer_time_bar(benchmark)
 
+def plot_multi_trend(args):
+    plt.rcParams.update({'font.size': 18})
+    for benchmark in ['resnext50']:
+    #for benchmark in ['nasrnn', 'bert', 'resnext50', 'nasneta']:
+        multi_trend(benchmark)
+
 def main():
     # Parse arguments
     args = get_args()
@@ -343,6 +480,8 @@ def main():
         get_equivalent_graphs(args)
     elif args.mode == 'optimizer':
         plot_optimizer_time(args)
+    elif args.mode == 'multi':
+        plot_multi_trend(args)
 
 if __name__ == '__main__':
     try:

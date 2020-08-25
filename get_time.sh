@@ -11,6 +11,9 @@ cargo run -- -r converted.txt -t converted_multi.txt -u -s none --n_iter $iter_l
 model=nasneta
 cargo run -- -r converted.txt -t converted_multi.txt -u -s none --n_iter $iter_limit --no_order --ilp_time_sec $ilp_time_sec --no_cycle --iter_multi $iter_multi --n_sec $time_limit --n_nodes $node_limit --all_weight_only -e ilp -d $model -o tmp/"$model"_"$iter_multi"_stats.txt
 
+model=bert
+cargo run -- -r converted.txt -t converted_multi.txt -u -s none --n_iter $iter_limit --no_order --ilp_time_sec $ilp_time_sec --no_cycle --iter_multi $iter_multi --n_sec $time_limit --n_nodes $node_limit --all_weight_only -e ilp -d $model -o tmp/"$model"_"$iter_multi"_stats.txt
+
 if false
 then
 for pass in $(seq 0 $(expr $num_passes - 1))
