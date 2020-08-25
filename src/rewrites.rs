@@ -188,9 +188,8 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         matched_id: Id,
         subst: &Subst,
     ) -> Vec<Id> {
-        //if self.filter_after {
-        if true {
-            let (contains, id_found) = constains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
+        if self.filter_after {
+            let (contains, id_found) = contains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
             if contains {
                 return vec![];
             }
@@ -238,7 +237,7 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 /// - bool: true if the nodes in this pattern contains some node in blacklist
 /// - Option<Id>: if the nodes in this pattern do not contain blacklisted
 ///     nodes, then this is the Id of the matched EClass of the root of this pattern(pat.last())
-fn constains_blacklist(
+fn contains_blacklist(
     pat: &[ENodeOrVar<Mdl>],
     egraph: &mut EGraph<Mdl, TensorAnalysis>,
     subst: &Subst,
@@ -249,7 +248,7 @@ fn constains_blacklist(
             let children = e.children();
             let results: Vec<(bool, Option<Id>)> = children
                 .iter()
-                .map(|child| constains_blacklist(&pat[..usize::from(*child) + 1], egraph, subst))
+                .map(|child| contains_blacklist(&pat[..usize::from(*child) + 1], egraph, subst))
                 .collect();
 
             let mut contains = false;
@@ -1071,12 +1070,12 @@ impl MultiPatterns {
                     let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
                     // Check if any source pattern contains blacklisted nodes
                     if self.filter_after {
-                        if constains_blacklist(
+                        if contains_blacklist(
                             rule.0.ast.as_ref(),
                             &mut runner.egraph,
                             &merged_subst,
                         )
-                        .0 || constains_blacklist(
+                        .0 || contains_blacklist(
                             rule.1.ast.as_ref(),
                             &mut runner.egraph,
                             &merged_subst,
