@@ -16,8 +16,8 @@ def get_args():
 
     return parser.parse_args()
 
+# Plot speedup and optimizer time together in a same bar plot
 def plot_runtime_and_speed(benchmark_name, result):
-
     width = 0.8
     x_locs = [0, 1, 2, 3, 6, 7]
     x_locs = [a + width/2 for a in x_locs]
@@ -31,9 +31,6 @@ def plot_runtime_and_speed(benchmark_name, result):
 
     runtimes = [result['orig_runtime'], result['taso'], result['greedy'], result['ilp']]
 
-    #low = min(runtimes)
-    #high = max(runtimes)
-    #ax1.set_ylim(low-0.5*(high-low), high+0.5*(high-low))
     ax1.set_ylabel('Graph runtime (milliseconds)')
 
     ax2 = ax1.twinx()
@@ -48,7 +45,6 @@ def plot_runtime_and_speed(benchmark_name, result):
 
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    #ax2.legend(lines + lines2, labels + labels2, fontsize=10)
     ax2.legend(lines + lines2, labels + labels2, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
 
     plt.savefig("{}.png".format(benchmark_name), bbox_inches='tight')
@@ -78,9 +74,6 @@ def plot_runtime_and_speed_2(benchmark_name, result):
     plt.savefig("{}_runtime.png".format(benchmark_name), bbox_inches='tight')
     plt.close()
 
-    #low = min(runtimes)
-    #high = max(runtimes)
-    #ax1.set_ylim(low-0.5*(high-low), high+0.5*(high-low))
     x_locs = [0, 1]
     x_locs = [a + width/2 for a in x_locs]
     colors = ['b', 'g', 'r', 'c']
@@ -96,14 +89,10 @@ def plot_runtime_and_speed_2(benchmark_name, result):
     fig.set_size_inches(3, 5)
     plt.xticks(x_locs, ['' for _ in range(len(x_locs))])
 
-    #ax2.legend(lines + lines2, labels + labels2, fontsize=10)
     ax2.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
 
     plt.savefig("{}_optimizer.png".format(benchmark_name), bbox_inches='tight')
     plt.close()
-    
-
-
 
 def runtime_stats(args):
     with open(args.file, 'r') as f:
@@ -124,6 +113,7 @@ def runtime_stats(args):
     print("Extracted graph runtime: mean {}, std {}".format(ext_mean, ext_std))
 
 def plot_bars(args):
+    # Results for the spotlight talk was manually input, since we don't have the pipeline to store results then
     results = {
         "bert": {
             "orig_runtime": 1.8964,
@@ -155,10 +145,8 @@ def plot_bars(args):
     }
 
     plt.rcParams.update({'font.size': 16})
-    #plt.rcParams.update({'figure.autolayout': True})
 
     for (benchmark, result) in results.items():
-        #plot_runtime_and_speed(benchmark, result)
         plot_runtime_and_speed_2(benchmark, result)
 
 
@@ -201,7 +189,6 @@ def speedup_bar(benchmark):
 
     print("{}: orig {} taso {}".format(benchmark, orig_mean, taso_mean_time))
 
-    '''
     # Plot bar and save
     width = 0.8
     x_locs = [0, 1]
@@ -222,7 +209,6 @@ def speedup_bar(benchmark):
 
     plt.savefig("{}_speedup.png".format(benchmark), bbox_inches='tight')
     plt.close()
-    '''
 
 def optimizer_time_bar(benchmark):
     # Read in results
@@ -396,8 +382,21 @@ def multi_trend(benchmark):
         mean_ext_iter_3 = np.mean(egg_ext_times)
         mean_nodes_iter_3 = np.mean(egg_n_nodes)
 
-    # Plot runtime & optimizer time v.s. iter
+    # The number of nodes for these three in iter 3 is manually recorded, since the ILP solver 
+    # times out, and the results are not saved in files
+    elif benchmark == 'bert':
+        mean_iter_3 = -1
+        mean_nodes_iter_3 = 842044
 
+    elif benchmark == 'nasrnn':
+        mean_iter_3 = -1
+        mean_nodes_iter_3 = 10177140
+
+    elif benchmark == 'nasneta':
+        mean_iter_3 = -1
+        mean_nodes_iter_3 = 11114360
+
+    # Plot runtime & optimizer time v.s. iter
     n_iter = [1,2,3]
     speedup = [orig_mean/mean_iter_1, orig_mean/mean_iter_2]
     optimizer_time = [mean_sat_iter_1+mean_ext_iter_1, mean_sat_iter_2+mean_ext_iter_2]
@@ -413,16 +412,17 @@ def multi_trend(benchmark):
     ax1.set_xlabel('#iter of multi pattern rewrites')
     ax1.set_ylabel('Speedup percentage', color=color)
     lns1 = ax1.plot(n_iter[:len(speedup)], speedup, marker='s', color=color, label='Speedup')
-    
-    #ax1.tick_params(axis='y', labelcolor=color)
 
     plt.xticks(n_iter, ['{}'.format(i) for i in n_iter])
 
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2 = ax1.twinx()
 
     color = 'tab:blue'
     ax2.set_ylabel('Optimizer time (seconds)', color=color)
     lns2 = ax2.plot(n_iter[:len(speedup)], optimizer_time, marker='^', color=color, label='Optimizer time')
+
+    if len(speedup) < 3:
+        ax2.scatter(n_iter[-1], 3600, marker='x', color='b')
 
     lns = lns1+lns2
     labs = [l.get_label() for l in lns]
@@ -463,24 +463,29 @@ def plot_optimizer_time(args):
 
 def plot_multi_trend(args):
     plt.rcParams.update({'font.size': 18})
-    for benchmark in ['resnext50']:
-    #for benchmark in ['nasrnn', 'bert', 'resnext50', 'nasneta']:
+    for benchmark in ['nasrnn', 'bert', 'resnext50', 'nasneta']:
         multi_trend(benchmark)
 
 def main():
     # Parse arguments
     args = get_args()
     if args.mode == 'runtime':
+        # Get the runtime stats (not used now)
         runtime_stats(args)
     elif args.mode == 'plot':
+        # Plot results for the spotlight talk
         plot_bars(args)
     elif args.mode == 'all_speedup':
+        # Bar plot of speedups of the optimized graphs
         plot_speedup(args)
     elif args.mode == 'equivalent':
+        # Get number of equivalent graphs explored
         get_equivalent_graphs(args)
     elif args.mode == 'optimizer':
+        # Bar plot of the optimizer time
         plot_optimizer_time(args)
     elif args.mode == 'multi':
+        # Plot trend with iterations of multi-pattern rewrites
         plot_multi_trend(args)
 
 if __name__ == '__main__':
