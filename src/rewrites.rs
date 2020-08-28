@@ -189,7 +189,8 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         subst: &Subst,
     ) -> Vec<Id> {
         if self.filter_after {
-            let (contains, id_found) = contains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
+            // Check if any node in matched source graph is in blacklist. If so, stop applying
+            let (contains, _) = contains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
             if contains {
                 return vec![];
             }
@@ -267,8 +268,18 @@ fn contains_blacklist(
                     if let Some(id) = res.1 {
                         new_e_ch[i] = id;
                     } else {
-                        //println!("{}", e.display_op());
-                        //assert!(false);
+                        // This placed shouldn't be reached in any case. The pat and subst passed
+                        // in as arguments are from the results of searching pat in the Egraph. 
+                        // So all the nodes in pat should be present in the EGraph. But if we run 
+                        // bert with 1 iteration of multi and more than ~5/6 iterations of single 
+                        // rules, this place is reached. Seems that the searched matches returned 
+                        // by egg can have some nodes in pat that cannot be found in the Egraph.
+                        //
+                        // Right now, we simply treat the pattern as not containing blacklisted 
+                        // nodes if this happens. Since we do cycle filtering in the end of each
+                        // iteration, this should be fine.
+                        //
+                        // TODO: look into the above issue
                         return (false, None)
                     }
                 }
@@ -276,9 +287,7 @@ fn contains_blacklist(
                     (true, None)
                 } else {
                     let looked = egraph.lookup(new_e);
-                    //if looked.is_none() {
-                    //    println!("Not found {}", e.display_op());
-                    //}
+                    // This looked should never be None. See the above issue.
                     (false, looked)
                 }
             }

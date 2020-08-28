@@ -3,7 +3,6 @@ use egg::*;
 use itertools::Itertools;
 use std::collections::HashMap;
 
-
 const MAX_DIM: usize = 8;
 
 /// Struct for converting a model specified using our Rust interface to RecExpr
@@ -18,10 +17,15 @@ pub struct GraphConverter {
     name_gen: NameGen,
 }
 
+/// Struct for storing information of a tensor. This is passed between functions 
+/// during graph creation.
 #[derive(Copy, Clone, Default)]
 pub struct TensorInfo {
+    /// Id into the RecExpr constructed
     pub id: Id, 
+    /// Shape of the tensor. We deal with tensor up to MAX_DIM dimensions
     pub shape: [i32; MAX_DIM],
+    /// Number of dimensions of this tensor
     pub n_dim: usize,
 }
 
@@ -195,7 +199,8 @@ impl GraphConverter {
 
     pub fn concat_multi(&mut self, axis: i32, ndim: i32, inputs: &[TensorInfo]) -> TensorInfo {
         let n_inputs = inputs.len();
-        // TODO: add supports for other number of inputs later
+        // We can add supports for other number of inputs later when needed. 
+        // We need to add a new Concat op for each number of inputs
         assert!(n_inputs == 5);
 
         let axis_id = self.add_or_get_val(axis);

@@ -43,6 +43,7 @@ define_language! {
         "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
         "concat5"    = Concat5([Id; 7]), // axis, ndim, input1, input2, input3, input4, input5. ndim is for using in CheckApply only
+        // Add a concat for each number of inputs if needed
         "split_0"   = Split0(Id), // must take a split node as input
         "split_1"   = Split1(Id), // must take a split node as input
         "split"     = Split([Id; 2]), // axis, input
