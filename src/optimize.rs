@@ -10,7 +10,6 @@ use std::time::{Duration, Instant};
 /// Wrapper class for egg's cost function
 pub struct TensorCost<'a> {
     pub egraph: &'a EGraph<Mdl, TensorAnalysis>,
-    /// To have zero cost for all weight op only
     pub cost_model: &'a CostModel,
 }
 
@@ -609,6 +608,26 @@ pub fn construct_best_rec(
     }
 }
 
+/// Get the initial solution for ILP using the greedy extraction
+///
+/// This function does the construction recursively with memoization. Call it with eclass=root
+/// will construct the whole extracted graph
+///
+/// # Parameters
+///
+/// - `egraph`: egraph of interest
+/// - `root`: root eclass
+/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node). 
+///         Constructed by egg's Extractor
+/// - `g_i`: which EClass index does node i belong to
+/// - `nodes_to_i`: map from node to index i
+///
+/// # Returns
+///
+/// A tuple of (i_list, m_list), where
+///
+/// - `i_list`: list of i picked by greedy extraction
+/// - `m_list`: list of eclass index m that i_list belongs to
 pub fn get_init_solution(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     root: Id,
@@ -630,6 +649,16 @@ pub fn get_init_solution(
     (i_list, m_list)
 }
 
+/// Recursively get the initial solution for ILP using the greedy extraction, results stored in nodes
+///
+/// # Parameters
+///
+/// - `egraph`: egraph of interest
+/// - `eclass`: get solution rooted from here
+/// - `added_memo`: Stores the set of eclasses that has already been processed
+/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node). 
+///         Constructed by egg's Extractor
+/// - `nodes`: List of nodes picked by greedy extraction. Constructed within this function
 fn get_init_rec(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     eclass: Id,
