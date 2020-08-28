@@ -201,19 +201,13 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
             subst,
             /*get_exist_nodes=*/ self.filter_after,
         );
-        if valid
-        {
+        if valid {
             let result = self.pat.apply_one(egraph, matched_id, subst);
 
             // Add the newly added nodes to the ordering vector
             if self.filter_after {
                 let existing = existing.unwrap();
-                add_newly_added(
-                    self.pat.ast.as_ref(),
-                    egraph,
-                    subst,
-                    &existing,
-                );
+                add_newly_added(self.pat.ast.as_ref(), egraph, subst, &existing);
             }
             result
         } else {
@@ -266,18 +260,18 @@ fn contains_blacklist(
                         new_e_ch[i] = id;
                     } else {
                         // This placed shouldn't be reached in any case. The pat and subst passed
-                        // in as arguments are from the results of searching pat in the Egraph. 
-                        // So all the nodes in pat should be present in the EGraph. But if we run 
-                        // bert with 1 iteration of multi and more than ~5/6 iterations of single 
-                        // rules, this place is reached. Seems that the searched matches returned 
+                        // in as arguments are from the results of searching pat in the Egraph.
+                        // So all the nodes in pat should be present in the EGraph. But if we run
+                        // bert with 1 iteration of multi and more than ~5/6 iterations of single
+                        // rules, this place is reached. Seems that the searched matches returned
                         // by egg can have some nodes in pat that cannot be found in the Egraph.
                         //
-                        // Right now, we simply treat the pattern as not containing blacklisted 
+                        // Right now, we simply treat the pattern as not containing blacklisted
                         // nodes if this happens. Since we do cycle filtering in the end of each
                         // iteration, this should be fine.
                         //
                         // TODO: look into the above issue
-                        return (false, None)
+                        return (false, None);
                     }
                 }
                 if egraph.analysis.blacklist_nodes.contains(&new_e) {
@@ -886,7 +880,7 @@ impl MultiPatterns {
     /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
     /// - `no_cycle`: whether or not to do cycle filtering
     /// - `iter_limit`: Number of iterations to apply multi-pattern rules
-    /// - `filter_after`: if true, do efficient filtering (filter cycle after the iteration); 
+    /// - `filter_after`: if true, do efficient filtering (filter cycle after the iteration);
     ///         else, do naive filtering (check cycle before each application)
     pub fn with_rules(
         rules: Vec<(&str, bool)>,
@@ -994,14 +988,7 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(
-                                rule,
-                                match_1,
-                                match_2,
-                                map_1,
-                                map_2,
-                                runner,
-                            );
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                         }
                     }
                 } else {
@@ -1013,14 +1000,7 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(
-                                rule,
-                                match_1,
-                                match_2,
-                                map_1,
-                                map_2,
-                                runner,
-                            );
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                         }
                     }
                 }
@@ -1161,12 +1141,12 @@ impl MultiPatterns {
         }
     }
 
-    /// Returns true if there will not be a cycle introduced by applying this rule. 
+    /// Returns true if there will not be a cycle introduced by applying this rule.
     ///
     /// Checking based on descendents collected at beginning of run_one(). If any input node
     /// contains descendents that is any of the matched output class, then there can be a cycle
-    /// created. 
-    /// 
+    /// created.
+    ///
     /// # Parameters
     ///
     /// - `egraph`: egraph of interest
@@ -1210,7 +1190,10 @@ pub fn remove_cycle_by_order(runner: &mut Runner<Mdl, TensorAnalysis, ()>) {
 
     // Update newly_added (canonicalize Ids with egraph.find()) and construct hashmap
     // for newly_added
-    let updated: Vec<Mdl> = runner.egraph.analysis.newly_added
+    let updated: Vec<Mdl> = runner
+        .egraph
+        .analysis
+        .newly_added
         .iter()
         .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
         .collect();
@@ -1222,8 +1205,7 @@ pub fn remove_cycle_by_order(runner: &mut Runner<Mdl, TensorAnalysis, ()>) {
     remove_cycles(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
 }
 
-
-/// Add newly added nodes in this pattern to the list of newly added nodes, for use in cycle 
+/// Add newly added nodes in this pattern to the list of newly added nodes, for use in cycle
 /// filtering
 ///
 /// The newly added nodes are stored in the graph level metadata in egraph.analysis
@@ -1233,7 +1215,7 @@ pub fn remove_cycle_by_order(runner: &mut Runner<Mdl, TensorAnalysis, ()>) {
 /// - `pat`: the AST representation of the pattern. See egg::Pattern for more info
 /// - `egraph`: E-graph of interest
 /// - `subst`: mapping variable to eclass ID. See egg::Subst for more info.
-/// - `existing_nodes`: the set of nodes within this pattern that already exists before this 
+/// - `existing_nodes`: the set of nodes within this pattern that already exists before this
 ///         pattern is applied
 ///
 /// # Returns
@@ -1305,7 +1287,9 @@ fn remove_cycles(
 
         get_cycles(egraph, root, &mut paths_from_root, &mut cycles);
 
-        if cycles.len() == 0 { break; }
+        if cycles.len() == 0 {
+            break;
+        }
         for cycle in cycles.iter() {
             resolve_cycle(egraph, cycle, added_node_to_order);
         }
@@ -1319,15 +1303,27 @@ fn remove_cycles(
 /// - `egraph`: E-graph of interest
 /// - `cycle`: list of nodes within the cycle
 /// - `added_node_to_order`: HashMap, map from node to the order that it was added into the egraph
-fn resolve_cycle(egraph: &mut EGraph<Mdl, TensorAnalysis>, cycle: &[Mdl], added_node_to_order: &HashMap<Mdl, usize>) {
+fn resolve_cycle(
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    cycle: &[Mdl],
+    added_node_to_order: &HashMap<Mdl, usize>,
+) {
     // Check if any node in cycle is already in blacklist
-    let already_solved = cycle.iter().any(|node| egraph.analysis.blacklist_nodes.contains(node));
+    let already_solved = cycle
+        .iter()
+        .any(|node| egraph.analysis.blacklist_nodes.contains(node));
     if !already_solved {
         assert!(cycle.len() > 0);
-        let (ord, n) = cycle.iter().map(|node| {
-            let order = added_node_to_order.get(node).map_or(-1, |index| *index as i32);
-            (order, node.clone())
-        }).max_by_key(|(o, _)| *o).unwrap();
+        let (ord, n) = cycle
+            .iter()
+            .map(|node| {
+                let order = added_node_to_order
+                    .get(node)
+                    .map_or(-1, |index| *index as i32);
+                (order, node.clone())
+            })
+            .max_by_key(|(o, _)| *o)
+            .unwrap();
         assert!(ord >= 0);
         egraph.analysis.blacklist_nodes.insert(n.clone());
     }
@@ -1353,7 +1349,14 @@ fn get_cycles(
     let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
         egraph.classes().map(|class| (class.id, class)).collect();
 
-    get_cycles_rec(egraph, root, /*path_to_here=*/Vec::<(Id, Mdl)>::new(), &id_to_class, paths_from_root, cycles);
+    get_cycles_rec(
+        egraph,
+        root,
+        /*path_to_here=*/ Vec::<(Id, Mdl)>::new(),
+        &id_to_class,
+        paths_from_root,
+        cycles,
+    );
 }
 
 /// Traverse the EGraph in DFS order, update paths_from_root and cycles on the fly
@@ -1389,12 +1392,24 @@ fn get_cycles_rec(
                 // Haven't visited, so visit
                 let mut path_to_child = path_to_here.clone();
                 path_to_child.push((eclass, node.clone()));
-                get_cycles_rec(egraph, *child, path_to_child, id_to_class, paths_from_root, cycles);
+                get_cycles_rec(
+                    egraph,
+                    *child,
+                    path_to_child,
+                    id_to_class,
+                    paths_from_root,
+                    cycles,
+                );
             } else {
                 // Visited before. Check if in path_to_here
-                match path_to_here.iter().enumerate().find(|(i, (cid, n))| *cid == *child) {
+                match path_to_here
+                    .iter()
+                    .enumerate()
+                    .find(|(i, (cid, n))| *cid == *child)
+                {
                     Some((i, _)) => {
-                        let mut cycle: Vec<Mdl> = path_to_here[i..].iter().map(|(cid, n)| n.clone()).collect();
+                        let mut cycle: Vec<Mdl> =
+                            path_to_here[i..].iter().map(|(cid, n)| n.clone()).collect();
                         cycle.push(node.clone());
                         cycles.push(cycle);
                     }
@@ -1415,12 +1430,12 @@ fn update_blacklist(egraph: &mut EGraph<Mdl, TensorAnalysis>) {
         .collect();
 }
 
-/// Returns true if there will not be a cycle introduced by applying this rule. 
+/// Returns true if there will not be a cycle introduced by applying this rule.
 ///
 /// Checking based on freshly collected descendents info. If any input node
 /// contains descendents that is any of the matched output class, then there can be a cycle
-/// created. 
-/// 
+/// created.
+///
 /// # Parameters
 ///
 /// - `egraph`: egraph of interest
@@ -1487,7 +1502,13 @@ fn compute_all_descendents(
         egraph.classes().map(|class| (class.id, class)).collect();
 
     let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
-    get_descendents(egraph, root, &id_to_class, check_blacklist, &mut descendents);
+    get_descendents(
+        egraph,
+        root,
+        &id_to_class,
+        check_blacklist,
+        &mut descendents,
+    );
     descendents
 }
 
@@ -1496,7 +1517,7 @@ fn compute_all_descendents(
 /// # Parameters
 ///
 /// - `egraph`: egraph of interest
-/// - `eclass`: eclass to get descendents for. This will also get descendents for all its 
+/// - `eclass`: eclass to get descendents for. This will also get descendents for all its
 ///         descendents, since this function is doing it recursively
 /// - `id_to_class`: map from eclass id to eclass objects
 /// - `check_blacklist`: if true, dependencies introduced by blacklisted nodes will not be counted

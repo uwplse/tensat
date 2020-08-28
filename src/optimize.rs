@@ -320,7 +320,11 @@ impl CostModel {
 
                     // Get op
                     let mut need_copy = if self.ignore_all_weight_only
-                        && !(x(_input1).all_weights && x(_input2).all_weights && x(_input3).all_weights && x(_input4).all_weights && x(_input5).all_weights)
+                        && !(x(_input1).all_weights
+                            && x(_input2).all_weights
+                            && x(_input3).all_weights
+                            && x(_input4).all_weights
+                            && x(_input5).all_weights)
                     {
                         [true, true, true, true, true]
                     } else {
@@ -556,7 +560,16 @@ pub fn prep_ilp_data(
 
     let root_m = *id_m_map.get(&egraph.find(root)).unwrap();
 
-    (m_id_map, e_m, h_i, cost_i, g_i, root_m, i_to_nodes, blacklist_i)
+    (
+        m_id_map,
+        e_m,
+        h_i,
+        cost_i,
+        g_i,
+        root_m,
+        i_to_nodes,
+        blacklist_i,
+    )
 }
 
 /// Struct for storing the solved results from ILP
@@ -617,7 +630,7 @@ pub fn construct_best_rec(
 ///
 /// - `egraph`: egraph of interest
 /// - `root`: root eclass
-/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node). 
+/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node).
 ///         Constructed by egg's Extractor
 /// - `g_i`: which EClass index does node i belong to
 /// - `nodes_to_i`: map from node to index i
@@ -656,7 +669,7 @@ pub fn get_init_solution(
 /// - `egraph`: egraph of interest
 /// - `eclass`: get solution rooted from here
 /// - `added_memo`: Stores the set of eclasses that has already been processed
-/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node). 
+/// - `costs`: Map from eclass ID to the node with the lowest subtree cost (cost, node).
 ///         Constructed by egg's Extractor
 /// - `nodes`: List of nodes picked by greedy extraction. Constructed within this function
 fn get_init_rec(

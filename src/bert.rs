@@ -4,7 +4,12 @@ use egg::*;
 const SEQ_LENGTH: i32 = 64;
 const HIDDEN_DIMS: i32 = 1024;
 
-fn attention(graph: &mut GraphConverter, input: TensorInfo, heads: i32, input_dim_1: i32) -> (TensorInfo, TensorInfo) {
+fn attention(
+    graph: &mut GraphConverter,
+    input: TensorInfo,
+    heads: i32,
+    input_dim_1: i32,
+) -> (TensorInfo, TensorInfo) {
     let d_model = input_dim_1;
     let d_k = d_model / heads;
     assert!(input_dim_1 % heads == 0);

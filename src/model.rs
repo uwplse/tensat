@@ -110,7 +110,7 @@ pub struct TensorAnalysis {
     pub graph: std::cell::RefCell<Box<Graph>>,
     /// Record blacklisted nodes for filtering cycles
     pub blacklist_nodes: HashSet<Mdl>,
-    /// Newly added nodes by order during single output rule application
+    /// Newly added nodes by order
     pub newly_added: Vec<Mdl>,
 }
 
@@ -404,7 +404,11 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_4 = x(input4).meta;
                 let t_5 = x(input5).meta;
                 let axis_val = x(axis).val;
-                let all_weights = x(input1).all_weights && x(input2).all_weights && x(input3).all_weights && x(input4).all_weights && x(input5).all_weights;
+                let all_weights = x(input1).all_weights
+                    && x(input2).all_weights
+                    && x(input3).all_weights
+                    && x(input4).all_weights
+                    && x(input5).all_weights;
 
                 // Create tensorhandle and get metadata
                 let t = [t_1, t_2, t_3, t_4, t_5];
@@ -512,7 +516,6 @@ impl Analysis<Mdl> for TensorAnalysis {
                     all_weights: all_weights,
                 }
             }
-
 
             Mdl::Split([axis, inpt]) => {
                 // Check types

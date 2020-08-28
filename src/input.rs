@@ -17,12 +17,12 @@ pub struct GraphConverter {
     name_gen: NameGen,
 }
 
-/// Struct for storing information of a tensor. This is passed between functions 
+/// Struct for storing information of a tensor. This is passed between functions
 /// during graph creation.
 #[derive(Copy, Clone, Default)]
 pub struct TensorInfo {
     /// Id into the RecExpr constructed
-    pub id: Id, 
+    pub id: Id,
     /// Shape of the tensor. We deal with tensor up to MAX_DIM dimensions
     pub shape: [i32; MAX_DIM],
     /// Number of dimensions of this tensor
@@ -98,7 +98,9 @@ impl GraphConverter {
         let kernel_h = wght.shape[2];
         let kernel_w = wght.shape[3];
 
-        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        let (output_h, output_w) = self.get_conv_shape(
+            input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding,
+        );
         shape[0] = inpt.shape[0];
         shape[1] = wght.shape[0];
         shape[2] = output_h;
@@ -133,7 +135,7 @@ impl GraphConverter {
 
     pub fn sigmoid(&mut self, inpt: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Sigmoid(inpt.id);
-        
+
         TensorInfo {
             id: self.rec_expr.add(new_node),
             shape: inpt.shape,
@@ -143,7 +145,7 @@ impl GraphConverter {
 
     pub fn add(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Ewadd([inpt_1.id, inpt_2.id]);
-        
+
         TensorInfo {
             id: self.rec_expr.add(new_node),
             shape: inpt_1.shape,
@@ -170,7 +172,7 @@ impl GraphConverter {
 
     pub fn mul(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Ewmul([inpt_1.id, inpt_2.id]);
-        
+
         TensorInfo {
             id: self.rec_expr.add(new_node),
             shape: inpt_1.shape,
@@ -178,7 +180,13 @@ impl GraphConverter {
         }
     }
 
-    pub fn concat(&mut self, axis: i32, ndim: i32, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
+    pub fn concat(
+        &mut self,
+        axis: i32,
+        ndim: i32,
+        inpt_1: TensorInfo,
+        inpt_2: TensorInfo,
+    ) -> TensorInfo {
         // Only support concat of 2 inputs for now
         // To support more, pass in a slice and create more concat nodes here
         let axis_id = self.add_or_get_val(axis);
@@ -199,21 +207,29 @@ impl GraphConverter {
 
     pub fn concat_multi(&mut self, axis: i32, ndim: i32, inputs: &[TensorInfo]) -> TensorInfo {
         let n_inputs = inputs.len();
-        // We can add supports for other number of inputs later when needed. 
+        // We can add supports for other number of inputs later when needed.
         // We need to add a new Concat op for each number of inputs
         assert!(n_inputs == 5);
 
         let axis_id = self.add_or_get_val(axis);
         let ndim_id = self.add_or_get_val(ndim);
 
-        let new_node = Mdl::Concat5([axis_id, ndim_id, inputs[0].id, inputs[1].id, inputs[2].id, inputs[3].id, inputs[4].id]);
+        let new_node = Mdl::Concat5([
+            axis_id,
+            ndim_id,
+            inputs[0].id,
+            inputs[1].id,
+            inputs[2].id,
+            inputs[3].id,
+            inputs[4].id,
+        ]);
 
         let mut shape = inputs[0].shape;
         let n_dim = inputs[0].n_dim;
         for i in 1..n_inputs {
             shape[axis as usize] += inputs[i].shape[axis as usize];
         }
-        
+
         TensorInfo {
             id: self.rec_expr.add(new_node),
             shape: shape,
@@ -253,7 +269,9 @@ impl GraphConverter {
         let input_h = inpt.shape[2];
         let input_w = inpt.shape[3];
 
-        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        let (output_h, output_w) = self.get_conv_shape(
+            input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding,
+        );
         shape[0] = inpt.shape[0];
         shape[1] = inpt.shape[1];
         shape[2] = output_h;
@@ -298,7 +316,9 @@ impl GraphConverter {
         let input_h = inpt.shape[2];
         let input_w = inpt.shape[3];
 
-        let (output_h, output_w) = self.get_conv_shape(input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding);
+        let (output_h, output_w) = self.get_conv_shape(
+            input_h, input_w, stride_h, stride_w, kernel_h, kernel_w, padding,
+        );
         shape[0] = inpt.shape[0];
         shape[1] = inpt.shape[1];
         shape[2] = output_h;
@@ -312,7 +332,6 @@ impl GraphConverter {
     }
 
     pub fn enlarge(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
-
         let mut shape = inpt_1.shape;
         shape[2] = inpt_2.shape[2];
         shape[3] = inpt_2.shape[3];
@@ -417,7 +436,16 @@ impl GraphConverter {
         (shape, dims.len())
     }
 
-    fn get_conv_shape(&self, input_h: i32, input_w: i32, stride_h: i32, stride_w: i32, kernel_h: i32, kernel_w: i32, padding: i32) -> (i32, i32) {
+    fn get_conv_shape(
+        &self,
+        input_h: i32,
+        input_w: i32,
+        stride_h: i32,
+        stride_w: i32,
+        kernel_h: i32,
+        kernel_w: i32,
+        padding: i32,
+    ) -> (i32, i32) {
         if padding == PSAME {
             let output_h = (input_h + stride_h - 1) / stride_h;
             let output_w = (input_w + stride_w - 1) / stride_w;

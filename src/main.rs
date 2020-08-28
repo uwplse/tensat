@@ -8,13 +8,13 @@ use std::time::{Duration, Instant};
 use tamago::benchnet;
 use tamago::bert;
 use tamago::model::*;
+use tamago::nasneta;
 use tamago::nasrnn;
 use tamago::optimize::*;
 use tamago::resnet50;
 use tamago::resnext50;
 use tamago::rewrites::*;
 use tamago::testnet;
-use tamago::nasneta;
 use tamago::{parse::*, verify::*};
 
 use serde::{Deserialize, Serialize};
@@ -196,8 +196,7 @@ fn convert_learned_rules(matches: clap::ArgMatches) {
     write(outf, converted).expect("Unable to write file");
 }
 
-fn test(matches: clap::ArgMatches) {
-}
+fn test(matches: clap::ArgMatches) {}
 
 /// Main procedure to run optimization
 ///
@@ -255,6 +254,7 @@ fn optimize(matches: clap::ArgMatches) {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
         let pre_defined_multi = PRE_DEFINED_MULTI.iter().map(|&x| (x, /*symmetric=*/ false));
+        // The learned rules we have are symmetric. Predefined ones are not
         let multi_rules: Vec<(&str, bool)> = learned_rules
             .split("\n")
             .map(|x| (x, /*symmetric=*/ true))
@@ -302,6 +302,7 @@ fn optimize(matches: clap::ArgMatches) {
     let start_time = Instant::now();
     let mut runner = runner.run(&rules[..]);
     if do_filter_after {
+        // Do cycle removal after the final iteration
         remove_cycle_by_order(&mut runner);
     }
     let sat_duration = start_time.elapsed();
@@ -314,7 +315,8 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Time taken: {:?}", sat_duration);
     println!("  Number of iterations: {:?}", num_iter_sat);
 
-    let (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs) = get_stats(&runner.egraph);
+    let (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs) =
+        get_stats(&runner.egraph);
     println!("  Average nodes per class: {}", avg_nodes_per_class);
     println!("  Number of edges: {}", num_edges);
     println!("  Number of programs: {}", num_programs);
@@ -327,7 +329,9 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Run extraction
     let extract_mode = matches.value_of("extract").unwrap();
-    let cost_model = CostModel::with_setting(/*ignore_all_weight_only=*/matches.is_present("all_weight_only"));
+    let cost_model = CostModel::with_setting(
+        /*ignore_all_weight_only=*/ matches.is_present("all_weight_only"),
+    );
     let (best, ext_secs) = match extract_mode {
         "ilp" => extract_by_ilp(&egraph, root, &matches, &cost_model),
         "greedy" => {
@@ -375,7 +379,8 @@ fn optimize(matches: clap::ArgMatches) {
                 .open(outf)
                 .unwrap();
 
-            // Stats to write: original runtime, optimized runtime, saturation time, extraction time, number of nodes, number of eclasses, number of possible programs
+            // Stats to write: original runtime, optimized runtime, saturation time, extraction time,
+            // number of nodes, number of eclasses, number of possible programs
             let data = json!({
                 "original": time_start,
                 "optimized": time_ext,
@@ -386,7 +391,8 @@ fn optimize(matches: clap::ArgMatches) {
                 "programs": num_programs,
                 "iter": num_iter_sat,
             });
-            let sol_data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
+            let sol_data_str =
+                serde_json::to_string(&data).expect("Fail to convert json to string");
 
             if let Err(e) = writeln!(file, "{}", sol_data_str) {
                 eprintln!("Couldn't write to file: {}", e);
@@ -530,8 +536,16 @@ fn get_stats(egraph: &EGraph<Mdl, TensorAnalysis>) -> (usize, usize, f32, usize,
     let num_edges = egraph
         .classes()
         .fold(0, |acc, c| c.iter().fold(0, |sum, n| n.len() + sum) + acc);
-    let num_programs = egraph.classes().fold(0.0, |acc, c| acc + (c.len() as f32).log2());
-    (num_enodes, num_classes, avg_nodes_per_class, num_edges, num_programs)
+    let num_programs = egraph
+        .classes()
+        .fold(0.0, |acc, c| acc + (c.len() as f32).log2());
+    (
+        num_enodes,
+        num_classes,
+        avg_nodes_per_class,
+        num_edges,
+        num_programs,
+    )
 }
 
 fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: bool) -> f32 {
