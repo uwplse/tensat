@@ -34,6 +34,12 @@ introduce cycles. But since we are now using efficient cycle filtering, I didn't
 naive approach to be applied to single rules as well. If it needs to be used again for some 
 reason, TODO: do naive cycle filtering for single rules as well.
 
+- Right now, I count the number of graphs explored in TASO by the graphs that ever appears 
+in the candidate set. We should include the graphs which TASO found the cost goes up and not 
+added to the candidate set as well. 
+
+TODO: do this more proper count on TASO side
+
 
 ### Records
 
