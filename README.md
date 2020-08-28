@@ -5,17 +5,44 @@ both the graph transformation verifier and the optimizer; the former is complete
 the latter is in progress. 
 
 ## development
+
 Tamago builds on TASO, so it has the same hardware requirement as TASO. This essentially
 means you need GPUs and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/) 
 (if you just want to run the verifier, you don't need GPUs and the regular docker works). 
 You need the TASO runtime (with its dependencies), rust and 
-[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. The 
-[`Dockerfile`](docker/Dockerfile) sets this all up for you. `cd` to `/docker` and 
-execute `docker build --tag tamago:0.1 .` to build the image, then run with `./run_docker.sh`. 
+[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago. 
+
+The [`Dockerfile`](docker/Dockerfile) sets this all up for you. Here's the recommended way of 
+setting up the environment using docker:
+
+- `cd` to `/docker` and execute `docker build --tag tamago:1.0 .` to build the image
+- Get the dependent repositories. We need a [`forked version of egg`](https://github.com/yycdavid/egg), and a [`forked version of TASO`](https://github.com/yycdavid/taso). Clone these two repositories to a path of your choice
+- Change the `source` parameter of bind mount in run_docker.sh to the path of your choice to tamago, egg, and taso
+- Run `./run_docker.sh`
+- Now you are inside the docker container, we need to build TASO:
+    - Run the following to install:
+    ```
+    cd /usr/TASO
+    mkdir -p build
+    cd build
+    cmake ..
+    sudo make install -j10
+    cd /usr/TASO/python
+    python setup.py install
+    ```
+- Then it is good to go
 
 We recommend perusing the
 `rust-bindgen` [guide](https://rust-lang.github.io/rust-bindgen/) and related 
 docs, and note that its c++ support is primitive. 
+
+To help debugging, you can install gdb:
+```
+apt-get update
+apt-get install -y texinfo
+cd /usr && wget "http://ftp.gnu.org/gnu/gdb/gdb-9.2.tar.gz" && tar -xvzf gdb-9.2.tar.gz && cd gdb-9.2 && mkdir build && cd build && ../configure && make
+make install
+```
 
 ## the verifier
 The verifier re-implements TASO's [verify.py](https://github.com/jiazhihao/TASO/blob/master/verify/verify.py). 
@@ -35,14 +62,10 @@ The `--release` flag turns on rust optimizations.
 
 ## the optimizer
 The optimizer replaces TASO's [backtracking search](https://cs.stanford.edu/~padon/taso-sosp19.pdf)
-with equality saturation. It directly 
-uses the axioms as rewrite rules to drive the optimization, eliminating the need to
-synthesize and verify a seperate set of transformation rules. It leverages TASO's
-infrastructure for maintaining metadata like dimensions and strides, as well as TASO's cost
-function that directly executes DL operators. Currently we adopt a simple greedy extraction
-after saturation. However this extraction still achieves some degree of TASO's joint-optimization
-of graph and layout. 
+with equality saturation. It uses TASO's synthesized rewrite rules. It leverages TASO's
+infrastructure for maintaining metadata of the tensor information (like shape), as well as 
+TASO's cost function that directly executes DL operators. 
 
-To run the optimizer, uncomment `optimize()` in `main.rs/main()`, comment out
-`prove_taso_rules()`, `cd` to project root and execute `cargo run`. This will panic as the
-optimzer implementation is in progress. 
+`run_exp_main.sh` has example commands to run the optimizer. It runs the optimization on TASO's 4 benchmarks and collect various of statistics. `analysis/stats.py` can be used to analyze the statistics and plot results.
+
+We support both greedy extraction and ILP extraction. User can control many options through command line flags (see src/main.rs for the flags). 

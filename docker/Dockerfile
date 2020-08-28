@@ -26,8 +26,6 @@ RUN /opt/conda/bin/conda install -c anaconda cython
 ENV PATH /opt/conda/bin:$PATH
 ENV TASO_HOME /usr/TASO/
 
-#RUN chmod -R a+w /usr/TASO
-
 # Tamago parts
   
 # Update default packages
@@ -49,43 +47,20 @@ RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
 
 ENV LD_LIBRARY_PATH /opt/conda/lib:/usr/local/lib
 
-#RUN git clone https://github.com/uwplse/tamago.git /usr/tamago
-
-#RUN git clone https://github.com/mwillsey/egg.git /usr/egg
-
 RUN mkdir /usr/egg
 
 RUN mkdir /usr/tamago
 
 RUN mkdir /usr/TASO
 
-RUN cd /usr && wget https://www2.graphviz.org/Packages/stable/portable_source/graphviz-2.44.0.tar.gz && tar -xvf graphviz-2.44.0.tar.gz && cd graphviz-2.44.0 && ./configure && make && make install
+RUN cd /usr && wget https://www2.graphviz.org/Packages/stable/portable_source/graphviz-2.44.0.tar.gz && tar -xvf graphviz-2.44.0.tar.gz && cd graphviz-2.44.0 && ./configure && make
+RUN make install
 
-# gdb parts
-#RUN apt-get install -y texinfo
-#RUN cd /usr && wget "http://ftp.gnu.org/gnu/gdb/gdb-9.2.tar.gz" && tar -xvzf gdb-9.2.tar.gz && cd gdb-9.2 && mkdir build && cd build && ../configure && make & make install
+# install or-tools
+RUN python -m pip install -U ortools
 
-# or-tools parts
-RUN apt-get update && apt-get -y install git wget pkg-config build-essential cmake autoconf libtool zlib1g-dev lsb-release libreadline-dev && apt-get -y install swig
-RUN git clone https://github.com/google/or-tools /usr/or-tools
-
-# Install SCIP (MILP solver)
-#Get archive https://scip.zib.de/download.php?fname=scipoptsuite-7.0.1.tgz (might need to download to local computer then use scp)
-#tar xvf scipoptsuite-7.0.1.tgz
-#cd scipoptsuite-7.0.1/
-#mkdir build
-#cd build
-#cmake -DCMAKE_INSTALL_PREFIX=scip/install/dir -DGMP=false -DZIMPL=false -DTPI=tny -DPARASCIP=true ..
-#make
-#make install
-
-#cd /usr/or-tools
-#make third_party
-#In Makefile.local, add: UNIX_SCIP_DIR=/usr/scipoptsuite-7.0.1/build/scip/install/dir
-#make python
-#make test_python
-#make install_python
-
-
+# vim
+RUN apt update
+RUN apt install -y vim
 
 WORKDIR /usr/tamago
