@@ -371,34 +371,30 @@ fn optimize(matches: clap::ArgMatches) {
     let time_ext = get_full_graph_runtime(&runner_ext, true);
     println!("Extracted graph runtime: {}", time_ext);
 
-    match matches.value_of("out_file") {
-        Some(outf) => {
-            let mut file = OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(outf)
-                .unwrap();
+    if let Some(outf) = matches.value_of("out_file") {
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(outf)
+            .unwrap();
 
-            // Stats to write: original runtime, optimized runtime, saturation time, extraction time,
-            // number of nodes, number of eclasses, number of possible programs
-            let data = json!({
-                "original": time_start,
-                "optimized": time_ext,
-                "saturation": sat_duration.as_secs_f32(),
-                "extraction": ext_secs,
-                "nodes": num_enodes,
-                "classes": num_classes,
-                "programs": num_programs,
-                "iter": num_iter_sat,
-            });
-            let sol_data_str =
-                serde_json::to_string(&data).expect("Fail to convert json to string");
+        // Stats to write: original runtime, optimized runtime, saturation time, extraction time,
+        // number of nodes, number of eclasses, number of possible programs
+        let data = json!({
+            "original": time_start,
+            "optimized": time_ext,
+            "saturation": sat_duration.as_secs_f32(),
+            "extraction": ext_secs,
+            "nodes": num_enodes,
+            "classes": num_classes,
+            "programs": num_programs,
+            "iter": num_iter_sat,
+        });
+        let sol_data_str = serde_json::to_string(&data).expect("Fail to convert json to string");
 
-            if let Err(e) = writeln!(file, "{}", sol_data_str) {
-                eprintln!("Couldn't write to file: {}", e);
-            }
+        if let Err(e) = writeln!(file, "{}", sol_data_str) {
+            eprintln!("Couldn't write to file: {}", e);
         }
-        None => (),
     }
 }
 
@@ -472,19 +468,13 @@ fn extract_by_ilp(
     if initialize {
         arg_vec.push("--initialize")
     }
-    match matches.value_of("ilp_time_sec") {
-        Some(time_lim) => {
-            arg_vec.push("--time_lim_sec");
-            arg_vec.push(time_lim);
-        }
-        None => (),
+    if let Some(time_lim) = matches.value_of("ilp_time_sec") {
+        arg_vec.push("--time_lim_sec");
+        arg_vec.push(time_lim);
     }
-    match matches.value_of("ilp_num_threads") {
-        Some(num_thread) => {
-            arg_vec.push("--num_thread");
-            arg_vec.push(num_thread);
-        }
-        None => (),
+    if let Some(num_thread) = matches.value_of("ilp_num_threads") {
+        arg_vec.push("--num_thread");
+        arg_vec.push(num_thread);
     }
     let child = Command::new("python")
         .args(&arg_vec)

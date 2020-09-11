@@ -49,8 +49,8 @@ impl GraphConverter {
         let (shape, n_dim) = self.shape_from_dim(dims);
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
@@ -63,8 +63,8 @@ impl GraphConverter {
         let (shape, n_dim) = self.shape_from_dim(dims);
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
@@ -118,8 +118,7 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: inpt.shape,
-            n_dim: inpt.n_dim,
+            ..inpt
         }
     }
 
@@ -128,8 +127,7 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: inpt.shape,
-            n_dim: inpt.n_dim,
+            ..inpt
         }
     }
 
@@ -138,8 +136,7 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: inpt.shape,
-            n_dim: inpt.n_dim,
+            ..inpt
         }
     }
 
@@ -148,8 +145,7 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: inpt_1.shape,
-            n_dim: inpt_1.n_dim,
+            ..inpt_1
         }
     }
 
@@ -165,8 +161,8 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
@@ -175,8 +171,7 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: inpt_1.shape,
-            n_dim: inpt_1.n_dim,
+            ..inpt_1
         }
     }
 
@@ -200,8 +195,8 @@ impl GraphConverter {
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
@@ -226,14 +221,14 @@ impl GraphConverter {
 
         let mut shape = inputs[0].shape;
         let n_dim = inputs[0].n_dim;
-        for i in 1..n_inputs {
-            shape[axis as usize] += inputs[i].shape[axis as usize];
-        }
+        shape[axis as usize] += (1..n_inputs)
+            .map(|i| inputs[i].shape[axis as usize])
+            .sum::<i32>();
 
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
@@ -401,8 +396,8 @@ impl GraphConverter {
         }
         TensorInfo {
             id: self.rec_expr.add(new_node),
-            shape: shape,
-            n_dim: n_dim,
+            shape,
+            n_dim,
         }
     }
 
