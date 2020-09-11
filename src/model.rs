@@ -7,6 +7,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 //use rand::prelude::*;
 use rand;
 use root::taso::*;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
@@ -38,9 +39,11 @@ define_language! {
         "relu"      = Relu(Id),
         "tanh"      = Tanh(Id),
         "sigmoid"   = Sigmoid(Id),
-        "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "poolmax"   = Poolmax([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
+        "poolavg"   = Poolavg([Id; 7]), // input, kernel_h, kernel_w, stride_h, stride_w, padding, activation
         "concat"    = Concat([Id; 4]), // axis, ndim, input1, input2. ndim is for using in CheckApply only
+        "concat5"    = Concat5([Id; 7]), // axis, ndim, input1, input2, input3, input4, input5. ndim is for using in CheckApply only
+        // Add a concat for each number of inputs if needed
         "split_0"   = Split0(Id), // must take a split node as input
         "split_1"   = Split1(Id), // must take a split node as input
         "split"     = Split([Id; 2]), // axis, input
@@ -50,6 +53,7 @@ define_language! {
         "Iewmul"    = Iewmul,
         "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
         "reshape"   = Reshape([Id; 2]), // input, shape_name (format: dim1_dim2...)
+        "noop"      = Noop([Id; 2]), // No op, use to combine the outputs of a graph in case there are multiple, since egg works with single root graph
         Num(i32),
         Var(Symbol),
     }
@@ -82,6 +86,8 @@ pub struct ValTnsr {
     pub meta: TensorHandle,
     /// The pointer to the second tensor if it is a TnsrTuple type (for split node)
     pub meta_2: TensorHandle,
+    /// If the tensor results from all weights computations
+    pub all_weights: bool,
 }
 
 impl Default for ValTnsr {
@@ -102,6 +108,10 @@ impl Default for ValTnsr {
 pub struct TensorAnalysis {
     /// Points to the graph object on the TASO side
     pub graph: std::cell::RefCell<Box<Graph>>,
+    /// Record blacklisted nodes for filtering cycles
+    pub blacklist_nodes: HashSet<Mdl>,
+    /// Newly added nodes by order
+    pub newly_added: Vec<Mdl>,
 }
 
 impl Default for TensorAnalysis {
@@ -113,6 +123,8 @@ impl Default for TensorAnalysis {
             Graph_Graph(&mut *graph);
             TensorAnalysis {
                 graph: std::cell::RefCell::new(graph),
+                blacklist_nodes: HashSet::<Mdl>::new(),
+                newly_added: Vec::<Mdl>::new(),
             }
         }
     }
@@ -121,11 +133,14 @@ impl Default for TensorAnalysis {
 impl Analysis<Mdl> for TensorAnalysis {
     type Data = ValTnsr;
 
-    /// Merges two metadata when two eclasses are merged. Because the useful
-    /// parts of the metadata of two equivalent eclasses are always the same,
-    /// we don't need to change
+    /// Merges two metadata when two eclasses are merged.
     fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
-        false
+        if from.all_weights && (!to.all_weights) {
+            to.all_weights = from.all_weights;
+            true
+        } else {
+            false
+        }
     }
 
     // Constructs metadata for a new enode, using TASO side functions for tensors.
@@ -153,6 +168,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
                 let activation: ActiMode = x(act).val.try_into().unwrap();
+                let all_weights = x(a).all_weights && x(b).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe { g.matmul(t_a, t_b, activation) };
@@ -162,6 +178,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -181,6 +198,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let strideW = x(stride_w).val;
                 let padding: PaddingMode = x(pad).val.try_into().unwrap();
                 let activation: ActiMode = x(act).val.try_into().unwrap();
+                let all_weights = x(inpt).all_weights && x(wght).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res =
@@ -191,6 +209,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -202,6 +221,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Get arguments
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
+                let all_weights = x(a).all_weights && x(b).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe { g.element(OpType_OP_EW_ADD, t_a, t_b) };
@@ -211,6 +231,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -222,6 +243,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Get arguments
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
+                let all_weights = x(a).all_weights && x(b).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe { g.element(OpType_OP_EW_MUL, t_a, t_b) };
@@ -231,12 +253,14 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
             Mdl::Relu(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
+                let all_weights = x(a).all_weights;
 
                 let res = unsafe { g.relu(t_a, true) };
                 Self::Data {
@@ -245,12 +269,14 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
             Mdl::Tanh(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
+                let all_weights = x(a).all_weights;
 
                 let res = unsafe { g.tanh(t_a, true) };
                 Self::Data {
@@ -259,12 +285,14 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
             Mdl::Sigmoid(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
+                let all_weights = x(a).all_weights;
 
                 let res = unsafe { g.sigmoid(t_a, true) };
                 Self::Data {
@@ -273,6 +301,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -296,6 +325,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: false,
                 }
             }
 
@@ -327,6 +357,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: true,
                 }
             }
 
@@ -341,6 +372,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
                 let axis_val = x(axis).val;
+                let all_weights = x(a).all_weights && x(b).all_weights;
 
                 // Create tensorhandle and get metadata
                 let t = [t_a, t_b];
@@ -351,6 +383,43 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            }
+
+            Mdl::Concat5([axis, ndim, input1, input2, input3, input4, input5]) => {
+                // Check types
+                assert!(x(axis).dtype == DataKind::Scalar);
+                assert!(x(ndim).dtype == DataKind::Scalar);
+                assert!(x(input1).dtype == DataKind::Tnsr);
+                assert!(x(input2).dtype == DataKind::Tnsr);
+                assert!(x(input3).dtype == DataKind::Tnsr);
+                assert!(x(input4).dtype == DataKind::Tnsr);
+                assert!(x(input5).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_1 = x(input1).meta;
+                let t_2 = x(input2).meta;
+                let t_3 = x(input3).meta;
+                let t_4 = x(input4).meta;
+                let t_5 = x(input5).meta;
+                let axis_val = x(axis).val;
+                let all_weights = x(input1).all_weights
+                    && x(input2).all_weights
+                    && x(input3).all_weights
+                    && x(input4).all_weights
+                    && x(input5).all_weights;
+
+                // Create tensorhandle and get metadata
+                let t = [t_1, t_2, t_3, t_4, t_5];
+                let res = unsafe { g.concat(axis_val, 5, t.as_ptr()) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -362,6 +431,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Get arguments
                 let t_weight = x(weight).meta;
                 let count_val = x(count).val;
+                let all_weights = x(weight).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe { g.merge_gconv(t_weight, count_val) };
@@ -371,6 +441,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -392,6 +463,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let strideW = x(stride_w).val;
                 let padding: PaddingMode = x(pad).val.try_into().unwrap();
                 let activation: ActiMode = x(act).val.try_into().unwrap();
+                let all_weights = x(inpt).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe {
@@ -405,6 +477,43 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            }
+
+            Mdl::Poolavg([inpt, kernel_h, kernel_w, stride_h, stride_w, pad, act]) => {
+                // Check types
+                assert!(x(kernel_h).dtype == DataKind::Scalar);
+                assert!(x(kernel_w).dtype == DataKind::Scalar);
+                assert!(x(stride_h).dtype == DataKind::Scalar);
+                assert!(x(stride_w).dtype == DataKind::Scalar);
+                assert!(x(pad).dtype == DataKind::Scalar);
+                assert!(x(act).dtype == DataKind::Scalar);
+                assert!(x(inpt).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_inpt = x(inpt).meta;
+                let kernelH = x(kernel_h).val;
+                let kernelW = x(kernel_w).val;
+                let strideH = x(stride_h).val;
+                let strideW = x(stride_w).val;
+                let padding: PaddingMode = x(pad).val.try_into().unwrap();
+                let activation: ActiMode = x(act).val.try_into().unwrap();
+                let all_weights = x(inpt).all_weights;
+
+                // Create tensorhandle and get metadata
+                let res = unsafe {
+                    g.pool2d_avg(
+                        t_inpt, kernelH, kernelW, strideH, strideW, padding, activation,
+                    )
+                };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -416,6 +525,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Get arguments
                 let t_inpt = x(inpt).meta;
                 let axis_val = x(axis).val;
+                let all_weights = x(inpt).all_weights;
 
                 // Create tensorhandle and get metadata
                 unsafe {
@@ -436,6 +546,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                         name: String::new(),
                         meta: res_1,
                         meta_2: res_2,
+                        all_weights: all_weights,
                     }
                 }
             }
@@ -443,6 +554,7 @@ impl Analysis<Mdl> for TensorAnalysis {
             Mdl::Split0(inpt) => {
                 // Check types
                 assert!(x(inpt).dtype == DataKind::TnsrTuple);
+                let all_weights = x(inpt).all_weights;
 
                 let res = x(inpt).meta;
                 Self::Data {
@@ -451,12 +563,14 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
             Mdl::Split1(inpt) => {
                 // Check types
                 assert!(x(inpt).dtype == DataKind::TnsrTuple);
+                let all_weights = x(inpt).all_weights;
 
                 let res = x(inpt).meta_2;
                 Self::Data {
@@ -465,6 +579,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -476,6 +591,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 // Get arguments
                 let t_a = x(a).meta;
                 let t_b = x(b).meta;
+                let all_weights = x(a).all_weights && x(b).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe { g.enlarge(t_a, t_b) };
@@ -485,6 +601,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -500,6 +617,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     .map(|x| x.parse::<i32>().unwrap())
                     .collect();
                 let t_inpt = x(inpt).meta;
+                let all_weights = x(inpt).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe {
@@ -513,6 +631,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -531,6 +650,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 let t_inpt = x(inpt).meta;
                 let shuffle_val = x(shuffle).val;
                 let shuffle_bool = (shuffle_val == SHUFFLE);
+                let all_weights = x(inpt).all_weights;
 
                 // Create tensorhandle and get metadata
                 let res = unsafe {
@@ -544,6 +664,23 @@ impl Analysis<Mdl> for TensorAnalysis {
                     name: String::new(),
                     meta: res,
                     meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            }
+
+            Mdl::Noop([a, b]) => {
+                // Check types
+                assert!(x(a).dtype == DataKind::Tnsr);
+                assert!(x(b).dtype == DataKind::Tnsr);
+                let all_weights = x(a).all_weights && x(b).all_weights;
+
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: std::ptr::null_mut(),
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
                 }
             }
 
@@ -553,6 +690,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 name: String::new(),
                 meta: std::ptr::null_mut(),
                 meta_2: std::ptr::null_mut(),
+                all_weights: false,
             },
 
             Mdl::Var(_s) => Self::Data {
@@ -561,6 +699,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                 name: _s.as_str().to_string(),
                 meta: std::ptr::null_mut(),
                 meta_2: std::ptr::null_mut(),
+                all_weights: false,
             },
 
             other => {

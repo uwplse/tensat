@@ -4,7 +4,12 @@ use egg::*;
 const SEQ_LENGTH: i32 = 64;
 const HIDDEN_DIMS: i32 = 1024;
 
-fn attention(graph: &mut GraphConverter, input: Id, heads: i32, input_dim_1: i32) -> (Id, Id) {
+fn attention(
+    graph: &mut GraphConverter,
+    input: TensorInfo,
+    heads: i32,
+    input_dim_1: i32,
+) -> (TensorInfo, TensorInfo) {
     let d_model = input_dim_1;
     let d_k = d_model / heads;
     assert!(input_dim_1 % heads == 0);
@@ -46,16 +51,17 @@ pub fn get_bert() -> RecExpr<Mdl> {
     let input = graph.new_input(&[SEQ_LENGTH, HIDDEN_DIMS]);
     let input = graph.relu(input);
     let mut tmp = input;
-    let mut current: Id = Default::default();
+    let mut current: TensorInfo = Default::default();
     for i in 0..8 {
         let (next_in, output) = attention(&mut graph, tmp, 16, HIDDEN_DIMS);
         tmp = next_in;
         if i == 0 {
             current = output;
         } else {
-            current = graph.concat(/*axis=*/ 0, /*ndim=*/ 2, current, output);
+            current = graph.noop(current, output);
         }
     }
+    current = graph.noop(current, tmp);
 
     // Step 3: get the RexExpr
     graph.rec_expr()

@@ -18,6 +18,8 @@ def get_args():
         help='Number of thread for the solver (default: 1)')
     parser.add_argument('--print_solution', action='store_true', default=False,
         help='To print out solution')
+    parser.add_argument('--initialize', action='store_true', default=False,
+        help='initialize with greedy solution')
 
     return parser.parse_args()
 
@@ -39,6 +41,7 @@ def main():
     h = data['h_i']
     g = data['g_i']
     root_m = data['root_m']
+    blacklist_i = data['blacklist_i']
     num_nodes = len(costs)
     num_classes = len(e)
 
@@ -51,8 +54,12 @@ def main():
     # Create solver
     solver = pywraplp.Solver('simple_mip_program', pywraplp.Solver.SCIP_MIXED_INTEGER_PROGRAMMING)
     if args.num_thread != 1:
+        print("Set number of threads to {}".format(args.num_thread))
         solver.SetNumThreads(args.num_thread)
-    solver.SetTimeLimit(args.time_lim_sec * 1000)
+        
+    if args.time_lim_sec > 0:
+        print("Set time limit to {} seconds".format(args.time_lim_sec))
+        solver.SetTimeLimit(args.time_lim_sec * 1000)
 
     # Define variables
     # - x: an integer variable for each node. x[i] = 1 means node i is picked
@@ -99,15 +106,48 @@ def main():
                 else:
                     solver.Add(t[g[i]] - t[m] - epsilon + A * (1 - x[i]) >= 0)
 
+    # Blacklist constraints
+    for j in blacklist_i:
+        solver.Add(x[j] == 0)
+
     # Define objective
     obj_expr = [costs[j] * x[j] for j in range(num_nodes)]
     solver.Minimize(sum(obj_expr))
 
+    # Set initial solutions
+    if args.initialize:
+        print("Initialize with greedy")
+        with open('./tmp/init_sol.json') as f:
+            sol_data = json.load(f)
+
+        i_list = sol_data['i_list']
+        m_list = sol_data['m_list']
+
+        i_var_list = [x[i] for i in range(num_nodes)]
+        i_init_val_list = [0 for i in range(num_nodes)]
+        for i in i_list:
+            i_init_val_list[i] = 1
+
+        t_var_list = [t[m] for m in range(num_classes)]
+        t_init_val_list = [0 for m in range(num_classes)]
+        num_picked = len(m_list)
+        gap = 1 / num_picked
+        count = 0
+        for m in m_list:
+            if args.order_var_int:
+                t_init_val_list[m] = count
+            else:
+                t_init_val_list[m] = count * gap
+            count += 1
+
+        solver.SetHint(i_var_list + t_var_list, i_init_val_list + t_init_val_list)
+
     # Solve
     status = solver.Solve()
+    solve_time = solver.wall_time()
     if status == pywraplp.Solver.OPTIMAL:
         print('Objective value =', solver.Objective().Value())
-        print('Problem solved in %f milliseconds' % solver.wall_time())
+        print('Problem solved in %f milliseconds' % solve_time)
         print('Problem solved in %d iterations' % solver.iterations())
         print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
 
@@ -119,12 +159,18 @@ def main():
                 
     else:
         print('The problem does not have an optimal solution.')
+        print(status)
+        print('Objective value =', solver.Objective().Value())
+        print('Problem solved in %f milliseconds' % solve_time)
+        print('Problem solved in %d iterations' % solver.iterations())
+        print('Problem solved in %d branch-and-bound nodes' % solver.nodes())
 
     # Store results
     solved_x = [int(x[j].solution_value()) for j in range(num_nodes)]
     result_dict = {}
     result_dict["solved_x"] = solved_x
     result_dict["cost"] = solver.Objective().Value()
+    result_dict["time"] = solve_time / 1000
     with open('./tmp/solved.json', 'w') as f:
         json.dump(result_dict, f)
 

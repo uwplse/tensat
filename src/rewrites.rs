@@ -2,7 +2,7 @@ use crate::model::*;
 use egg::{rewrite as rw, *};
 use itertools::Itertools;
 use root::taso::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::time::{Duration, Instant};
 
@@ -103,14 +103,18 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
 ]}
 
-pub fn rules_from_str(rs: Vec<&str>) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
+pub fn rules_from_str(rs: Vec<&str>, filter_after: bool) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
     for (pos, rule) in rs.iter().enumerate() {
         let eqn: Vec<&str> = rule.split("=>").collect();
         let lhs: Pattern<Mdl> = eqn[0].parse().unwrap();
         let rhs: Pattern<Mdl> = eqn[1].parse().unwrap();
         let rule_name = format!("rule{}", pos);
-        rule_vec.push(rw!(rule_name; lhs => { CheckApply {pat: rhs} }));
+        rule_vec.push(rw!(rule_name; { lhs.clone() } => { CheckApply {
+            pat: rhs,
+            src_pat: lhs,
+            filter_after: filter_after,
+        } }));
     }
     rule_vec
 }
@@ -169,6 +173,10 @@ struct CheckApply {
     /// the pattern of the right hand side of the rewrite rule, the one
     /// to be constructed.
     pat: Pattern<Mdl>,
+    /// Source graph pattern, used in cycle filtering
+    src_pat: Pattern<Mdl>,
+    /// Whether we need to check if any node in matched source graph is in blacklist
+    filter_after: bool,
 }
 
 impl Applier<Mdl, TensorAnalysis> for CheckApply {
@@ -180,8 +188,28 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
         matched_id: Id,
         subst: &Subst,
     ) -> Vec<Id> {
-        if check_pat(self.pat.ast.as_ref(), egraph, subst).0 {
-            self.pat.apply_one(egraph, matched_id, subst)
+        if self.filter_after {
+            // Check if any node in matched source graph is in blacklist. If so, stop applying
+            let (contains, _) = contains_blacklist(self.src_pat.ast.as_ref(), egraph, subst);
+            if contains {
+                return vec![];
+            }
+        }
+        let (valid, _, _, existing) = check_pat(
+            self.pat.ast.as_ref(),
+            egraph,
+            subst,
+            /*get_exist_nodes=*/ self.filter_after,
+        );
+        if valid {
+            let result = self.pat.apply_one(egraph, matched_id, subst);
+
+            // Add the newly added nodes to the ordering vector
+            if self.filter_after {
+                let existing = existing.unwrap();
+                add_newly_added(self.pat.ast.as_ref(), egraph, subst, &existing);
+            }
+            result
         } else {
             vec![]
         }
@@ -189,6 +217,67 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 
     fn vars(&self) -> Vec<Var> {
         self.pat.vars()
+    }
+}
+
+/// Check if the matched graph of the pattern contains any blacklisted nodes
+///
+/// # Returns
+///
+/// A tuple of (bool, Option<Id>) where
+///
+/// - bool: true if the nodes in this pattern contains some node in blacklist
+/// - Option<Id>: if the nodes in this pattern do not contain blacklisted
+///     nodes, then this is the Id of the matched EClass of the root of this pattern(pat.last())
+fn contains_blacklist(
+    pat: &[ENodeOrVar<Mdl>],
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    subst: &Subst,
+) -> (bool, Option<Id>) {
+    match pat.last().unwrap() {
+        ENodeOrVar::Var(w) => (false, Some(subst[*w])),
+        ENodeOrVar::ENode(e) => {
+            let children = e.children();
+            let results: Vec<(bool, Option<Id>)> = children
+                .iter()
+                .map(|child| contains_blacklist(&pat[..usize::from(*child) + 1], egraph, subst))
+                .collect();
+
+            let contains = results.iter().any(|res| res.0);
+
+            if contains {
+                (true, None)
+            } else {
+                let mut new_e = e.clone();
+                let new_e_ch = new_e.children_mut();
+                for (i, res) in results.iter().enumerate() {
+                    if let Some(id) = res.1 {
+                        new_e_ch[i] = id;
+                    } else {
+                        // This place shouldn't be reached in any case. The pat and subst passed
+                        // in as arguments are from the results of searching pat in the Egraph.
+                        // So all the nodes in pat should be present in the EGraph. But if we run
+                        // bert with 1 iteration of multi and more than ~5/6 iterations of single
+                        // rules, this place is reached. Seems that the searched matches returned
+                        // by egg can have some nodes in pat that cannot be found in the Egraph.
+                        //
+                        // Right now, we simply treat the pattern as not containing blacklisted
+                        // nodes if this happens. Since we do cycle filtering in the end of each
+                        // iteration, this should be fine.
+                        //
+                        // TODO: look into the above issue
+                        return (false, None);
+                    }
+                }
+                if egraph.analysis.blacklist_nodes.contains(&new_e) {
+                    (true, None)
+                } else {
+                    let looked = egraph.lookup(new_e);
+                    // This looked should never be None. See the above issue.
+                    (false, looked)
+                }
+            }
+        }
     }
 }
 
@@ -201,6 +290,7 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 /// - `pat`: the AST representation of the pattern. See egg::Pattern for more info
 /// - `egraph`: E-graph of interest
 /// - `subst`: mapping variable to eclass ID. See egg::Subst for more info.
+/// - `get_exist_nodes`: whether to get a set of existing nodes in this pattern
 ///
 /// # Returns
 ///
@@ -212,11 +302,14 @@ impl Applier<Mdl, TensorAnalysis> for CheckApply {
 /// - TData: The TData for the root node of this pattern. This is read from
 ///     egraph if the root node is in egraph, otherwise constructed by calling
 ///     TASO functions.
+/// - Option<HashSet<Mdl>>: if get_exist_nodes is true, this returns the set of
+///     existing nodes in this pattern
 fn check_pat(
     pat: &[ENodeOrVar<Mdl>],
     egraph: &mut EGraph<Mdl, TensorAnalysis>,
     subst: &Subst,
-) -> (bool, Option<Id>, TData) {
+    get_exist_nodes: bool,
+) -> (bool, Option<Id>, TData, Option<HashSet<Mdl>>) {
     match pat.last().unwrap() {
         ENodeOrVar::Var(w) => {
             // The root node is a variable, then use subst to get metadata from egraph
@@ -237,14 +330,25 @@ fn check_pat(
                     tnsr_2: None,
                 }
             };
-            return (true, Some(cid), t_data);
+            if get_exist_nodes {
+                return (true, Some(cid), t_data, Some(HashSet::<Mdl>::new()));
+            } else {
+                return (true, Some(cid), t_data, None);
+            }
         }
         ENodeOrVar::ENode(e) => {
             // The root is an enode. Recursively get checking results from its children
             let children = e.children();
-            let results: Vec<(bool, Option<Id>, TData)> = children
+            let results: Vec<(bool, Option<Id>, TData, Option<HashSet<Mdl>>)> = children
                 .iter()
-                .map(|child| check_pat(&pat[..usize::from(*child) + 1], egraph, subst))
+                .map(|child| {
+                    check_pat(
+                        &pat[..usize::from(*child) + 1],
+                        egraph,
+                        subst,
+                        get_exist_nodes,
+                    )
+                })
                 .collect();
 
             // Check if any children contains invalid nodes
@@ -256,7 +360,7 @@ fn check_pat(
             }
             if violated {
                 let default_data: TData = Default::default();
-                return (false, None, default_data);
+                return (false, None, default_data, None);
             } else {
                 // Check if all children are in egraph
                 let mut all_in = true;
@@ -276,34 +380,42 @@ fn check_pat(
                     for (i, res) in results.iter().enumerate() {
                         new_e_ch[i] = res.1.unwrap();
                     }
-                    let looked = egraph.lookup(new_e);
-                    match looked {
-                        Some(id) => {
-                            // Get metadata from egraph
-                            let t_data = match egraph[id].data.dtype {
-                                DataKind::Tnsr => TData {
-                                    dtype: egraph[id].data.dtype,
-                                    val: egraph[id].data.val,
-                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
-                                    tnsr_2: None,
-                                },
-                                DataKind::TnsrTuple => TData {
-                                    dtype: egraph[id].data.dtype,
-                                    val: egraph[id].data.val,
-                                    tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
-                                    tnsr_2: unsafe { Some((*egraph[id].data.meta_2).clone()) },
-                                },
-                                _ => TData {
-                                    dtype: egraph[id].data.dtype,
-                                    val: egraph[id].data.val,
-                                    tnsr: None,
-                                    tnsr_2: None,
-                                },
-                            };
-                            return (true, looked, t_data);
+                    let looked = egraph.lookup(new_e.clone());
+                    if let Some(id) = looked {
+                        // Get metadata from egraph
+                        let t_data = match egraph[id].data.dtype {
+                            DataKind::Tnsr => TData {
+                                dtype: egraph[id].data.dtype,
+                                val: egraph[id].data.val,
+                                tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                tnsr_2: None,
+                            },
+                            DataKind::TnsrTuple => TData {
+                                dtype: egraph[id].data.dtype,
+                                val: egraph[id].data.val,
+                                tnsr: unsafe { Some((*egraph[id].data.meta).clone()) },
+                                tnsr_2: unsafe { Some((*egraph[id].data.meta_2).clone()) },
+                            },
+                            _ => TData {
+                                dtype: egraph[id].data.dtype,
+                                val: egraph[id].data.val,
+                                tnsr: None,
+                                tnsr_2: None,
+                            },
+                        };
+                        if get_exist_nodes {
+                            let mut existing_nodes = HashSet::<Mdl>::new();
+                            for res in results.iter() {
+                                for node in res.3.as_ref().unwrap().iter() {
+                                    existing_nodes.insert(node.clone());
+                                }
+                            }
+                            existing_nodes.insert(new_e);
+                            return (true, looked, t_data, Some(existing_nodes));
+                        } else {
+                            return (true, looked, t_data, None);
                         }
-                        None => (),
-                    };
+                    }
                 }
                 // root node not in egraph, compute metadata
                 let mut g = egraph.analysis.graph.borrow_mut();
@@ -707,7 +819,17 @@ fn check_pat(
                         todo!()
                     }
                 };
-                return result;
+                if get_exist_nodes && result.0 {
+                    let mut existing_nodes = HashSet::<Mdl>::new();
+                    for res in results.iter() {
+                        for node in res.3.as_ref().unwrap().iter() {
+                            existing_nodes.insert(node.clone());
+                        }
+                    }
+                    return (result.0, result.1, result.2, Some(existing_nodes));
+                } else {
+                    return (result.0, result.1, result.2, None);
+                }
             }
         }
     };
@@ -726,12 +848,20 @@ struct MapToCanonical {
 /// applying the rewrite.
 #[derive(Debug)]
 pub struct MultiPatterns {
-    /// Vec of (src_1, src_2, dst_1, dst_2)
-    rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>,
+    /// Vec of (src_1, src_2, dst_1, dst_2, symmetric)
+    rules: Vec<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool)>,
     /// Vec of all unique canonical source patterns (for src_1's and src_2's)
     canonical_src_pat: Vec<Pattern<Mdl>>,
     /// Mapping information for each src pattern. The order is the same as in rules
     src_pat_maps: Vec<(MapToCanonical, MapToCanonical)>,
+    /// Whether to allow cycles in EGraph
+    no_cycle: bool,
+    /// Whether to do cycle filtering after applying. This is always false when no_cycle is false
+    filter_after: bool,
+    /// Number of iterations to run multi-pattern rules
+    iter_limit: usize,
+    /// Descendents map. Only used if filter_after is true
+    descendents: Option<HashMap<Id, HashSet<Id>>>,
 }
 
 impl MultiPatterns {
@@ -740,11 +870,20 @@ impl MultiPatterns {
     /// # Parameters
     ///
     /// - `rules`: every adjacent pair of entries should belong to the same multi-pattern rule.
-    pub fn with_rules(rules: Vec<&str>) -> MultiPatterns {
+    /// - `no_cycle`: whether or not to do cycle filtering
+    /// - `iter_limit`: Number of iterations to apply multi-pattern rules
+    /// - `filter_after`: if true, do efficient filtering (filter cycle after the iteration);
+    ///         else, do naive filtering (check cycle before each application)
+    pub fn with_rules(
+        rules: Vec<(&str, bool)>,
+        no_cycle: bool,
+        iter_limit: usize,
+        filter_after: bool,
+    ) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
         let mut multi_rules =
-            Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>)>::new();
+            Vec::<(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool)>::new();
         let mut canonical_pats = Vec::<Pattern<Mdl>>::new();
         let mut src_pat_maps = Vec::<(MapToCanonical, MapToCanonical)>::new();
 
@@ -772,13 +911,16 @@ impl MultiPatterns {
         };
 
         for i in 0..(rules.len() / 2) {
-            let (src_1, dst_1) = get_pats(rules[2 * i]);
-            let (src_2, dst_2) = get_pats(rules[2 * i + 1]);
+            let (src_1, dst_1) = get_pats(rules[2 * i].0);
+            let (src_2, dst_2) = get_pats(rules[2 * i + 1].0);
 
             let src_1_map = canonicalize_and_add(&src_1);
             let src_2_map = canonicalize_and_add(&src_2);
 
-            multi_rules.push((src_1, src_2, dst_1, dst_2));
+            assert!(rules[2 * i].1 == rules[2 * i + 1].1);
+            let symmetric = rules[2 * i].1;
+
+            multi_rules.push((src_1, src_2, dst_1, dst_2, symmetric));
             src_pat_maps.push((src_1_map, src_2_map));
         }
 
@@ -788,6 +930,10 @@ impl MultiPatterns {
             rules: multi_rules,
             canonical_src_pat: canonical_pats,
             src_pat_maps: src_pat_maps,
+            no_cycle: no_cycle,
+            iter_limit: iter_limit,
+            filter_after: filter_after && no_cycle,
+            descendents: None,
         }
     }
 
@@ -797,8 +943,13 @@ impl MultiPatterns {
     /// of all canonicalized source patterns. Then for all compatible substitutions found,
     /// it checks and applies the dst patterns. It won't apply if src_1 and src_2 matches with
     /// the same eclass. It always returns Ok()
-    pub fn run_one(&self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
-        if runner.iterations.len() < 1 {
+    pub fn run_one(&mut self, runner: &mut Runner<Mdl, TensorAnalysis, ()>) -> Result<(), String> {
+        if self.filter_after {
+            // This is to remove cycles introduced during the last iteration of single rules
+            remove_cycle_by_order(runner);
+        }
+
+        if runner.iterations.len() < self.iter_limit {
             println!("Run one");
             // Construct Vec to store matches for each canonicalized pattern
             let matches: Vec<Vec<SearchMatches>> = self
@@ -807,24 +958,53 @@ impl MultiPatterns {
                 .map(|x| x.search(&runner.egraph))
                 .collect();
 
+            if self.filter_after {
+                // Make a pass to get descendents
+                self.descendents = Some(compute_all_descendents(
+                    &runner.egraph,
+                    runner.roots[0],
+                    /*check_blacklist=*/ true,
+                ));
+            }
+
             // For each multi rule
             for (i, rule) in self.rules.iter().enumerate() {
                 let map_1 = &self.src_pat_maps[i].0;
                 let map_2 = &self.src_pat_maps[i].1;
-                let matches_1 = &matches[map_1.index];
-                let matches_2 = &matches[map_2.index];
-                for match_1 in matches_1 {
-                    for match_2 in matches_2 {
-                        if match_1.eclass == match_2.eclass {
-                            // We don't want to apply multi-pattern rules on the same eclass
-                            continue;
+                // If the rule is fully symmetrical
+                if map_1.index == map_2.index && rule.4 {
+                    let matches_both = &matches[map_1.index];
+                    for (i, match_1) in matches_both.iter().enumerate() {
+                        for match_2 in (&matches_both[(i + 1)..]).iter() {
+                            if match_1.eclass == match_2.eclass {
+                                // We don't want to apply multi-pattern rules on the same eclass
+                                continue;
+                            }
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
                         }
-                        self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                    }
+                } else {
+                    let matches_1 = &matches[map_1.index];
+                    let matches_2 = &matches[map_2.index];
+                    for match_1 in matches_1 {
+                        for match_2 in matches_2 {
+                            if match_1.eclass == match_2.eclass {
+                                // We don't want to apply multi-pattern rules on the same eclass
+                                continue;
+                            }
+                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                        }
                     }
                 }
             }
 
             runner.egraph.rebuild();
+
+            if self.filter_after {
+                // This is to remove cycles introduced during this run_one
+                remove_cycle_by_order(runner);
+            }
+            println!("Done one");
         }
 
         Ok(())
@@ -833,7 +1013,7 @@ impl MultiPatterns {
     /// Apply a rule with a pair of matches for its src patterns
     fn apply_match_pair(
         &self,
-        rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>),
+        rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool),
         match_1: &SearchMatches,
         match_2: &SearchMatches,
         map_1: &MapToCanonical,
@@ -849,25 +1029,499 @@ impl MultiPatterns {
                 if compatible(&subst_1_dec, &subst_2_dec, &map_1.var_map) {
                     // If so, merge two substitutions
                     let merged_subst = merge_subst(subst_1_dec, subst_2_dec, &map_1.var_map);
+                    // Check if any source pattern contains blacklisted nodes
+                    if self.filter_after {
+                        let condition_tmp = contains_blacklist(
+                            rule.0.ast.as_ref(),
+                            &mut runner.egraph,
+                            &merged_subst,
+                        )
+                        .0 || contains_blacklist(
+                            rule.1.ast.as_ref(),
+                            &mut runner.egraph,
+                            &merged_subst,
+                        )
+                        .0;
+                        if condition_tmp {
+                            continue;
+                        }
+                    }
 
                     // check_pat on both dst patterns
-                    if check_pat(rule.2.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
-                        if check_pat(rule.3.ast.as_ref(), &mut runner.egraph, &merged_subst).0 {
+                    let (valid_1, _, _, existing_1) = check_pat(
+                        rule.2.ast.as_ref(),
+                        &mut runner.egraph,
+                        &merged_subst,
+                        /*get_exist_nodes=*/ self.filter_after,
+                    );
+                    let (valid_2, _, _, existing_2) = check_pat(
+                        rule.3.ast.as_ref(),
+                        &mut runner.egraph,
+                        &merged_subst,
+                        /*get_exist_nodes=*/ self.filter_after,
+                    );
+                    if valid_1 && valid_2 {
+                        let cycle_check_passed = if self.no_cycle {
+                            if self.filter_after {
+                                // Do pre-filtering using the pre-collected descendents info
+                                self.check_cycle_partial(
+                                    &runner.egraph,
+                                    &merged_subst,
+                                    &map_1.var_map,
+                                    &map_2.var_map,
+                                    match_1.eclass,
+                                    match_2.eclass,
+                                )
+                            } else {
+                                // Check cycle by make a pass in egraph
+                                let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
+                                check_cycle(
+                                    &runner.egraph,
+                                    &merged_subst,
+                                    &map_1.var_map,
+                                    &map_2.var_map,
+                                    match_1.eclass,
+                                    match_2.eclass,
+                                    &mut descendents,
+                                )
+                            }
+                        } else {
+                            true
+                        };
+                        if cycle_check_passed {
                             // apply dst patterns, union
                             let id_1 =
                                 rule.2
                                     .apply_one(&mut runner.egraph, match_1.eclass, &merged_subst)
                                     [0];
-                            runner.egraph.union(id_1, match_1.eclass);
+
                             let id_2 =
                                 rule.3
                                     .apply_one(&mut runner.egraph, match_2.eclass, &merged_subst)
                                     [0];
+
+                            // Add the newly added nodes to the ordering list
+                            if self.filter_after {
+                                let existing_1 = existing_1.unwrap();
+                                let existing_2 = existing_2.unwrap();
+                                let (nodes_in_1, _) = add_newly_added(
+                                    rule.2.ast.as_ref(),
+                                    &mut runner.egraph,
+                                    &merged_subst,
+                                    &existing_1,
+                                );
+                                let existing_2_updated: HashSet<Mdl> = existing_2
+                                    .iter()
+                                    .chain(nodes_in_1.iter())
+                                    .map(|node| node.clone())
+                                    .collect();
+                                add_newly_added(
+                                    rule.3.ast.as_ref(),
+                                    &mut runner.egraph,
+                                    &merged_subst,
+                                    &existing_2_updated,
+                                );
+                            }
+
+                            runner.egraph.union(id_1, match_1.eclass);
                             runner.egraph.union(id_2, match_2.eclass);
                         }
                     }
                 }
             }
+        }
+    }
+
+    /// Returns true if there will not be a cycle introduced by applying this rule.
+    ///
+    /// Checking based on descendents collected at beginning of run_one(). If any input node
+    /// contains descendents that is any of the matched output class, then there can be a cycle
+    /// created.
+    ///
+    /// # Parameters
+    ///
+    /// - `egraph`: egraph of interest
+    /// - `input_subst`: substitution containing the input variables
+    /// - `var_map_1`: keys of this map contains all the input variables in source pattern 1
+    /// - `var_map_2`: keys of this map contains all the input variables in source pattern 2
+    /// - `out_class_1`: Id of the matched eclass of the output of source pattern 1
+    /// - `out_class_2`: Id of the matched eclass of the output of source pattern 2
+    fn check_cycle_partial(
+        &self,
+        egraph: &EGraph<Mdl, TensorAnalysis>,
+        input_subst: &Subst,
+        var_map_1: &HashMap<egg::Var, egg::Var>,
+        var_map_2: &HashMap<egg::Var, egg::Var>,
+        out_class_1: Id,
+        out_class_2: Id,
+    ) -> bool {
+        // Get all input eclass IDs
+        let input_ids: HashSet<Id> = var_map_1
+            .iter()
+            .chain(var_map_2.iter())
+            .map(|(var, _)| *input_subst.get(*var).unwrap())
+            .collect();
+        // Check descendents of the input eclasses
+        return input_ids.iter().all(|id| {
+            let descendents = self.descendents.as_ref().unwrap();
+            let descendents_input = descendents.get(id).unwrap();
+            !descendents_input.contains(&out_class_1) && !descendents_input.contains(&out_class_2)
+        });
+    }
+}
+
+/// Do post-processing to remove cycles in the egraph, by adding nodes to blacklist.
+pub fn remove_cycle_by_order(runner: &mut Runner<Mdl, TensorAnalysis, ()>) {
+    // Update blacklist (canonicalize Ids with egraph.find())
+    update_blacklist(&mut runner.egraph);
+
+    // Update newly_added (canonicalize Ids with egraph.find()) and construct hashmap
+    // for newly_added
+    let updated: Vec<Mdl> = runner
+        .egraph
+        .analysis
+        .newly_added
+        .iter()
+        .map(|node| node.clone().map_children(|id| runner.egraph.find(id)))
+        .collect();
+    let mut added_node_to_order = HashMap::<Mdl, usize>::new();
+    for (i, node) in updated.iter().enumerate() {
+        added_node_to_order.entry(node.clone()).or_insert(i);
+    }
+    // Remove cycles by adding nodes to blacklist
+    remove_cycles_by_add_to_blacklist(&mut runner.egraph, &added_node_to_order, runner.roots[0]);
+}
+
+/// Add newly added nodes in this pattern to the list of newly added nodes, for use in cycle
+/// filtering
+///
+/// The newly added nodes are stored in the graph level metadata in egraph.analysis
+///
+/// # Parameters
+///
+/// - `pat`: the AST representation of the pattern. See egg::Pattern for more info
+/// - `egraph`: E-graph of interest
+/// - `subst`: mapping variable to eclass ID. See egg::Subst for more info.
+/// - `existing_nodes`: the set of nodes within this pattern that already exists before this
+///         pattern is applied
+///
+/// # Returns
+///
+/// A tuple of (HashSet<Mdl>, Id) where
+///
+/// - HashSet<Mdl>: The set of all nodes in this pattern
+/// - Id: the Id into egraph of the matched root of this pattern
+fn add_newly_added(
+    pat: &[ENodeOrVar<Mdl>],
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    subst: &Subst,
+    existing_nodes: &HashSet<Mdl>,
+) -> (HashSet<Mdl>, Id) {
+    match pat.last().unwrap() {
+        ENodeOrVar::Var(w) => (HashSet::<Mdl>::new(), subst[*w]),
+        ENodeOrVar::ENode(e) => {
+            let children = e.children();
+            let results: Vec<(HashSet<Mdl>, Id)> = children
+                .iter()
+                .map(|child| {
+                    add_newly_added(
+                        &pat[..usize::from(*child) + 1],
+                        egraph,
+                        subst,
+                        existing_nodes,
+                    )
+                })
+                .collect();
+
+            let mut new_e = e.clone();
+            let new_e_ch = new_e.children_mut();
+            for (i, res) in results.iter().enumerate() {
+                new_e_ch[i] = res.1;
+            }
+
+            let mut nodes_in_pat = HashSet::<Mdl>::new();
+            for res in results.iter() {
+                for node in res.0.iter() {
+                    nodes_in_pat.insert(node.clone());
+                }
+            }
+            nodes_in_pat.insert(new_e.clone());
+
+            // Add to order list
+            if !existing_nodes.contains(&new_e) {
+                egraph.analysis.newly_added.push(new_e.clone());
+            }
+
+            (nodes_in_pat, egraph.lookup(new_e).unwrap())
+        }
+    }
+}
+
+/// Remove cycles in EGraph by adding nodes to blacklist
+///
+/// This function works by:
+///     - Make a pass over egraph to get a set of cycles
+///     - For each cycle, pick the node that got added latest and add it to blacklist
+///     - Repeat until no cycles are left
+fn remove_cycles_by_add_to_blacklist(
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    added_node_to_order: &HashMap<Mdl, usize>,
+    root: Id,
+) {
+    loop {
+        let mut visited = HashSet::<Id>::new();
+        let mut cycles = Vec::<Vec<Mdl>>::new();
+
+        get_cycles(egraph, root, &mut visited, &mut cycles);
+
+        if cycles.len() == 0 {
+            break;
+        }
+        for cycle in cycles.iter() {
+            resolve_cycle(egraph, cycle, added_node_to_order);
+        }
+    }
+}
+
+/// Resolve cycle by adding node to blacklist
+///
+/// # Parameters
+///
+/// - `egraph`: E-graph of interest
+/// - `cycle`: list of nodes within the cycle
+/// - `added_node_to_order`: HashMap, map from node to the order that it was added into the egraph
+fn resolve_cycle(
+    egraph: &mut EGraph<Mdl, TensorAnalysis>,
+    cycle: &[Mdl],
+    added_node_to_order: &HashMap<Mdl, usize>,
+) {
+    // Check if any node in cycle is already in blacklist
+    let already_solved = cycle
+        .iter()
+        .any(|node| egraph.analysis.blacklist_nodes.contains(node));
+    if !already_solved {
+        assert!(cycle.len() > 0);
+        let (ord, n) = cycle
+            .iter()
+            .map(|node| {
+                let order = added_node_to_order
+                    .get(node)
+                    .map_or(-1, |index| *index as i32);
+                (order, node.clone())
+            })
+            .max_by_key(|(o, _)| *o)
+            .unwrap();
+        assert!(ord >= 0);
+        egraph.analysis.blacklist_nodes.insert(n.clone());
+    }
+}
+
+/// Traverse the EGraph and get a set of cycles (reachable from root)
+///
+/// # Parameters
+///
+/// - `egraph`: E-graph of interest
+/// - `root`: Id of root eclass
+/// - `visited`: HashSet storing the eclasses visited.
+/// - `cycles`: list of cycles. Each cycle is a list of nodes. A cycle of 1->2->4->3->1 will be
+///         stored as [1,2,4,3]
+fn get_cycles(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    root: Id,
+    visited: &mut HashSet<Id>,
+    cycles: &mut Vec<Vec<Mdl>>,
+) {
+    // Get a map from Id to the eclass objects, since egg doesn't provide accessing eclass from Id
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
+        egraph.classes().map(|class| (class.id, class)).collect();
+
+    get_cycles_rec(
+        egraph,
+        root,
+        /*path_to_here=*/ Vec::<(Id, Mdl)>::new(),
+        &id_to_class,
+        visited,
+        cycles,
+    );
+}
+
+/// Traverse the EGraph in DFS order, update visited and cycles on the fly
+///
+/// # Parameters
+///
+/// - `egraph`: E-graph of interest
+/// - `eclass`: The current eclass that we are visiting
+/// - `path_to_here`: A path from root to this eclass
+/// - `id_to_class`: Map from eclass ID to the eclass objects
+/// - `visited`: HashSet storing the eclasses visited.
+/// - `cycles`: list of cycles. Each cycle is a list of nodes. A cycle of 1->2->4->3->1 will be
+///         stored as [1,2,4,3]
+fn get_cycles_rec(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    eclass: Id,
+    path_to_here: Vec<(Id, Mdl)>,
+    id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>,
+    visited: &mut HashSet<Id>,
+    cycles: &mut Vec<Vec<Mdl>>,
+) {
+    assert!(!visited.contains(&eclass));
+    visited.insert(eclass);
+
+    let class = id_to_class.get(&eclass).unwrap();
+    for node in class.iter() {
+        if egraph.analysis.blacklist_nodes.contains(node) {
+            continue;
+        }
+        for child in node.children().iter() {
+            if !visited.contains(child) {
+                // Haven't visited, so visit
+                // TODO: Instead of cloning, you can use the same list,
+                // and pop the added node after the call to get_cycles_rec()
+                let mut path_to_child = path_to_here.clone();
+                path_to_child.push((eclass, node.clone()));
+                get_cycles_rec(egraph, *child, path_to_child, id_to_class, visited, cycles);
+            } else {
+                // Visited before. Check if in path_to_here
+                if let Some((i, _)) = path_to_here
+                    .iter()
+                    .enumerate()
+                    .find(|(i, (cid, n))| *cid == *child)
+                {
+                    let mut cycle: Vec<Mdl> =
+                        path_to_here[i..].iter().map(|(cid, n)| n.clone()).collect();
+                    cycle.push(node.clone());
+                    cycles.push(cycle);
+                }
+            }
+        }
+    }
+}
+
+/// Update the blacklist_nodes in egraph.analysis with the new canonical EClass IDs
+fn update_blacklist(egraph: &mut EGraph<Mdl, TensorAnalysis>) {
+    egraph.analysis.blacklist_nodes = egraph
+        .analysis
+        .blacklist_nodes
+        .iter()
+        .map(|node| node.clone().map_children(|id| egraph.find(id)))
+        .collect();
+}
+
+/// Returns true if there will not be a cycle introduced by applying this rule.
+///
+/// Checking based on freshly collected descendents info. If any input node
+/// contains descendents that is any of the matched output class, then there can be a cycle
+/// created.
+///
+/// # Parameters
+///
+/// - `egraph`: egraph of interest
+/// - `input_subst`: substitution containing the input variables
+/// - `var_map_1`: keys of this map contains all the input variables in source pattern 1
+/// - `var_map_2`: keys of this map contains all the input variables in source pattern 2
+/// - `out_class_1`: Id of the matched eclass of the output of source pattern 1
+/// - `out_class_2`: Id of the matched eclass of the output of source pattern 2
+/// - `descendents`: Map from each eclass ID to its set of descendents. Constructed here.
+fn check_cycle(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    input_subst: &Subst,
+    var_map_1: &HashMap<egg::Var, egg::Var>,
+    var_map_2: &HashMap<egg::Var, egg::Var>,
+    out_class_1: Id,
+    out_class_2: Id,
+    descendents: &mut HashMap<Id, HashSet<Id>>,
+) -> bool {
+    // Get all input eclass IDs
+    let input_ids: HashSet<Id> = var_map_1
+        .iter()
+        .chain(var_map_2.iter())
+        .map(|(var, _)| *input_subst.get(*var).unwrap())
+        .collect();
+    // Get a map from eclass IDs to eclass
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
+        egraph.classes().map(|class| (class.id, class)).collect();
+    // Check descendents of the input eclasses
+    return input_ids.iter().all(|id| {
+        get_descendents(
+            egraph,
+            *id,
+            &id_to_class,
+            /*check_blacklist=*/ false,
+            descendents,
+        );
+        let descendents_input = descendents.get(id).unwrap();
+        !descendents_input.contains(&out_class_1) && !descendents_input.contains(&out_class_2)
+    });
+}
+
+/// Get a map of all eclass (reachable from root) to their descendent eclasses
+///
+/// # Parameters
+///
+/// - `egraph`: egraph of interest
+/// - `root`: root class of egraph
+/// - `check_blacklist: if true, check if a node is in blacklist, dependencies introduced
+///         by nodes in the blacklist will not be counted into descendents.
+///
+/// # Returns
+///
+///   The hashmap from Eclass ID to the set of its descendent eclasses
+fn compute_all_descendents(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    root: Id,
+    check_blacklist: bool,
+) -> HashMap<Id, HashSet<Id>> {
+    // Get a map from eclass IDs to eclass
+    let id_to_class: HashMap<Id, &EClass<Mdl, ValTnsr>> =
+        egraph.classes().map(|class| (class.id, class)).collect();
+
+    let mut descendents: HashMap<Id, HashSet<Id>> = Default::default();
+    get_descendents(
+        egraph,
+        root,
+        &id_to_class,
+        check_blacklist,
+        &mut descendents,
+    );
+    descendents
+}
+
+/// Get the descendent of eclass. The result will be in descendents
+///
+/// # Parameters
+///
+/// - `egraph`: egraph of interest
+/// - `eclass`: eclass to get descendents for. This will also get descendents for all its
+///         descendents, since this function is doing it recursively
+/// - `id_to_class`: map from eclass id to eclass objects
+/// - `check_blacklist`: if true, dependencies introduced by blacklisted nodes will not be counted
+/// - `descendents`: Map from each eclass ID to its set of descendents. Constructed here.
+fn get_descendents(
+    egraph: &EGraph<Mdl, TensorAnalysis>,
+    eclass: Id,
+    id_to_class: &HashMap<Id, &EClass<Mdl, ValTnsr>>,
+    check_blacklist: bool,
+    descendents: &mut HashMap<Id, HashSet<Id>>,
+) {
+    match descendents.get(&eclass) {
+        Some(desc) => (),
+        None => {
+            let class = id_to_class.get(&eclass).unwrap();
+            let mut result_desc = HashSet::<Id>::new();
+            for node in class.iter() {
+                if check_blacklist {
+                    if egraph.analysis.blacklist_nodes.contains(node) {
+                        continue;
+                    }
+                }
+                for child in node.children().iter() {
+                    get_descendents(egraph, *child, id_to_class, check_blacklist, descendents);
+                    let child_desc = descendents.get(child).unwrap();
+                    result_desc = result_desc.union(child_desc).map(|&id| id).collect();
+                    result_desc.insert(*child);
+                }
+            }
+            descendents.insert(eclass, result_desc);
         }
     }
 }
