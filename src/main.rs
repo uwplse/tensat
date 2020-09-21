@@ -548,10 +548,10 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
         // about inference time, such ops can be pre-computed
         if process {
             let processed_g = g.preprocess_weights();
-            (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
+            // (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*processed_g).run()
         } else {
-            (*g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
+            // (*g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*g).run()
         }
     }

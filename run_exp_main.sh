@@ -1,4 +1,4 @@
-num_passes=1
+num_passes=5
 node_limit=50000
 iter_limit=15
 time_limit=3000
@@ -6,10 +6,10 @@ iter_multi=1
 ilp_time_sec=3600
 
 models=(
-    # resnext50
+    resnext50
     bert
-    # nasrnn
-    # nasneta
+    nasrnn
+    nasneta
 )
 
 for model in "${models[@]}"; do
