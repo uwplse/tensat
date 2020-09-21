@@ -66,6 +66,6 @@ with equality saturation. It uses TASO's synthesized rewrite rules. It leverages
 infrastructure for maintaining metadata of the tensor information (like shape), as well as
 TASO's cost function that directly executes DL operators.
 
-`run_exp_main.sh` has example commands to run the optimizer. It runs the optimization on TASO's 4 benchmarks and collect various of statistics. `analysis/stats.py` can be used to analyze the statistics and plot results.
+`run_exp_main.sh` has example commands to run the optimizer. It runs the optimization on TASO's 4 benchmarks and collect various of statistics. `analysis/stats.py` can be used to analyze the statistics and plot results. Uncomment the `-x` flag and argument to save the optimized model into a file. This file can be converted to ONNX format by `TASO/example/load_model.py` (in our fork of TASO).
 
 We support both greedy extraction and ILP extraction. User can control many options through command line flags (see src/main.rs for the flags).
