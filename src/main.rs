@@ -60,6 +60,13 @@ fn main() {
                 .help("Provide a output file name. For mode convert, it's for converted rules; for mode optimize, it's for measured runtime"),
         )
         .arg(
+            Arg::with_name("export_model")
+                .short("x")
+                .long("export_model")
+                .takes_value(true)
+                .help("Provide a file name to store optimized model"),
+        )
+        .arg(
             Arg::with_name("model_file")
                 .short("f")
                 .long("model_file")
@@ -373,6 +380,10 @@ fn optimize(matches: clap::ArgMatches) {
     let time_ext = get_full_graph_runtime(&runner_ext, true);
     println!("Extracted graph runtime: {}", time_ext);
 
+    if let Some(exportf) = matches.value_of("export_model") {
+      save_model(&runner_ext, exportf);
+    }
+
     if let Some(outf) = matches.value_of("out_file") {
         let mut file = OpenOptions::new()
             .append(true)
@@ -554,6 +565,13 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
             // (*g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*g).run()
         }
+    }
+}
+
+fn save_model(runner: &Runner<Mdl, TensorAnalysis, ()>, file_name: &str) {
+    let mut g = runner.egraph.analysis.graph.borrow_mut();
+    unsafe {
+        (*g).export_to_file_raw(CString::new(file_name).unwrap().into_raw());
     }
 }
 
