@@ -74,3 +74,14 @@ pub fn parse_and_convert(rs_s: &str) -> String {
         _ => unreachable!(),
     }
 }
+
+pub fn parse_model(rs_s: &str) {
+  let mut ls = rs_s.lines();
+  loop {
+    if let Some(l) = ls.next() {
+      let guid = l.parse::<u32>().unwrap();
+      let op = ls.next().unwrap().parse::<u32>().unwrap();
+      let deps: Vec<Vec<u32>> = ls.next().unwrap().split(",").map(|c_s| c_s.split(":").map(|c| c.parse::<u32>().unwrap()).collect()).collect();
+    } else { break }
+  }
+}
