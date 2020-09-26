@@ -1,6 +1,9 @@
+use crate::input::*;
 use crate::model::*;
 use egg::*;
 use pest::{iterators::Pair, Parser};
+use root::taso::*;
+use std::collections::HashMap;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "equation.pest"]
@@ -75,13 +78,54 @@ pub fn parse_and_convert(rs_s: &str) -> String {
     }
 }
 
-pub fn parse_model(rs_s: &str) {
-  let mut ls = rs_s.lines();
-  loop {
-    if let Some(l) = ls.next() {
-      let guid = l.parse::<u32>().unwrap();
-      let op = ls.next().unwrap().parse::<u32>().unwrap();
-      let deps: Vec<Vec<u32>> = ls.next().unwrap().split(",").map(|c_s| c_s.split(":").map(|c| c.parse::<u32>().unwrap()).collect()).collect();
-    } else { break }
-  }
+// parses a serialized model from taso
+// see tests/parse.rs for an example
+pub fn parse_model(rs_s: &str) -> GraphConverter {
+    let mut ls = rs_s.lines();
+    let mut g = GraphConverter::default();
+    let mut nodes: HashMap<usize, Vec<TensorInfo>> = HashMap::new();
+    loop {
+        if let Some(l) = ls.next() {
+            // node id
+            let guid = l.parse::<usize>().unwrap();
+            // the operator
+            let op = ls.next().unwrap().parse::<u32>().unwrap();
+            // children; each child has an id and an index;
+            // the index is almost always 0, except when the child
+            // is a split it may be 0 or 1 (indicating left or right)
+            let deps: Vec<Vec<usize>> = ls
+                .next()
+                .unwrap()
+                .split(",")
+                .map(|c_s| c_s.split(":").map(|c| c.parse().unwrap()).collect())
+                .collect();
+            // parameters
+            let params: Vec<i32> = ls
+                .next()
+                .unwrap()
+                .split(",")
+                .map(|p_s| p_s.parse().unwrap())
+                .collect();
+            // node is really a vec, because split may return two outputs
+            let node: Vec<TensorInfo> = match op {
+                OpType_OP_INPUT => vec![g.new_input(&params)],
+                OpType_OP_WEIGHT => vec![g.new_weight(&params)],
+                OpType_OP_MATMUL => vec![g.matmul(
+                    nodes[&deps[0][0]][deps[0][1]],
+                    nodes[&deps[1][0]][deps[1][1]],
+                )],
+                OpType_OP_RELU => vec![g.relu(nodes[&deps[0][0]][deps[0][1]])],
+                OpType_OP_RESHAPE => vec![g.reshape(nodes[&deps[0][0]][deps[0][1]], &params)],
+                OpType_OP_TRANSPOSE => {
+                    vec![g.transpose(nodes[&deps[0][0]][deps[0][1]], &params[..3], params[3] != 0)]
+                }
+                OpType_OP_SPLIT => todo!(), // reference 'Split' case in taso/examples/load_model.py
+                o => panic!("{} not yet implemented", o),
+            };
+            nodes.insert(guid, node);
+        } else {
+            break;
+        }
+    }
+    g
 }

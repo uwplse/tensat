@@ -381,7 +381,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extracted graph runtime: {}", time_ext);
 
     if let Some(exportf) = matches.value_of("export_model") {
-      save_model(&runner_ext, exportf);
+        save_model(&runner_ext, exportf);
     }
 
     if let Some(outf) = matches.value_of("out_file") {
