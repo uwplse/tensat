@@ -73,3 +73,36 @@ original graph different between egg side and TASO side.
     no more cycles.
     - Add filtering on single rules, by having order in analysis
     - In the end, pass this blacklist to prep_ilp_data.
+
+
+- New benchmarks:
+
+TASO doesn't support:
+    - MaskRCNN
+    - squeezenet1.0
+    - ssd_moblienet_v1
+    - yolov4
+    - inceptionv2
+    - shufflenet-v2
+    - gpt2
+    - bidaf
+    - densenet
+    - t5encdoer
+    - efficientnet-lite4
+    - rcnn-ilsvrc13
+
+
+TASO support, but no speedup:
+    - mobilenetv2
+
+
+TASO has speedup:
+    - vgg19 (fuse conv and relu)
+    - inceptionv3 from vldb paper
+
+0930 TODO:
+- Run inceptionv3 exp, pipeline write (1h)
+
+cargo run --release -- -r converted.txt -t converted_multi.txt -u -s none --n_iter 15 --no_order --ilp_time_sec 0 --no_cycle --iter_multi 1 --n_sec 3000 --n_nodes 50000 --all_weight_only -e ilp -d inceptionv3 -o tmp/inceptionv3_1_stats.txt
+
+- Run vgg19, mobilenetv2

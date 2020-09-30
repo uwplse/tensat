@@ -15,6 +15,7 @@ use tamago::resnet50;
 use tamago::resnext50;
 use tamago::rewrites::*;
 use tamago::testnet;
+use tamago::inceptionv3;
 use tamago::{parse::*, verify::*};
 
 use serde::{Deserialize, Serialize};
@@ -241,6 +242,7 @@ fn optimize(matches: clap::ArgMatches) {
         Some("resnext50") => resnext50::get_resnext50(),
         Some("bert") => bert::get_bert(),
         Some("nasneta") => nasneta::get_nasneta(),
+        Some("inceptionv3") => inceptionv3::get_inceptionv3(),
         Some(_) => panic!("The model name is not supported"),
         None => {
             let model_file = matches

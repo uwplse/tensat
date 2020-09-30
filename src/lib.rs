@@ -10,6 +10,7 @@ pub mod resnet50;
 pub mod resnext50;
 pub mod rewrites;
 pub mod testnet;
+pub mod inceptionv3;
 
 pub mod verify {
     use crate::model::*;

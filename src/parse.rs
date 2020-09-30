@@ -118,7 +118,14 @@ pub fn parse_model(rs_s: &str) -> GraphConverter {
                 OpType_OP_RESHAPE => vec![g.reshape(nodes[&deps[0][0]][deps[0][1]], &params)],
                 OpType_OP_TRANSPOSE => {
                     vec![g.transpose(nodes[&deps[0][0]][deps[0][1]], &params[..3], params[3] != 0)]
-                }
+                },
+                OpType_OP_CONV2D => vec![g.conv2d(nodes[&deps[0][0]][deps[0][1]], nodes[&deps[1][0]][deps[1][1]], params[8], params[9], params[10], params[11])],
+                OpType_OP_POOL2D_AVG => vec![g.avgpool2d(nodes[&deps[0][0]][deps[0][1]], params[5], params[6], params[7], params[8], params[9])],
+                OpType_OP_POOL2D_MAX => vec![g.maxpool2d(nodes[&deps[0][0]][deps[0][1]], params[5], params[6], params[7], params[8], params[9])],
+                OpType_OP_CONCAT => {
+                    let inputs: Vec<TensorInfo> = deps.iter().map(|child| nodes[&child[0]][child[1]]).collect();
+                    vec![g.concat_multi(params[0], &inputs)]
+                },
                 OpType_OP_SPLIT => todo!(), // reference 'Split' case in taso/examples/load_model.py
                 o => panic!("{} not yet implemented", o),
             };

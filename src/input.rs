@@ -200,27 +200,59 @@ impl GraphConverter {
         }
     }
 
-    pub fn concat_multi(&mut self, axis: i32, ndim: i32, inputs: &[TensorInfo]) -> TensorInfo {
+    pub fn concat_multi(&mut self, axis: i32, inputs: &[TensorInfo]) -> TensorInfo {
         let n_inputs = inputs.len();
         // We can add supports for other number of inputs later when needed.
         // We need to add a new Concat op for each number of inputs
-        assert!(n_inputs == 5);
+        assert!(n_inputs <= 5);
 
+        let n_dim = inputs[0].n_dim;
         let axis_id = self.add_or_get_val(axis);
-        let ndim_id = self.add_or_get_val(ndim);
+        let ndim_id = self.add_or_get_val(n_dim as i32);
 
-        let new_node = Mdl::Concat5([
-            axis_id,
-            ndim_id,
-            inputs[0].id,
-            inputs[1].id,
-            inputs[2].id,
-            inputs[3].id,
-            inputs[4].id,
-        ]);
+        let new_node = match n_inputs {
+            2 => {
+                Mdl::Concat([
+                   axis_id,
+                   ndim_id,
+                   inputs[0].id,
+                   inputs[1].id,
+                ])
+            }
+            3 => {
+                Mdl::Concat3([
+                   axis_id,
+                   ndim_id,
+                   inputs[0].id,
+                   inputs[1].id,
+                   inputs[2].id,
+                ])
+            }
+            4 => {
+                Mdl::Concat4([
+                   axis_id,
+                   ndim_id,
+                   inputs[0].id,
+                   inputs[1].id,
+                   inputs[2].id,
+                   inputs[3].id,
+                ])
+            }
+            5 => {
+                Mdl::Concat5([
+                   axis_id,
+                   ndim_id,
+                   inputs[0].id,
+                   inputs[1].id,
+                   inputs[2].id,
+                   inputs[3].id,
+                   inputs[4].id,
+                ])
+            }
+            _ => panic!("Number of input for concat not supported"),
+        };
 
         let mut shape = inputs[0].shape;
-        let n_dim = inputs[0].n_dim;
         shape[axis as usize] += (1..n_inputs)
             .map(|i| inputs[i].shape[axis as usize])
             .sum::<i32>();

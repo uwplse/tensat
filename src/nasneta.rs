@@ -116,7 +116,7 @@ fn normal_cell(
         outputs.push(graph.add(tmp[2 * i], tmp[2 * i + 1]));
     }
 
-    graph.concat_multi(/*axis=*/ 1, outputs[0].n_dim as i32, &outputs)
+    graph.concat_multi(/*axis=*/ 1, &outputs)
 }
 
 fn reduction_cell(
@@ -192,7 +192,7 @@ fn reduction_cell(
     tmp.push(outputs[1]);
     outputs.push(graph.add(tmp[8], tmp[9]));
 
-    graph.concat_multi(/*axis=*/ 1, outputs[0].n_dim as i32, &outputs)
+    graph.concat_multi(/*axis=*/ 1, &outputs)
 }
 
 /// Gets the RecExpr of a nasnet_a model

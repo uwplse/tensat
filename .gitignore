@@ -12,3 +12,5 @@ bert_time.txt
 bert_old_time.txt
 *.pdf
 *.png
+._*
+.DS_Store
