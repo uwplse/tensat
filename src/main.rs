@@ -322,6 +322,7 @@ fn optimize(matches: clap::ArgMatches) {
             .with_iter_limit(iter_limit)
             .with_expr(&start)
     };
+
     let start_time = Instant::now();
     let mut runner = runner.run(&rules[..]);
     if do_filter_after {
@@ -344,6 +345,7 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Number of edges: {}", num_edges);
     println!("  Number of programs: {}", num_programs);
 
+    /*
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
     if save_graph == "all" {
@@ -395,7 +397,11 @@ fn optimize(matches: clap::ArgMatches) {
     println!("Extracted graph runtime: {}", time_ext);
 
     if let Some(exportf) = matches.value_of("export_model") {
-        save_model(&runner_ext, exportf);
+        save_model(&runner_start, &(exportf.to_owned()+"_start.model"));
+    }
+
+    if let Some(exportf) = matches.value_of("export_model") {
+        save_model(&runner_ext, &(exportf.to_owned()+"_optimized.model"));
     }
 
     if let Some(outf) = matches.value_of("out_file") {
@@ -423,6 +429,7 @@ fn optimize(matches: clap::ArgMatches) {
             eprintln!("Couldn't write to file: {}", e);
         }
     }
+    */
 }
 
 /// Extract the optimal graph from EGraph by ILP

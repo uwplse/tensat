@@ -2,7 +2,7 @@ num_passes=1
 node_limit=50000
 iter_limit=15
 time_limit=3000
-iter_multi=2
+iter_multi=1
 ilp_time_sec=3600
 
 models=(

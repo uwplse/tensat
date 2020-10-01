@@ -114,4 +114,10 @@ nasrnn: 1453, 30900
 nasneta: 1272, 39693
 inceptionv3: 336, 3624
 
+resnext50: 2, 10
+bert: 48, 1712
+nasrnn: 290, 6180
+nasneta: 222, 6827
+inceptionv3: 56, 604
+
 limit: 3000; 10000

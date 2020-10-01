@@ -862,6 +862,8 @@ pub struct MultiPatterns {
     iter_limit: usize,
     /// Maximum number of nodes to added here
     node_limit: usize,
+    /// Number of successfully applied matches
+    num_applied: usize,
     /// Descendents map. Only used if filter_after is true
     descendents: Option<HashMap<Id, HashSet<Id>>>,
 }
@@ -939,6 +941,7 @@ impl MultiPatterns {
             filter_after: filter_after && no_cycle,
             descendents: None,
             node_limit: node_limit,
+            num_applied: 0,
         }
     }
 
@@ -957,6 +960,7 @@ impl MultiPatterns {
         if runner.iterations.len() < self.iter_limit && self.node_limit > 0 {
             println!("Run one");
             let starting_num_nodes = runner.egraph.analysis.newly_added.len();
+            let mut num_applied = 0;
 
             // Construct Vec to store matches for each canonicalized pattern
             let matches: Vec<Vec<SearchMatches>> = self
@@ -987,7 +991,8 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            let n_applied = self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            num_applied += n_applied;
                             let num_nodes = runner.egraph.analysis.newly_added.len();
                             if num_nodes - starting_num_nodes > self.node_limit {
                                 break 'outer;
@@ -1003,7 +1008,8 @@ impl MultiPatterns {
                                 // We don't want to apply multi-pattern rules on the same eclass
                                 continue;
                             }
-                            self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            let n_applied = self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            num_applied += n_applied;
                             let num_nodes = runner.egraph.analysis.newly_added.len();
                             if num_nodes - starting_num_nodes > self.node_limit {
                                 break 'outer;
@@ -1028,12 +1034,14 @@ impl MultiPatterns {
                 self.node_limit - (ending_num_nodes - starting_num_nodes)
             };
             println!("Number of nodes added: {}", ending_num_nodes - starting_num_nodes);
+            println!("Number of applied: {}", num_applied);
         }
 
         Ok(())
     }
 
-    /// Apply a rule with a pair of matches for its src patterns
+    /// Apply a rule with a pair of matches for its src patterns.
+    /// Returns the number of successful applications
     fn apply_match_pair(
         &self,
         rule: &(Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, Pattern<Mdl>, bool),
@@ -1042,7 +1050,8 @@ impl MultiPatterns {
         map_1: &MapToCanonical,
         map_2: &MapToCanonical,
         runner: &mut Runner<Mdl, TensorAnalysis, ()>,
-    ) {
+    ) -> usize {
+        let mut num_applied = 0;
         for subst_1 in &match_1.substs {
             for subst_2 in &match_2.substs {
                 // De-canonicalize the substitutions
@@ -1125,6 +1134,8 @@ impl MultiPatterns {
 
                             // Add the newly added nodes to the ordering list
                             if self.filter_after {
+                                let n_before = runner.egraph.analysis.newly_added.len();
+
                                 let existing_1 = existing_1.unwrap();
                                 let existing_2 = existing_2.unwrap();
                                 let (nodes_in_1, _) = add_newly_added(
@@ -1144,6 +1155,11 @@ impl MultiPatterns {
                                     &merged_subst,
                                     &existing_2_updated,
                                 );
+
+                                let n_after = runner.egraph.analysis.newly_added.len();
+                                if n_after > n_before {
+                                    num_applied += 1;
+                                }
                             }
 
                             runner.egraph.union(id_1, match_1.eclass);
@@ -1153,6 +1169,7 @@ impl MultiPatterns {
                 }
             }
         }
+        num_applied
     }
 
     /// Returns true if there will not be a cycle introduced by applying this rule.
