@@ -345,7 +345,6 @@ fn optimize(matches: clap::ArgMatches) {
     println!("  Number of edges: {}", num_edges);
     println!("  Number of programs: {}", num_programs);
 
-    /*
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
     if save_graph == "all" {
@@ -429,7 +428,6 @@ fn optimize(matches: clap::ArgMatches) {
             eprintln!("Couldn't write to file: {}", e);
         }
     }
-    */
 }
 
 /// Extract the optimal graph from EGraph by ILP

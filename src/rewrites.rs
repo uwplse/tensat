@@ -992,11 +992,11 @@ impl MultiPatterns {
                                 continue;
                             }
                             let n_applied = self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
-                            num_applied += n_applied;
-                            let num_nodes = runner.egraph.analysis.newly_added.len();
-                            if num_nodes - starting_num_nodes > self.node_limit {
-                                break 'outer;
-                            }
+                            //num_applied += n_applied;
+                            //let num_nodes = runner.egraph.analysis.newly_added.len();
+                            //if num_nodes - starting_num_nodes > self.node_limit {
+                            //    break 'outer;
+                            //}
                         }
                     }
                 } else {
@@ -1009,11 +1009,11 @@ impl MultiPatterns {
                                 continue;
                             }
                             let n_applied = self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
-                            num_applied += n_applied;
-                            let num_nodes = runner.egraph.analysis.newly_added.len();
-                            if num_nodes - starting_num_nodes > self.node_limit {
-                                break 'outer;
-                            }
+                            //num_applied += n_applied;
+                            //let num_nodes = runner.egraph.analysis.newly_added.len();
+                            //if num_nodes - starting_num_nodes > self.node_limit {
+                            //    break 'outer;
+                            //}
                         }
                     }
                 }
@@ -1034,7 +1034,7 @@ impl MultiPatterns {
                 self.node_limit - (ending_num_nodes - starting_num_nodes)
             };
             println!("Number of nodes added: {}", ending_num_nodes - starting_num_nodes);
-            println!("Number of applied: {}", num_applied);
+            //println!("Number of applied: {}", num_applied);
         }
 
         Ok(())
@@ -1134,7 +1134,7 @@ impl MultiPatterns {
 
                             // Add the newly added nodes to the ordering list
                             if self.filter_after {
-                                let n_before = runner.egraph.analysis.newly_added.len();
+                                //let n_before = runner.egraph.analysis.newly_added.len();
 
                                 let existing_1 = existing_1.unwrap();
                                 let existing_2 = existing_2.unwrap();
@@ -1156,10 +1156,10 @@ impl MultiPatterns {
                                     &existing_2_updated,
                                 );
 
-                                let n_after = runner.egraph.analysis.newly_added.len();
+                                /*let n_after = runner.egraph.analysis.newly_added.len();
                                 if n_after > n_before {
                                     num_applied += 1;
-                                }
+                                }*/
                             }
 
                             runner.egraph.union(id_1, match_1.eclass);

@@ -91,13 +91,14 @@ TASO doesn't support:
     - efficientnet-lite4
     - rcnn-ilsvrc13
 
-
-TASO support, but no speedup:
+    - vgg19 (fuse conv and relu)
     - mobilenetv2
 
 
+TASO support, but no speedup:
+
+
 TASO has speedup:
-    - vgg19 (fuse conv and relu)
     - inceptionv3 from vldb paper
 
 0930 TODO:
