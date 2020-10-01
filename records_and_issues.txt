@@ -101,8 +101,17 @@ TASO has speedup:
     - inceptionv3 from vldb paper
 
 0930 TODO:
-- Run inceptionv3 exp, pipeline write (1h)
+- Run inceptionv3 exp, pipeline write (Done)
 
-cargo run --release -- -r converted.txt -t converted_multi.txt -u -s none --n_iter 15 --no_order --ilp_time_sec 0 --no_cycle --iter_multi 1 --n_sec 3000 --n_nodes 50000 --all_weight_only -e ilp -d inceptionv3 -o tmp/inceptionv3_1_stats.txt
+cargo run --release -- -r converted.txt -t converted_multi.txt -u -s none --n_iter 15 --no_order --ilp_time_sec 0 --no_cycle --iter_multi 2 --n_sec 3000 --n_nodes 50000 --all_weight_only -e ilp -d inceptionv3 -o tmp/inceptionv3_2_stats.txt
 
-- Run vgg19, mobilenetv2
+- Change to limit number of nodes added by multi, pipeline (including vgg19, mobilenetv2), change threshold, run exp (3h)
+
+
+resnext50: 13, 60
+bert: 241, 8140
+nasrnn: 1453, 30900
+nasneta: 1272, 39693
+inceptionv3: 336, 3624
+
+limit: 3000; 10000

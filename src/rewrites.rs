@@ -860,6 +860,8 @@ pub struct MultiPatterns {
     filter_after: bool,
     /// Number of iterations to run multi-pattern rules
     iter_limit: usize,
+    /// Maximum number of nodes to added here
+    node_limit: usize,
     /// Descendents map. Only used if filter_after is true
     descendents: Option<HashMap<Id, HashSet<Id>>>,
 }
@@ -874,11 +876,13 @@ impl MultiPatterns {
     /// - `iter_limit`: Number of iterations to apply multi-pattern rules
     /// - `filter_after`: if true, do efficient filtering (filter cycle after the iteration);
     ///         else, do naive filtering (check cycle before each application)
+    /// - `node_limit`: Maximum number of nodes to added here
     pub fn with_rules(
         rules: Vec<(&str, bool)>,
         no_cycle: bool,
         iter_limit: usize,
         filter_after: bool,
+        node_limit: usize,
     ) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
@@ -934,6 +938,7 @@ impl MultiPatterns {
             iter_limit: iter_limit,
             filter_after: filter_after && no_cycle,
             descendents: None,
+            node_limit: node_limit,
         }
     }
 
@@ -949,8 +954,10 @@ impl MultiPatterns {
             remove_cycle_by_order(runner);
         }
 
-        if runner.iterations.len() < self.iter_limit {
+        if runner.iterations.len() < self.iter_limit && self.node_limit > 0 {
             println!("Run one");
+            let starting_num_nodes = runner.egraph.analysis.newly_added.len();
+
             // Construct Vec to store matches for each canonicalized pattern
             let matches: Vec<Vec<SearchMatches>> = self
                 .canonical_src_pat
@@ -968,7 +975,7 @@ impl MultiPatterns {
             }
 
             // For each multi rule
-            for (i, rule) in self.rules.iter().enumerate() {
+            'outer: for (i, rule) in self.rules.iter().enumerate() {
                 let map_1 = &self.src_pat_maps[i].0;
                 let map_2 = &self.src_pat_maps[i].1;
                 // If the rule is fully symmetrical
@@ -981,6 +988,10 @@ impl MultiPatterns {
                                 continue;
                             }
                             self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            let num_nodes = runner.egraph.analysis.newly_added.len();
+                            if num_nodes - starting_num_nodes > self.node_limit {
+                                break 'outer;
+                            }
                         }
                     }
                 } else {
@@ -993,6 +1004,10 @@ impl MultiPatterns {
                                 continue;
                             }
                             self.apply_match_pair(rule, match_1, match_2, map_1, map_2, runner);
+                            let num_nodes = runner.egraph.analysis.newly_added.len();
+                            if num_nodes - starting_num_nodes > self.node_limit {
+                                break 'outer;
+                            }
                         }
                     }
                 }
@@ -1005,6 +1020,14 @@ impl MultiPatterns {
                 remove_cycle_by_order(runner);
             }
             println!("Done one");
+
+            let ending_num_nodes = runner.egraph.analysis.newly_added.len();
+            self.node_limit = if ending_num_nodes - starting_num_nodes > self.node_limit {
+                0
+            } else {
+                self.node_limit - (ending_num_nodes - starting_num_nodes)
+            };
+            println!("Number of nodes added: {}", ending_num_nodes - starting_num_nodes);
         }
 
         Ok(())

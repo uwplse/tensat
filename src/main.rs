@@ -164,6 +164,13 @@ fn main() {
                 .help("Max number of iterations to apply multi-pattern rules"),
         )
         .arg(
+            Arg::with_name("node_multi")
+                .long("node_multi")
+                .takes_value(true)
+                .default_value("30000")
+                .help("Max number of nodes added by multi-pattern rules"),
+        )
+        .arg(
             Arg::with_name("no_cycle")
                 .long("no_cycle")
                 .help("Not allowing cycles in EGraph"),
@@ -261,6 +268,11 @@ fn optimize(matches: clap::ArgMatches) {
         .unwrap()
         .parse::<usize>()
         .unwrap();
+    let node_multi = matches
+        .value_of("node_multi")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
     let mut multi_patterns = if let Some(rule_file) = matches.value_of("multi_rules") {
         let learned_rules =
             read_to_string(rule_file).expect("Something went wrong reading the rule file");
@@ -271,13 +283,13 @@ fn optimize(matches: clap::ArgMatches) {
             .map(|x| (x, /*symmetric=*/ true))
             .chain(pre_defined_multi)
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi)
     } else {
         let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
             .iter()
             .map(|&x| (x, /*symmetric=*/ false))
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi)
     };
 
     // Run saturation
