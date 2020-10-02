@@ -1,5 +1,4 @@
-"""Example Google style docstrings.
-
+"""
 This script gets the statistics of the results and plot the result figures.
 
 Example:
@@ -25,7 +24,8 @@ import json
 import scipy
 import scipy.stats
 
-BENCHMARKS = ['nasrnn', 'bert', 'resnext50', 'nasneta']
+BENCHMARKS = ['nasrnn', 'bert', 'resnext50', 'nasneta', 'inceptionv3']
+#BENCHMARKS = ['inceptionv3']
 
 def get_args():
     parser = argparse.ArgumentParser(description='Analysis script, get the statistics we want')
@@ -39,8 +39,14 @@ def speedup_bar(benchmark):
     tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
 
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
-    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(benchmark))
+    if benchmark == "inceptionv3":
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+    else:
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    taso_benchmark_name = benchmark
+    if benchmark == 'nasneta':
+        taso_benchmark_name = 'nasnet_a'
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(taso_benchmark_name))
 
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
@@ -80,10 +86,15 @@ def speedup_bar(benchmark):
     colors = ['b', 'r']
 
     fig, ax1 = plt.subplots()
-    ax1.bar(x_locs[0], taso_mean, width=width, yerr=taso_ste, ecolor='m', capsize=2.0, label='TASO', color=colors[0])
-    ax1.bar(x_locs[1], egg_mean, width=width, yerr=egg_ste, ecolor='m', capsize=2.0, label='Sat.+ILP', color=colors[1])
+    bar_0 = ax1.bar(x_locs[0], taso_mean, width=width, yerr=taso_ste, ecolor='m', error_kw=dict(lw=5, capsize=5, capthick=3), label='TASO', color=colors[0])
+    bar_1 = ax1.bar(x_locs[1], egg_mean, width=width, yerr=egg_ste, ecolor='m', error_kw=dict(lw=5, capsize=5, capthick=3), label='Tensat', color=colors[1])
+    rect = bar_1.patches[0]
 
-    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
+    speedup_ratio = egg_mean / taso_mean
+    height = rect.get_height()
+    ax1.text(rect.get_x() + rect.get_width()/2.0, height/2.0, "{:0.1f}x".format(speedup_ratio), ha='center', va='bottom', weight='heavy')
+
+    #ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
     plt.xticks(x_locs, ['' for _ in range(len(x_locs))])
     ax1.set_ylabel('Speed up percentage')
     ax1.set_xlabel(benchmark)
@@ -91,7 +102,11 @@ def speedup_bar(benchmark):
     fig = plt.gcf()
     fig.set_size_inches(2, 5)
 
-    plt.savefig("{}_speedup.png".format(benchmark), bbox_inches='tight')
+    plt.savefig("{}_speedup.pdf".format(benchmark), bbox_inches='tight')
+
+    figlegend = plt.figure(figsize=(3.0,0.5))
+    figlegend.legend([bar_0, bar_1], ("TASO", "Tensat"), 'center', ncol=2, fancybox=True, shadow=True, prop={'size': 14})
+    figlegend.savefig("legend.pdf")
     plt.close()
 
 def optimizer_time_bar(benchmark):
@@ -99,8 +114,14 @@ def optimizer_time_bar(benchmark):
     tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
 
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
-    taso_stats_file = os.path.join(taso_root, "examples/{}_stats.txt".format(benchmark))
+    if benchmark == "inceptionv3":
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+    else:
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    taso_benchmark_name = benchmark
+    if benchmark == 'nasneta':
+        taso_benchmark_name = 'nasnet_a'
+    taso_stats_file = os.path.join(taso_root, "examples/{}_stats.txt".format(taso_benchmark_name))
 
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
@@ -139,20 +160,32 @@ def optimizer_time_bar(benchmark):
     taso_best = np.mean(taso_bests)
 
     fig, ax2 = plt.subplots()
-    ax2.bar(x_locs[0], taso_total, width=width, label='TASO total', color=colors[0])
-    ax2.bar(x_locs[0], taso_best, width=width, label='TASO best', color=colors[1])
-    ax2.bar(x_locs[1], egg_time, width=width, label='Sat.+ILP', color=colors[2])
+    bar_0 = ax2.bar(x_locs[0], taso_total, width=width, label='TASO total', color=colors[0])
+    bar_1 = ax2.bar(x_locs[0], taso_best, width=width, label='TASO best', color=colors[1])
+    bar_2 = ax2.bar(x_locs[1], egg_time, width=width, label='Tensat', color=colors[2])
+
+    rect = bar_2.patches[0]
+    speedup_ratio = taso_total / egg_time
+    speedup_ratio_best = taso_best / egg_time
+    print("{} speedup best {}".format(benchmark, speedup_ratio_best))
+    height = rect.get_height()
+    ax2.text(rect.get_x() + rect.get_width()/2.0, height, "{:0.1f}x".format(speedup_ratio), ha='center', va='bottom', weight='heavy')
 
     ax2.set_ylabel('Optimizer time (seconds)')
     ax2.set_xlabel(benchmark)
     fig = plt.gcf()
-    fig.set_size_inches(3, 5)
+    fig.set_size_inches(2, 5)
     plt.xticks(x_locs, ['' for _ in range(len(x_locs))])
 
     #ax2.legend(lines + lines2, labels + labels2, fontsize=10)
-    ax2.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
+    #ax2.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True, prop={'size': 12})
 
-    plt.savefig("{}_optim_time.png".format(benchmark), bbox_inches='tight')
+    plt.savefig("{}_optim_time.pdf".format(benchmark), bbox_inches='tight')
+
+    figlegend = plt.figure(figsize=(7.0,0.5))
+    figlegend.legend([bar_0, bar_1, bar_2], ("TASO total", "TASO best", "Tensat"), 'center', ncol=3, fancybox=True, shadow=True, prop={'size': 14})
+    figlegend.savefig("legend_overhead.pdf")
+
     plt.close()
 
 def equivalent_graphs(benchmark):

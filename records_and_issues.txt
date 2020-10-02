@@ -90,7 +90,6 @@ TASO doesn't support:
     - t5encdoer
     - efficientnet-lite4
     - rcnn-ilsvrc13
-
     - vgg19 (fuse conv and relu)
     - mobilenetv2
 
@@ -106,19 +105,9 @@ TASO has speedup:
 
 cargo run --release -- -r converted.txt -t converted_multi.txt -u -s none --n_iter 15 --no_order --ilp_time_sec 0 --no_cycle --iter_multi 2 --n_sec 3000 --n_nodes 50000 --all_weight_only -e ilp -d inceptionv3 -o tmp/inceptionv3_2_stats.txt
 
-- Change to limit number of nodes added by multi, pipeline (including vgg19, mobilenetv2), change threshold, run exp (3h)
 
 
-resnext50: 13, 60
-bert: 241, 8140
-nasrnn: 1453, 30900
-nasneta: 1272, 39693
-inceptionv3: 336, 3624
-
-resnext50: 2, 10
-bert: 48, 1712
-nasrnn: 290, 6180
-nasneta: 222, 6827
-inceptionv3: 56, 604
-
-limit: 3000; 10000
+exp to run:
+- greedy v.s. ilp: multi_iter=1, bert, nasrnn, original time from TASO, optimized time from greedy, ilp (with cycle constraints)
+- ilp with/wo cycle constraints: multi_iter=1,2, bert, ILP with cycle contraints (real & int), ILP without (efficient cycle filtering). Get extraction time
+- efficient cycle filtering: multi_iter=1,2,(3), bert, efficient cycle filtering v.s. vanilla, get saturation time.
