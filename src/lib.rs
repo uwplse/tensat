@@ -12,6 +12,7 @@ pub mod rewrites;
 pub mod testnet;
 pub mod inceptionv3;
 pub mod mobilenetv2;
+pub mod vgg;
 
 pub mod verify {
     use crate::model::*;

@@ -7,7 +7,8 @@ ilp_time_sec=3600
 
 models=(
     #inceptionv3
-    mobilenetv2
+    #mobilenetv2
+    vgg
     #resnext50
     #bert
     #nasrnn

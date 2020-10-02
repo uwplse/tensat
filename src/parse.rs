@@ -121,9 +121,10 @@ vec![g.add(
                     nodes[&deps[1][0]][deps[1][1]],
                 )]},
                 OpType_OP_RELU => vec![g.relu(nodes[&deps[0][0]][deps[0][1]])],
+                OpType_OP_DROPOUT => vec![g.dropout(nodes[&deps[0][0]][deps[0][1]])],
                 OpType_OP_RESHAPE => vec![g.reshape(nodes[&deps[0][0]][deps[0][1]], &params)],
                 OpType_OP_TRANSPOSE => {
-                    vec![g.transpose(nodes[&deps[0][0]][deps[0][1]], &params[..3], params[3] != 0)]
+                    vec![g.transpose(nodes[&deps[0][0]][deps[0][1]], &params[1..1+(params[0] as usize)], params[params[0] as usize +1] != 0)]
                 },
                 OpType_OP_CONV2D => vec![g.conv2d(nodes[&deps[0][0]][deps[0][1]], nodes[&deps[1][0]][deps[1][1]], params[8], params[9], params[10], params[11])],
                 OpType_OP_POOL2D_AVG => vec![g.avgpool2d(nodes[&deps[0][0]][deps[0][1]], params[5], params[6], params[7], params[8], params[9])],

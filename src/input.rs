@@ -113,6 +113,15 @@ impl GraphConverter {
         }
     }
 
+    pub fn dropout(&mut self, inpt: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Dropout(inpt.id);
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            ..inpt
+        }
+    }
+
     pub fn relu(&mut self, inpt: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Relu(inpt.id);
 

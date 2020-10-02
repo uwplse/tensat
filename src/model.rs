@@ -36,6 +36,7 @@ define_language! {
         "matmul"    = Matmul([Id; 3]), // activation, input1, input2
         "conv2d"    = Conv2d([Id; 6]), // conv2d's weight tensor kernel size can not be even, it seems that TASO's output shape computation is incorrect for even kernal size (like 4x4)
         "enlarge"   = Enlarge([Id; 2]), // input_to_enlarge, ref_input
+        "dropout"   = Dropout(Id),
         "relu"      = Relu(Id),
         "tanh"      = Tanh(Id),
         "sigmoid"   = Sigmoid(Id),
@@ -288,6 +289,22 @@ impl Analysis<Mdl> for TensorAnalysis {
                 }
             }
 
+            Mdl::Dropout(a) => {
+                assert!(x(a).dtype == DataKind::Tnsr);
+                let t_a = x(a).meta;
+                let all_weights = x(a).all_weights;
+
+                let res = unsafe { g.dropout(t_a) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            }
+ 
             Mdl::Relu(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;
