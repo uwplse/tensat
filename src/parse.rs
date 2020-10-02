@@ -135,7 +135,7 @@ vec![g.add(
                 OpType_OP_SPLIT => todo!(), // reference 'Split' case in taso/examples/load_model.py
                 OpType_OP_BATCHNORM => {
 println!("yaw");
- vec![g.batchnorm(nodes[&deps[4][0]][deps[4][1]], nodes[&deps[3][0]][deps[3][1]], nodes[&deps[2][0]][deps[2][1]], nodes[&deps[1][0]][deps[1][1]], nodes[&deps[0][0]][deps[0][1]])]
+ vec![g.batchnorm(nodes[&deps[0][0]][deps[0][1]], nodes[&deps[1][0]][deps[1][1]], nodes[&deps[2][0]][deps[2][1]], nodes[&deps[3][0]][deps[3][1]], nodes[&deps[4][0]][deps[4][1]])]
                 },
                 o => panic!("{} not yet implemented", o),
             };
