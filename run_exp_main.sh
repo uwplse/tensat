@@ -6,7 +6,8 @@ iter_multi=1
 ilp_time_sec=3600
 
 models=(
-    inceptionv3
+    #inceptionv3
+    mobilenetv2
     #resnext50
     #bert
     #nasrnn

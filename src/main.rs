@@ -585,7 +585,7 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
             // (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*processed_g).run()
         } else {
-            // (*g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
+            (*g).export_to_file_raw(CString::new("/usr/tamago/orig.onnx").unwrap().into_raw());
             (*g).run()
         }
     }
