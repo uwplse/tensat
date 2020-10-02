@@ -140,6 +140,16 @@ impl GraphConverter {
         }
     }
 
+    pub fn batchnorm(&mut self, inpt: TensorInfo, scale: TensorInfo, bias: TensorInfo, mean: TensorInfo, var: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::BatchNorm([inpt.id, scale.id, bias.id, mean.id, var.id]);
+
+        println!("ndim {}", inpt.n_dim);
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            ..inpt
+        }
+    }
+
     pub fn add(&mut self, inpt_1: TensorInfo, inpt_2: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Ewadd([inpt_1.id, inpt_2.id]);
 

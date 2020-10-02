@@ -56,6 +56,7 @@ define_language! {
         "merge"     = Merge([Id; 2]), // merge_gconv, takes [weight, count]
         "reshape"   = Reshape([Id; 2]), // input, shape_name (format: dim1_dim2...)
         "noop"      = Noop([Id; 2]), // No op, use to combine the outputs of a graph in case there are multiple, since egg works with single root graph
+        "batchnorm" = BatchNorm([Id; 5]), // input, scale, bias, mean, var
         Num(i32),
         Var(Symbol),
     }
@@ -184,6 +185,34 @@ impl Analysis<Mdl> for TensorAnalysis {
                 }
             }
 
+            Mdl::BatchNorm([input, scale, bias, mean, var]) => {
+                // Check types
+                assert!(x(input).dtype == DataKind::Tnsr);
+                assert!(x(scale).dtype == DataKind::Tnsr);
+                assert!(x(bias).dtype == DataKind::Tnsr);
+                assert!(x(mean).dtype == DataKind::Tnsr);
+                assert!(x(var).dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let t_inpt = x(input).meta;
+                let t_scale = x(scale).meta;
+                let t_bias = x(bias).meta;
+                let t_mean = x(mean).meta;
+                let t_var = x(var).meta;
+                let all_weights = x(input).all_weights && x(scale).all_weights && x(bias).all_weights && x(mean).all_weights && x(var).all_weights;
+
+                // Create tensorhandle and get metadata
+                let res =
+                    unsafe { g.batchnorm(t_inpt, t_scale, t_bias, t_mean, t_var) };
+                Self::Data {
+                    dtype: DataKind::Tnsr,
+                    val: 0,
+                    name: String::new(),
+                    meta: res,
+                    meta_2: std::ptr::null_mut(),
+                    all_weights: all_weights,
+                }
+            },
             Mdl::Conv2d([stride_h, stride_w, pad, act, inpt, wght]) => {
                 // Check types
                 assert!(x(stride_h).dtype == DataKind::Scalar);

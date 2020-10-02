@@ -114,6 +114,12 @@ pub fn parse_model(rs_s: &str) -> GraphConverter {
                     nodes[&deps[0][0]][deps[0][1]],
                     nodes[&deps[1][0]][deps[1][1]],
                 )],
+                OpType_OP_EW_ADD => {
+println!("{:?}", &deps);
+vec![g.add(
+                    nodes[&deps[0][0]][deps[0][1]],
+                    nodes[&deps[1][0]][deps[1][1]],
+                )]},
                 OpType_OP_RELU => vec![g.relu(nodes[&deps[0][0]][deps[0][1]])],
                 OpType_OP_RESHAPE => vec![g.reshape(nodes[&deps[0][0]][deps[0][1]], &params)],
                 OpType_OP_TRANSPOSE => {
@@ -127,6 +133,10 @@ pub fn parse_model(rs_s: &str) -> GraphConverter {
                     vec![g.concat_multi(params[0], &inputs)]
                 },
                 OpType_OP_SPLIT => todo!(), // reference 'Split' case in taso/examples/load_model.py
+                OpType_OP_BATCHNORM => {
+println!("yaw");
+ vec![g.batchnorm(nodes[&deps[4][0]][deps[4][1]], nodes[&deps[3][0]][deps[3][1]], nodes[&deps[2][0]][deps[2][1]], nodes[&deps[1][0]][deps[1][1]], nodes[&deps[0][0]][deps[0][1]])]
+                },
                 o => panic!("{} not yet implemented", o),
             };
             nodes.insert(guid, node);
