@@ -1,4 +1,4 @@
-num_passes=1
+num_passes=10
 node_limit=50000
 iter_limit=15
 time_limit=3000
@@ -7,9 +7,9 @@ ilp_time_sec=3600
 
 models=(
     #inceptionv3
-    #mobilenetv2
+    mobilenetv2
     #vgg
-    squeezenet
+    #squeezenet
     #resnext50
     #bert
     #nasrnn
