@@ -268,6 +268,7 @@ fn optimize(matches: clap::ArgMatches) {
 
     // Get multi-pattern rules. learned_rules are the learned rules from TASO,
     // pre_defined_multi are the hand-specified rules from TASO
+    let n_sec = matches.value_of("n_sec").unwrap().parse::<u64>().unwrap();
     let iter_multi = matches
         .value_of("iter_multi")
         .unwrap()
@@ -288,17 +289,16 @@ fn optimize(matches: clap::ArgMatches) {
             .map(|x| (x, /*symmetric=*/ true))
             .chain(pre_defined_multi)
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi, n_sec)
     } else {
         let multi_rules: Vec<(&str, bool)> = PRE_DEFINED_MULTI
             .iter()
             .map(|&x| (x, /*symmetric=*/ false))
             .collect();
-        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi)
+        MultiPatterns::with_rules(multi_rules, no_cycle, iter_multi, filter_after, node_multi, n_sec)
     };
 
     // Run saturation
-    let n_sec = matches.value_of("n_sec").unwrap().parse::<u64>().unwrap();
     let time_limit_sec = Duration::new(n_sec, 0);
     let iter_limit = matches
         .value_of("n_iter")

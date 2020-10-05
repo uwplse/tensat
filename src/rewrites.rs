@@ -862,6 +862,8 @@ pub struct MultiPatterns {
     iter_limit: usize,
     /// Maximum number of nodes to added here
     node_limit: usize,
+    /// Maximum number of seconds to run
+    n_sec: u64,
     /// Number of successfully applied matches
     num_applied: usize,
     /// Descendents map. Only used if filter_after is true
@@ -879,12 +881,14 @@ impl MultiPatterns {
     /// - `filter_after`: if true, do efficient filtering (filter cycle after the iteration);
     ///         else, do naive filtering (check cycle before each application)
     /// - `node_limit`: Maximum number of nodes to added here
+    /// - `n_sec`: Maximum number of seconds to run
     pub fn with_rules(
         rules: Vec<(&str, bool)>,
         no_cycle: bool,
         iter_limit: usize,
         filter_after: bool,
         node_limit: usize,
+        n_sec: u64,
     ) -> MultiPatterns {
         assert!(rules.len() % 2 == 0);
 
@@ -942,6 +946,7 @@ impl MultiPatterns {
             descendents: None,
             node_limit: node_limit,
             num_applied: 0,
+            n_sec: n_sec,
         }
     }
 
@@ -957,9 +962,10 @@ impl MultiPatterns {
             remove_cycle_by_order(runner);
         }
 
-        if runner.iterations.len() < self.iter_limit && self.node_limit > 0 {
+        if runner.iterations.len() < self.iter_limit && self.node_limit > 0 && self.n_sec > 0 {
             println!("Run one");
             let starting_num_nodes = runner.egraph.analysis.newly_added.len();
+            let start_time = Instant::now();
             let mut num_applied = 0;
 
             // Construct Vec to store matches for each canonicalized pattern
@@ -997,6 +1003,9 @@ impl MultiPatterns {
                             //if num_nodes - starting_num_nodes > self.node_limit {
                             //    break 'outer;
                             //}
+                            if start_time.elapsed().as_secs() > self.n_sec {
+                                break 'outer;
+                            }
                         }
                     }
                 } else {
@@ -1014,6 +1023,9 @@ impl MultiPatterns {
                             //if num_nodes - starting_num_nodes > self.node_limit {
                             //    break 'outer;
                             //}
+                            if start_time.elapsed().as_secs() > self.n_sec {
+                                break 'outer;
+                            }
                         }
                     }
                 }
@@ -1034,6 +1046,14 @@ impl MultiPatterns {
                 self.node_limit - (ending_num_nodes - starting_num_nodes)
             };
             println!("Number of nodes added: {}", ending_num_nodes - starting_num_nodes);
+
+            let time_taken = start_time.elapsed().as_secs();
+            self.n_sec = if time_taken > self.n_sec {
+                0
+            } else {
+                self.n_sec - time_taken
+            };
+
             //println!("Number of applied: {}", num_applied);
         }
 
