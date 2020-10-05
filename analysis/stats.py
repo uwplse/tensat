@@ -109,6 +109,60 @@ def speedup_bar(benchmark):
     figlegend.savefig("legend.pdf")
     plt.close()
 
+def speedup_bar_result(benchmark):
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+
+    if benchmark == "inceptionv3":
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+    else:
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    taso_benchmark_name = benchmark
+    if benchmark == 'nasneta':
+        taso_benchmark_name = 'nasnet_a'
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(taso_benchmark_name))
+
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    egg_runtimes = []
+    for res in egg_results[-5:]:
+        egg_runtimes.append(res['optimized'])
+
+    with open(taso_runtime_file, 'r') as f:
+        content = f.readlines()
+
+    orig_runtimes = []
+    taso_runtimes = []
+    for line in content[-5:]:
+        times = line.split('\t')
+        orig_runtimes.append(float(times[0]))
+        taso_runtimes.append(float(times[1]))
+
+    # Get original runtime mean, TASO mean and ste, egg mean and ste
+    orig_mean = np.mean(orig_runtimes)
+    taso_speedup = [(orig_mean/x - 1) * 100 for x in taso_runtimes]
+    egg_speedup = [(orig_mean/x - 1) * 100 for x in egg_runtimes]
+    taso_mean = np.mean(taso_speedup)
+    egg_mean = np.mean(egg_speedup)
+    taso_ste = scipy.stats.sem(taso_speedup)
+    egg_ste = scipy.stats.sem(egg_speedup)
+
+    taso_mean_time = np.mean(taso_runtimes)
+
+    speedup_ratio = egg_mean / taso_mean
+
+    result = {}
+    result['taso_mean'] = taso_mean
+    result['taso_ste'] = taso_ste
+    result['egg_mean'] = egg_mean
+    result['egg_ste'] = egg_ste
+    result['speedup_ratio'] = speedup_ratio
+
+    return result
+
 def optimizer_time_bar(benchmark):
     # Read in results
     tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -187,6 +241,61 @@ def optimizer_time_bar(benchmark):
     figlegend.savefig("legend_overhead.pdf")
 
     plt.close()
+
+def optimizer_time_result(benchmark):
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+
+    if benchmark == "inceptionv3":
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+    else:
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    taso_benchmark_name = benchmark
+    if benchmark == 'nasneta':
+        taso_benchmark_name = 'nasnet_a'
+    taso_stats_file = os.path.join(taso_root, "examples/{}_stats.txt".format(taso_benchmark_name))
+
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    egg_times = []
+    egg_sat_times = []
+    egg_ext_times = []
+    for res in egg_results[-5:]:
+        egg_times.append(res['extraction'] + res['saturation'])
+        egg_sat_times.append(res['saturation'])
+        egg_ext_times.append(res['extraction'])
+
+    with open(taso_stats_file, 'r') as f:
+        content = f.readlines()
+
+    taso_totals = []
+    taso_bests = []
+    for line in content[-5:]:
+        elements = line.split(' ')
+        taso_totals.append(float(elements[3][:-1]))
+        taso_bests.append(float(elements[1][:-1]))
+
+    sat_time_mean = np.mean(egg_sat_times)
+    ext_time_mean = np.mean(egg_ext_times)
+
+    print("{}, sat time {}, ext time {}".format(benchmark, sat_time_mean, ext_time_mean))
+
+    egg_time = np.mean(egg_times)
+    taso_total = np.mean(taso_totals)
+    taso_best = np.mean(taso_bests)
+
+    speedup_ratio = taso_total / egg_time
+
+    result = {}
+    result['egg_time'] = egg_time
+    result['taso_total'] = taso_total
+    result['taso_best'] = taso_best
+    result['speedup_ratio'] = speedup_ratio
+
+    return result
 
 def equivalent_graphs(benchmark):
     # Read in results
@@ -339,11 +448,100 @@ def multi_trend(benchmark):
     plt.savefig("{}_trend_nodes.png".format(benchmark), bbox_inches='tight')
     plt.close()
 
+def multi_results(benchmark):
+    """This function gets the results of the trend when the number of iterations of
+    multi-pattern rewrites varies.
+
+    It includes:
+        How the speedup varies
+        How the optimizer time varies
+        How the number of enodes in the final egraph varies
+
+    """
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(benchmark))
+
+    with open(taso_runtime_file, 'r') as f:
+        content = f.readlines()
+
+    orig_runtimes = []
+    for line in content[-5:]:
+        times = line.split('\t')
+        orig_runtimes.append(float(times[0]))
+    orig_mean = np.mean(orig_runtimes)
+
+    # iter=1
+    mean_iter_1, mean_sat_iter_1, mean_ext_iter_1, mean_nodes_iter_1 = get_iter_stats(benchmark, tamago_root, iter=1)
+
+    # iter=2
+    mean_iter_2, mean_sat_iter_2, mean_ext_iter_2, mean_nodes_iter_2 = get_iter_stats(benchmark, tamago_root, iter=2)
+
+    # iter=3
+    mean_iter_3, mean_sat_iter_3, mean_ext_iter_3, mean_nodes_iter_3 = get_iter_stats(benchmark, tamago_root, iter=3)
+
+    # Plot runtime & optimizer time v.s. iter
+    speedup = [orig_mean/mean_iter_1, orig_mean/mean_iter_2]
+    optimizer_time = [mean_sat_iter_1+mean_ext_iter_1, mean_sat_iter_2+mean_ext_iter_2]
+    if mean_iter_3 > 0:
+        speedup.append(orig_mean/mean_iter_3)
+        optimizer_time.append(mean_sat_iter_3+mean_ext_iter_3)
+
+    speedup = [(i-1)*100 for i in speedup]
+
+    nodes = [mean_nodes_iter_1, mean_nodes_iter_2, mean_nodes_iter_3]
+
+    result = {}
+    result['speedup'] = speedup
+    result['optimizer'] = optimizer_time
+    result['nodes'] = nodes
+
+    return result
 
 def plot_speedup(args):
     plt.rcParams.update({'font.size': 18})
     for benchmark in BENCHMARKS:
         speedup_bar(benchmark)
+
+def plot_speedup_together(args):
+    plt.rcParams.update({'font.size': 18})
+    results = {}
+    for benchmark in BENCHMARKS:
+        results[benchmark] = speedup_bar_result(benchmark)
+
+    # Plot bar and save
+    width = 0.8
+    x_locs = [i*3 for i in range(len(BENCHMARKS))]
+
+    colors = ['b', 'r']
+
+    fig, ax1 = plt.subplots()
+    for (i, benchmark) in enumerate(BENCHMARKS):
+        x_taso = x_locs[i] + width/2
+        x_egg = x_taso + 1
+        result = results[benchmark]
+
+        bar_0 = ax1.bar(x_taso, result['taso_mean'], width=width, yerr=result['taso_ste'], ecolor='m', error_kw=dict(lw=5, capsize=5, capthick=3), label='TASO', color=colors[0])
+        bar_1 = ax1.bar(x_egg, result['egg_mean'], width=width, yerr=result['egg_ste'], ecolor='m', error_kw=dict(lw=5, capsize=5, capthick=3), label='Tensat', color=colors[1])
+        rect = bar_1.patches[0]
+
+        height = rect.get_height()
+        ax1.text(rect.get_x() + rect.get_width()/2.0, height+0.5, "{:0.1f}x".format(result['speedup_ratio']), ha='center', va='bottom', weight='heavy')
+
+    #ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
+    ax1.legend((bar_0, bar_1), ("TASO", "Tensat"), loc='upper center', ncol=2, fancybox=True, shadow=True, prop={'size': 18})
+    tick_locs = [x + width/2 + 0.5 for x in x_locs]
+    plt.xticks(tick_locs, BENCHMARKS)
+    ax1.set_ylabel('Speed up percentage')
+
+    fig = plt.gcf()
+    fig.set_size_inches(10, 12)
+
+    plt.savefig("all_speedup.pdf", bbox_inches='tight')
+
+    plt.close()
 
 def get_equivalent_graphs(args):
     for benchmark in BENCHMARKS:
@@ -354,10 +552,114 @@ def plot_optimizer_time(args):
     for benchmark in BENCHMARKS:
         optimizer_time_bar(benchmark)
 
+def optimizer_time_together(args):
+    plt.rcParams.update({'font.size': 18})
+    results = {}
+    for benchmark in BENCHMARKS:
+        results[benchmark] = optimizer_time_result(benchmark)
+
+    # Plot bar and save
+    width = 0.8
+    x_locs = [i*3 for i in range(len(BENCHMARKS))]
+
+    colors = ['b', 'g', 'r', 'c']
+
+    fig, ax1 = plt.subplots()
+    for (i, benchmark) in enumerate(BENCHMARKS):
+        x_taso = x_locs[i] + width/2
+        x_egg = x_taso + 1
+        result = results[benchmark]
+
+        bar_0 = ax1.bar(x_taso, result['taso_total'], width=width, label='TASO total', color=colors[0])
+        bar_1 = ax1.bar(x_taso, result['taso_best'], width=width, label='TASO best', color=colors[1])
+        bar_2 = ax1.bar(x_egg, result['egg_time'], width=width, label='Tensat', color=colors[2])
+
+        rect = bar_2.patches[0]
+        height = rect.get_height()
+        ax1.text(rect.get_x() + rect.get_width()/2.0 + 0.3, height, "{:0.1f}x".format(result['speedup_ratio']), ha='center', va='bottom', weight='heavy')
+
+    ax1.set_yscale('log')
+    ax1.set_ylim([None,5000])
+    ax1.set_ylabel('Optimizer time (seconds)')
+
+
+    #ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
+    ax1.legend((bar_0, bar_1, bar_2), ("TASO total", "TASO best", "Tensat"), loc='upper center', ncol=3, fancybox=True, shadow=True, prop={'size': 18})
+    tick_locs = [x + width/2 + 0.5 for x in x_locs]
+    plt.xticks(tick_locs, BENCHMARKS)
+
+    fig = plt.gcf()
+    fig.set_size_inches(10, 12)
+
+    plt.savefig("all_optim_time.pdf", bbox_inches='tight')
+
+    plt.close()
+
+
 def plot_multi_trend(args):
     plt.rcParams.update({'font.size': 18})
     for benchmark in BENCHMARKS:
         multi_trend(benchmark)
+
+def multi_trend_together(args):
+    plt.rcParams.update({'font.size': 18})
+    results = {}
+    for benchmark in BENCHMARKS:
+        results[benchmark] = multi_results(benchmark)
+
+    colors = ['b', 'g', 'tab:orange', 'm', 'r', 'c', 'k']
+    n_iter = [1,2,3]
+
+    # Plot speedup
+    #create a new figure with two subplots
+    fig,(ax1,ax2) = plt.subplots(2, 1, sharex=True)
+
+    #set the "zoom" or the y-limits on each subplots
+    ax2.set_ylim(0,15)
+    ax1.set_ylim(60,90)
+
+    #set ytick marks for upper plot (optional, but the default tick marks may not look nice)
+    #upper_yticks = np.arange(0,501,100)
+    #ax1.set_yticks(upper_yticks)
+
+    #set ytick marks for lower plot (optional, but the default tick marks may not look nice)
+    #lower_yticks = np.arange(600,4000,1000)
+    #ax2.set_yticks(lower_yticks)
+
+    ax2.set_xlabel('#iter of multi pattern rewrites')
+
+    for (i, benchmark) in enumerate(BENCHMARKS):
+        speedup = results[benchmark]['speedup']
+        ax1.plot(n_iter[:len(speedup)], speedup, marker='s', color=colors[i], label=benchmark)
+        ax2.plot(n_iter[:len(speedup)], speedup, marker='s', color=colors[i], label=benchmark)
+    #remove the bottom border from the top plot and the upper border from the bottom plot
+    ax1.spines['bottom'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+
+
+    ax2.set_xticks(n_iter)
+    ax2.set_xticklabels(['{}'.format(i) for i in n_iter])
+
+    handles, labels = ax2.get_legend_handles_labels()
+
+    fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
+
+    #fig.set_size_inches(4, 6)
+
+    fig.savefig("speedup_trend.pdf", bbox_inches='tight')
+
+    # Plot legend
+    figlegend = plt.figure(figsize=(2.0,3.0))
+    figlegend.legend(handles, labels, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
+    figlegend.savefig("legend_trend.pdf")
+
+
+    # Plot optimizer time
+
+
+    # Plot number of nodes
+
+    plt.close()
 
 def main():
     # Parse arguments
@@ -365,15 +667,24 @@ def main():
     if args.mode == 'all_speedup':
         # Bar plot of speedups of the optimized graphs
         plot_speedup(args)
+    elif args.mode == 'speedup_together':
+        # Bar plot of speedups of the optimized graphs, together
+        plot_speedup_together(args)
     elif args.mode == 'equivalent':
         # Get number of equivalent graphs explored
         get_equivalent_graphs(args)
     elif args.mode == 'optimizer':
         # Bar plot of the optimizer time
         plot_optimizer_time(args)
+    elif args.mode == 'optimizer_together':
+        # Bar plot of the optimizer time
+        optimizer_time_together(args)
     elif args.mode == 'multi':
         # Plot trend with iterations of multi-pattern rewrites
         plot_multi_trend(args)
+    elif args.mode == "multi_together":
+        # Plot trend with iterations of multi-pattern rewrites, benchmarks together
+        multi_trend_together(args)
 
 if __name__ == '__main__':
     try:
