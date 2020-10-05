@@ -618,14 +618,6 @@ def multi_trend_together(args):
     ax2.set_ylim(0,15)
     ax1.set_ylim(60,90)
 
-    #set ytick marks for upper plot (optional, but the default tick marks may not look nice)
-    #upper_yticks = np.arange(0,501,100)
-    #ax1.set_yticks(upper_yticks)
-
-    #set ytick marks for lower plot (optional, but the default tick marks may not look nice)
-    #lower_yticks = np.arange(600,4000,1000)
-    #ax2.set_yticks(lower_yticks)
-
     ax2.set_xlabel('#iter of multi pattern rewrites')
 
     for (i, benchmark) in enumerate(BENCHMARKS):
@@ -635,7 +627,6 @@ def multi_trend_together(args):
     #remove the bottom border from the top plot and the upper border from the bottom plot
     ax1.spines['bottom'].set_visible(False)
     ax2.spines['top'].set_visible(False)
-
 
     ax2.set_xticks(n_iter)
     ax2.set_xticklabels(['{}'.format(i) for i in n_iter])
@@ -655,6 +646,24 @@ def multi_trend_together(args):
 
 
     # Plot optimizer time
+    fig_optim, ax_optim = plt.subplots()
+
+    for (i, benchmark) in enumerate(BENCHMARKS):
+        optimizer_time = results[benchmark]['optimizer']
+        lns2 = ax_optim.plot(n_iter[:len(optimizer_time)], optimizer_time, marker='s', color=colors[i], label=benchmark)
+        if len(optimizer_time) < 3:
+            ax_optim.scatter(n_iter[-1], 3600, marker='x', color=colors[i])
+
+    ax_optim.set_yscale('log')
+    ax_optim.set_ylabel('Optimizer time (seconds)')
+
+    ax_optim.set_xticks(n_iter)
+    ax_optim.set_xticklabels(['{}'.format(i) for i in n_iter])
+
+    fig_optim.savefig("optim_trend.pdf", bbox_inches='tight')
+
+
+
 
 
     # Plot number of nodes
