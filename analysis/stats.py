@@ -656,17 +656,29 @@ def multi_trend_together(args):
 
     ax_optim.set_yscale('log')
     ax_optim.set_ylabel('Optimizer time (seconds)')
+    ax_optim.set_xlabel('#iter of multi pattern rewrites')
 
     ax_optim.set_xticks(n_iter)
     ax_optim.set_xticklabels(['{}'.format(i) for i in n_iter])
 
     fig_optim.savefig("optim_trend.pdf", bbox_inches='tight')
 
-
-
-
-
     # Plot number of nodes
+    fig_nodes, ax_nodes = plt.subplots()
+
+    for (i, benchmark) in enumerate(BENCHMARKS):
+        nodes = results[benchmark]['nodes']
+        lns2 = ax_nodes.plot(n_iter[:len(nodes)], nodes, marker='s', color=colors[i], label=benchmark)
+
+    ax_nodes.set_yscale('log')
+    ax_nodes.set_ylabel('#enodes')
+
+    ax_nodes.set_xticks(n_iter)
+    ax_nodes.set_xticklabels(['{}'.format(i) for i in n_iter])
+
+    ax_nodes.set_xlabel('#iter of multi pattern rewrites')
+
+    fig_nodes.savefig("nodes_trend.pdf", bbox_inches='tight')
 
     plt.close()
 
