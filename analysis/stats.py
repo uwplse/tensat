@@ -77,9 +77,9 @@ def speedup_bar(benchmark):
 
     taso_mean_time = np.mean(taso_runtimes)
 
-    print("{}: orig {} taso {}".format(benchmark, orig_mean, taso_mean_time))
+    print("{}: orig {} taso {} egg {}".format(benchmark, orig_mean, taso_mean_time, np.mean(egg_runtimes)))
 
-    # Plot bar and save
+    '''# Plot bar and save
     width = 0.8
     x_locs = [0, 1]
     x_locs = [a + width/2 for a in x_locs]
@@ -107,7 +107,7 @@ def speedup_bar(benchmark):
     figlegend = plt.figure(figsize=(3.0,0.5))
     figlegend.legend([bar_0, bar_1], ("TASO", "Tensat"), 'center', ncol=2, fancybox=True, shadow=True, prop={'size': 14})
     figlegend.savefig("legend.pdf")
-    plt.close()
+    plt.close()'''
 
 def speedup_bar_result(benchmark):
     # Read in results
