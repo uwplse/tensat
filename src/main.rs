@@ -16,6 +16,9 @@ use tamago::resnext50;
 use tamago::rewrites::*;
 use tamago::testnet;
 use tamago::inceptionv3;
+use tamago::mobilenetv2;
+use tamago::vgg;
+use tamago::squeezenet;
 use tamago::{parse::*, verify::*};
 
 use serde::{Deserialize, Serialize};
@@ -255,6 +258,9 @@ fn optimize(matches: clap::ArgMatches) {
         Some("bert") => bert::get_bert(),
         Some("nasneta") => nasneta::get_nasneta(),
         Some("inceptionv3") => inceptionv3::get_inceptionv3(),
+        Some("mobilenetv2") => mobilenetv2::get_mobilenetv2(),
+        Some("vgg") => vgg::get_vgg(),
+        Some("squeezenet") => squeezenet::get_squeezenet(),
         Some(_) => panic!("The model name is not supported"),
         None => {
             let model_file = matches
@@ -311,6 +317,7 @@ fn optimize(matches: clap::ArgMatches) {
         .parse::<usize>()
         .unwrap();
 
+    println!("saturating");
     let runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
         // beginning of each iteration in equality saturation
@@ -327,6 +334,7 @@ fn optimize(matches: clap::ArgMatches) {
             .with_iter_limit(iter_limit)
             .with_expr(&start)
     };
+    println!("saturated");
 
     let start_time = Instant::now();
     let mut runner = runner.run(&rules[..]);
@@ -614,7 +622,7 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
             // (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*processed_g).run()
         } else {
-            // (*g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
+            (*g).export_to_file_raw(CString::new("/usr/tamago/orig.onnx").unwrap().into_raw());
             (*g).run()
         }
     }

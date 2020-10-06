@@ -113,6 +113,15 @@ impl GraphConverter {
         }
     }
 
+    pub fn dropout(&mut self, inpt: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::Dropout(inpt.id);
+
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            ..inpt
+        }
+    }
+
     pub fn relu(&mut self, inpt: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Relu(inpt.id);
 
@@ -134,6 +143,16 @@ impl GraphConverter {
     pub fn sigmoid(&mut self, inpt: TensorInfo) -> TensorInfo {
         let new_node = Mdl::Sigmoid(inpt.id);
 
+        TensorInfo {
+            id: self.rec_expr.add(new_node),
+            ..inpt
+        }
+    }
+
+    pub fn batchnorm(&mut self, inpt: TensorInfo, scale: TensorInfo, bias: TensorInfo, mean: TensorInfo, var: TensorInfo) -> TensorInfo {
+        let new_node = Mdl::BatchNorm([inpt.id, scale.id, bias.id, mean.id, var.id]);
+
+        println!("ndim {}", inpt.n_dim);
         TensorInfo {
             id: self.rec_expr.add(new_node),
             ..inpt
