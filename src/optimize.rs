@@ -579,6 +579,39 @@ impl CostModel {
                 }
             }
 
+            Mdl::BatchNorm([_inpt, _scale, _bias, _mean, _var]) => {
+                // Check types
+                let _inpt_data = x(_inpt);
+                let _scale_data = x(_scale);
+                let _bias_data = x(_bias);
+                let _mean_data = x(_mean);
+                let _var_data = x(_var);
+                assert!(_inpt_data.dtype == DataKind::Tnsr);
+                assert!(_scale_data.dtype == DataKind::Tnsr);
+                assert!(_bias_data.dtype == DataKind::Tnsr);
+                assert!(_mean_data.dtype == DataKind::Tnsr);
+                assert!(_var_data.dtype == DataKind::Tnsr);
+
+                // Get arguments
+                let runtime = unsafe {
+                    let t_inpt = *_inpt_data.meta;
+                    let t_scale = *_scale_data.meta;
+                    let t_bias = *_bias_data.meta;
+                    let t_mean = *_mean_data.meta;
+                    let t_var = *_var_data.meta;
+                    // Get op
+                    let op = (*g.model).get_or_create_batchnorm(t_inpt, t_scale, t_bias, t_mean, t_var);
+                    assert!(op != Op_INVALID_OP);
+                    (*op.ptr).runtime.clone()
+                };
+
+                if self.ignore_all_weight_only && x(_inpt).all_weights && x(_scale).all_weights && x(_bias).all_weights && x(_mean).all_weights && x(_var).all_weights {
+                    self.all_weight_discount * runtime
+                } else {
+                    runtime
+                }
+            }
+
             other => {
                 println!("Get cost not implemented for: {:?}", other);
                 0.0
