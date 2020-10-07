@@ -67,6 +67,7 @@ impl CostModel {
             | Mdl::Split1(_)
             | Mdl::Reshape(_)
             | Mdl::Transpose(_)
+            | Mdl::Dropout(_)
             | Mdl::Noop(_) => 0.0,
 
             Mdl::Relu(_a) => {

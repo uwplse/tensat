@@ -24,7 +24,7 @@ import json
 import scipy
 import scipy.stats
 
-BENCHMARKS = ['nasrnn', 'bert', 'resnext50', 'nasneta', 'inceptionv3']
+BENCHMARKS = ['bert', 'resnext50', 'nasneta', 'inceptionv3']
 #BENCHMARKS = ['inceptionv3']
 
 def get_args():
@@ -46,7 +46,7 @@ def speedup_bar(benchmark):
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
         taso_benchmark_name = 'nasnet_a'
-    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(taso_benchmark_name))
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time_1k.txt".format(taso_benchmark_name))
 
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()

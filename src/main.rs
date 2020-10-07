@@ -317,7 +317,6 @@ fn optimize(matches: clap::ArgMatches) {
         .parse::<usize>()
         .unwrap();
 
-    println!("saturating");
     let runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
         // beginning of each iteration in equality saturation
@@ -334,7 +333,6 @@ fn optimize(matches: clap::ArgMatches) {
             .with_iter_limit(iter_limit)
             .with_expr(&start)
     };
-    println!("saturated");
 
     let start_time = Instant::now();
     let mut runner = runner.run(&rules[..]);
@@ -622,7 +620,7 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
             // (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
             (*processed_g).run()
         } else {
-            (*g).export_to_file_raw(CString::new("/usr/tamago/orig.onnx").unwrap().into_raw());
+            //(*g).export_to_file_raw(CString::new("/usr/tamago/orig.onnx").unwrap().into_raw());
             (*g).run()
         }
     }
