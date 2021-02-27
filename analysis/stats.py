@@ -250,6 +250,33 @@ def optimizer_time_bar(benchmark):
 
     plt.close()
 
+def optimizer_time_breakdown(benchmark, post_fix=''):
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    if benchmark == "inceptionv3_2":
+        egg_stats_file = os.path.join(tamago_root, "tmp/inceptionv3_2_stats.txt")
+    else:
+        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    egg_times = []
+    egg_sat_times = []
+    egg_ext_times = []
+    for res in egg_results[-5:]:
+        egg_times.append(res['extraction'] + res['saturation'])
+        egg_sat_times.append(res['saturation'])
+        egg_ext_times.append(res['extraction'])
+
+    sat_time_mean = np.mean(egg_sat_times)
+    ext_time_mean = np.mean(egg_ext_times)
+
+    print(benchmark)
+    print("sat time {}, ext time {}".format(sat_time_mean, ext_time_mean))
+
 def optimizer_time_result(benchmark, post_fix=''):
     # Read in results
     tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -307,6 +334,11 @@ def optimizer_time_result(benchmark, post_fix=''):
     result['taso_best'] = taso_best
     result['speedup_ratio'] = speedup_ratio
 
+    egg_sat_time = np.mean(egg_sat_times)
+    egg_ext_time = np.mean(egg_ext_time)
+    result['egg_sat_time'] = egg_sat_time
+    result['egg_ext_time'] = egg_ext_time
+
     return result
 
 def equivalent_graphs(benchmark):
@@ -360,6 +392,31 @@ def get_iter_stats(benchmark, tamago_root, iter=1):
     mean_nodes_iter = np.mean(egg_n_nodes)
 
     return (mean_iter, mean_sat_iter, mean_ext_iter, mean_nodes_iter)
+
+def get_iter_stats_self(benchmark, tamago_root, iter=1):
+    egg_stats_file = os.path.join(tamago_root, "tmp/{}_{}_stats.txt".format(benchmark, iter))
+    with open(egg_stats_file, 'r') as egg_f:
+        egg_results = egg_f.readlines()
+
+    egg_results = [json.loads(x) for x in egg_results]
+    orig_runtimes = []
+    egg_runtimes = []
+    egg_sat_times = []
+    egg_ext_times = []
+    egg_n_nodes = []
+    for res in egg_results[-1:]:
+        orig_runtimes.append(res['original'])
+        egg_runtimes.append(res['optimized'])
+        egg_sat_times.append(res['saturation'])
+        egg_ext_times.append(res['extraction'])
+        egg_n_nodes.append(res['nodes'])
+
+    mean_orig = np.mean(orig_runtimes)
+    mean_optim = np.mean(egg_runtimes)
+    mean_sat_iter = np.mean(egg_sat_times)
+    mean_ext_iter = np.mean(egg_ext_times)
+
+    return (mean_orig, mean_optim, mean_sat_iter + mean_ext_iter)
 
 def multi_trend(benchmark):
     """This function plots the trend when the number of iterations of
@@ -588,6 +645,11 @@ def plot_optimizer_time(args):
     for benchmark in BENCHMARKS:
         optimizer_time_bar(benchmark)
 
+def time_breakdown(args):
+    results = {}
+    for benchmark in BENCHMARKS:
+        optimizer_time_breakdown(benchmark)
+
 def optimizer_time_together(args):
     plt.rcParams.update({'font.size': 18})
     results = {}
@@ -652,6 +714,133 @@ def plot_multi_trend(args):
     plt.rcParams.update({'font.size': 18})
     for benchmark in BENCHMARKS:
         multi_trend(benchmark)
+
+def traj_results(benchmark):
+    """This function gets the trajectory of how speedup varies with optimization time. For Tensat, it is when the number of iterations of
+    multi-pattern rewrites varies; for TASO, it is varying number of iterations.
+
+    Return: dict with
+    - 'taso': {'speedup': [speedups], 'time': [times]}
+    - 'tensat': {'speedup': [speedups], 'time': [times]}
+    """
+    # Read in results
+    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+
+    taso_benchmark_name = benchmark
+    if benchmark == 'nasneta':
+        taso_benchmark_name = 'nasnet_a'
+    elif benchmark == 'vgg':
+        taso_benchmark_name = 'vgg19-7'
+
+    taso_iters = [10, 30, 100]
+    orig_times = []
+    speedups = []
+    optimizer_times = []
+    for iter in taso_iters:
+
+        taso_runtime_file = os.path.join(taso_root, "examples/{}_time_{}.txt".format(taso_benchmark_name, iter))
+
+        with open(taso_runtime_file, 'r') as f:
+            content = f.readlines()
+
+        orig_runtimes = []
+        optim_runtimes = []
+        for line in content[-5:]:
+            times = line.split('\t')
+            orig_runtimes.append(float(times[0]))
+            optim_runtimes.append(float(times[1]))
+
+        orig_mean = np.mean(orig_runtimes)
+        optim_mean = np.mean(optim_runtimes)
+
+        speedup = orig_mean / optim_mean
+        speedup = (speedup - 1) * 100
+        speedups.append(speedup)
+        orig_times.append(orig_mean)
+
+        taso_stats_file = os.path.join(taso_root, "examples/{}_stats_{}.txt".format(taso_benchmark_name, iter))
+        with open(taso_stats_file, 'r') as f:
+            content = f.readlines()
+        taso_totals = []
+        for line in content[-5:]:
+            elements = line.split(' ')
+            taso_totals.append(float(elements[3][:-1]))
+        time_mean = np.mean(taso_totals)
+        optimizer_times.append(time_mean)
+
+    return_dict = {}
+    return_dict['taso'] = {
+        'speedup': speedups,
+        'time': optimizer_times,
+    }
+
+    tensat_iters = [0, 1, 2]
+    tensat_speedups = []
+    tensat_times = []
+    for iter in tensat_iters:
+        orig, optim, optim_time = get_iter_stats_self(benchmark, tamago_root, iter=iter)
+        speedup = orig / optim
+        speedup = (speedup - 1) * 100
+        tensat_speedups.append(speedup)
+        tensat_times.append(optim_time)
+
+    return_dict['tensat'] = {
+        'speedup': tensat_speedups,
+        'time': tensat_times,
+    }
+
+    return return_dict
+
+def trajectories(args):
+    # Single plot with legend. Each benchmark has a color, Tensat and TASO uses different line styles
+    plt.rcParams.update({'font.size': 18})
+    results = {}
+    for benchmark in BENCHMARKS_TREND:
+        results[benchmark] = traj_results(benchmark)
+
+    colors = ['b', 'g', 'tab:orange', 'm', 'r', 'c', 'k']
+
+    # Plot optimizer time
+    fig, ax = plt.subplots()
+
+    for (i, benchmark) in enumerate(BENCHMARKS_TREND):
+        # TASO
+        taso_speedups = results[benchmark]['taso']['speedup']
+        taso_times = results[benchmark]['taso']['time']
+        lns = ax.plot(taso_times, taso_speedups, marker='x', color=colors[i], label=BENCHMARK_NAMES_TREND[i])
+
+        # tensat
+        tensat_speedups = results[benchmark]['tensat']['speedup']
+        tensat_times = results[benchmark]['tensat']['time']
+        lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i])
+
+    ax.set_xscale('log')
+    fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
+    ax.set_xlabel('Optimizer time (seconds)')
+
+    fig.savefig("traj.pdf", bbox_inches='tight')
+
+    handles, labels = ax.get_legend_handles_labels()
+    for handle in handles:
+        handle.set_marker("")
+
+    # Plot legend
+    figlegend = plt.figure(figsize=(2.0,2.5))
+    figlegend.legend(handles, labels, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
+    figlegend.savefig("legend_traj.pdf")
+
+    marker_legend = plt.figure(figsize=(2.0, 0.7))
+    handles_marker = [handles[0], handles[1]]
+    handles_marker[0].set_marker("x")
+    handles_marker[0].set_color("k")
+    handles_marker[1].set_marker("s")
+    handles_marker[1].set_color("k")
+    labels_marker = ["TASO", "Tensat"]
+    marker_legend.legend(handles_marker, labels_marker, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
+    marker_legend.savefig("legend_traj_marker.pdf")
+
+    plt.close()
 
 def multi_trend_together(args):
     plt.rcParams.update({'font.size': 18})
@@ -758,12 +947,18 @@ def main():
     elif args.mode == 'optimizer_together':
         # Bar plot of the optimizer time
         optimizer_time_together(args)
+    elif args.mode == 'breakdown':
+        # Get sat and ext time breakdown
+        time_breakdown(args)
     elif args.mode == 'multi':
         # Plot trend with iterations of multi-pattern rewrites
         plot_multi_trend(args)
     elif args.mode == "multi_together":
         # Plot trend with iterations of multi-pattern rewrites, benchmarks together
         multi_trend_together(args)
+    elif args.mode == "traj":
+        # Plot trend with iterations of multi-pattern rewrites, benchmarks together
+        trajectories(args)
 
 if __name__ == '__main__':
     try:
