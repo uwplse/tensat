@@ -39,13 +39,13 @@ def get_args():
 
 def speedup_bar(benchmark):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     if benchmark == "inceptionv3":
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_2_stats.txt".format(benchmark))
     else:
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
         taso_benchmark_name = 'nasnet_a'
@@ -114,13 +114,13 @@ def speedup_bar(benchmark):
 
 def speedup_bar_result(benchmark):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     if benchmark == "inceptionv3_2":
-        egg_stats_file = os.path.join(tamago_root, "tmp/inceptionv3_2_stats.txt")
+        egg_stats_file = os.path.join(tensat_root, "tmp/inceptionv3_2_stats.txt")
     else:
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
         taso_benchmark_name = 'nasnet_a'
@@ -173,13 +173,13 @@ def speedup_bar_result(benchmark):
 
 def optimizer_time_bar(benchmark):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     if benchmark == "inceptionv3":
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_2_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_2_stats.txt".format(benchmark))
     else:
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
         taso_benchmark_name = 'nasnet_a'
@@ -252,12 +252,12 @@ def optimizer_time_bar(benchmark):
 
 def optimizer_time_breakdown(benchmark, post_fix=''):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     if benchmark == "inceptionv3_2":
-        egg_stats_file = os.path.join(tamago_root, "tmp/inceptionv3_2_stats.txt")
+        egg_stats_file = os.path.join(tensat_root, "tmp/inceptionv3_2_stats.txt")
     else:
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
 
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
@@ -279,13 +279,13 @@ def optimizer_time_breakdown(benchmark, post_fix=''):
 
 def optimizer_time_result(benchmark, post_fix=''):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     if benchmark == "inceptionv3_2":
-        egg_stats_file = os.path.join(tamago_root, "tmp/inceptionv3_2_stats.txt")
+        egg_stats_file = os.path.join(tensat_root, "tmp/inceptionv3_2_stats.txt")
     else:
-        egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+        egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
         taso_benchmark_name = 'nasnet_a'
@@ -343,10 +343,10 @@ def optimizer_time_result(benchmark, post_fix=''):
 
 def equivalent_graphs(benchmark):
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_1_stats.txt".format(benchmark))
+    egg_stats_file = os.path.join(tensat_root, "tmp/{}_1_stats.txt".format(benchmark))
     taso_stats_file = os.path.join(taso_root, "examples/{}_stats.txt".format(benchmark))
 
     with open(egg_stats_file, 'r') as egg_f:
@@ -370,8 +370,8 @@ def equivalent_graphs(benchmark):
 
     print("{}: egg (power of 2) {}, taso {}".format(benchmark, egg_mean, taso_mean))
 
-def get_iter_stats(benchmark, tamago_root, iter=1):
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_{}_stats.txt".format(benchmark, iter))
+def get_iter_stats(benchmark, tensat_root, iter=1):
+    egg_stats_file = os.path.join(tensat_root, "tmp/{}_{}_stats.txt".format(benchmark, iter))
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
 
@@ -393,8 +393,8 @@ def get_iter_stats(benchmark, tamago_root, iter=1):
 
     return (mean_iter, mean_sat_iter, mean_ext_iter, mean_nodes_iter)
 
-def get_iter_stats_self(benchmark, tamago_root, iter=1):
-    egg_stats_file = os.path.join(tamago_root, "tmp/{}_{}_stats.txt".format(benchmark, iter))
+def get_iter_stats_self(benchmark, tensat_root, iter=1):
+    egg_stats_file = os.path.join(tensat_root, "tmp/{}_{}_stats.txt".format(benchmark, iter))
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
 
@@ -429,8 +429,8 @@ def multi_trend(benchmark):
 
     """
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(benchmark))
 
@@ -444,14 +444,14 @@ def multi_trend(benchmark):
     orig_mean = np.mean(orig_runtimes)
 
     # iter=1
-    mean_iter_1, mean_sat_iter_1, mean_ext_iter_1, mean_nodes_iter_1 = get_iter_stats(benchmark, tamago_root, iter=1)
+    mean_iter_1, mean_sat_iter_1, mean_ext_iter_1, mean_nodes_iter_1 = get_iter_stats(benchmark, tensat_root, iter=1)
 
     # iter=2
-    mean_iter_2, mean_sat_iter_2, mean_ext_iter_2, mean_nodes_iter_2 = get_iter_stats(benchmark, tamago_root, iter=2)
+    mean_iter_2, mean_sat_iter_2, mean_ext_iter_2, mean_nodes_iter_2 = get_iter_stats(benchmark, tensat_root, iter=2)
 
     # iter=3
     if benchmark == 'resnext50':
-        mean_iter_3, mean_sat_iter_3, mean_ext_iter_3, mean_nodes_iter_3 = get_iter_stats(benchmark, tamago_root, iter=3)
+        mean_iter_3, mean_sat_iter_3, mean_ext_iter_3, mean_nodes_iter_3 = get_iter_stats(benchmark, tensat_root, iter=3)
 
     # The number of nodes for these three in iter 3 is manually recorded, since the ILP solver
     # times out, and the results are not saved in files
@@ -528,8 +528,8 @@ def multi_results(benchmark):
 
     """
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
@@ -549,16 +549,16 @@ def multi_results(benchmark):
 
 
     # iter=0
-    mean_iter_0, mean_sat_iter_0, mean_ext_iter_0, mean_nodes_iter_0 = get_iter_stats(benchmark, tamago_root, iter=0)
+    mean_iter_0, mean_sat_iter_0, mean_ext_iter_0, mean_nodes_iter_0 = get_iter_stats(benchmark, tensat_root, iter=0)
 
     # iter=1
-    mean_iter_1, mean_sat_iter_1, mean_ext_iter_1, mean_nodes_iter_1 = get_iter_stats(benchmark, tamago_root, iter=1)
+    mean_iter_1, mean_sat_iter_1, mean_ext_iter_1, mean_nodes_iter_1 = get_iter_stats(benchmark, tensat_root, iter=1)
 
     # iter=2
-    mean_iter_2, mean_sat_iter_2, mean_ext_iter_2, mean_nodes_iter_2 = get_iter_stats(benchmark, tamago_root, iter=2)
+    mean_iter_2, mean_sat_iter_2, mean_ext_iter_2, mean_nodes_iter_2 = get_iter_stats(benchmark, tensat_root, iter=2)
 
     # iter=3
-    mean_iter_3, mean_sat_iter_3, mean_ext_iter_3, mean_nodes_iter_3 = get_iter_stats(benchmark, tamago_root, iter=3)
+    mean_iter_3, mean_sat_iter_3, mean_ext_iter_3, mean_nodes_iter_3 = get_iter_stats(benchmark, tensat_root, iter=3)
 
     # Plot runtime & optimizer time v.s. iter
     speedup = [orig_mean/mean_iter_0, orig_mean/mean_iter_1, orig_mean/mean_iter_2]
@@ -724,8 +724,8 @@ def traj_results(benchmark):
     - 'tensat': {'speedup': [speedups], 'time': [times]}
     """
     # Read in results
-    tamago_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    taso_root = os.path.join(os.path.dirname(tamago_root), "TASO")
+    tensat_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    taso_root = os.path.join(os.path.dirname(tensat_root), "TASO")
 
     taso_benchmark_name = benchmark
     if benchmark == 'nasneta':
@@ -779,7 +779,7 @@ def traj_results(benchmark):
     tensat_speedups = []
     tensat_times = []
     for iter in tensat_iters:
-        orig, optim, optim_time = get_iter_stats_self(benchmark, tamago_root, iter=iter)
+        orig, optim, optim_time = get_iter_stats_self(benchmark, tensat_root, iter=iter)
         speedup = orig / optim
         speedup = (speedup - 1) * 100
         tensat_speedups.append(speedup)

@@ -18,7 +18,7 @@ iteration, this should be fine."
 TODO: look into this. Ask Max to understand if this is expected
 
 - We use the the correct way to treat concat ops with all inputs being weight tensors as zero
-cost in tamago. But TASO doesn't (they treat all new concat as zero cost).
+cost in tensat. But TASO doesn't (they treat all new concat as zero cost).
 
 TODO: correct TASO side, and see how much speedup is actually due to the cost model
 

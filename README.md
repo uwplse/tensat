@@ -1,5 +1,3 @@
-<img src="logo.png" alt="tamago" height="68" align="left"/>
-
 Re-implementation of the [TASO compiler](https://github.com/jiazhihao/TASO)
 using [equality saturation](https://mwillsey.com/papers/egg/). Tamago implements
 both the graph transformation verifier and the optimizer; the former is complete while
@@ -11,14 +9,14 @@ Tamago builds on TASO, so it has the same hardware requirement as TASO. This ess
 means you need GPUs and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/)
 (if you just want to run the verifier, you don't need GPUs and the regular docker works).
 You need the TASO runtime (with its dependencies), rust and
-[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tamago.
+[rust-bindgen](https://github.com/rust-lang/rust-bindgen) to build tensat.
 
 The [`Dockerfile`](docker/Dockerfile) sets this all up for you. Here's the recommended way of
 setting up the environment using docker:
 
-- `cd` to `/docker` and execute `docker build --tag tamago:1.0 .` to build the image
+- `cd` to `/docker` and execute `docker build --tag tensat:1.0 .` to build the image
 - Get the dependent repositories. We need a [`forked version of egg`](https://github.com/yycdavid/egg), and a [`forked version of TASO`](https://github.com/yycdavid/taso). Clone these two repositories to a path of your choice
-- Change the `source` parameter of bind mount in run_docker.sh to the path of your choice to tamago, egg, and taso
+- Change the `source` parameter of bind mount in run_docker.sh to the path of your choice to tensat, egg, and taso
 - Run `./run_docker.sh`
 - Now you are inside the docker container, we need to build TASO:
     - Run the following to install:

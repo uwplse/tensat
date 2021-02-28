@@ -5,21 +5,21 @@ use std::env::*;
 use std::fs::*;
 use std::time::*;
 use std::time::{Duration, Instant};
-use tamago::benchnet;
-use tamago::bert;
-use tamago::model::*;
-use tamago::nasneta;
-use tamago::nasrnn;
-use tamago::optimize::*;
-use tamago::resnet50;
-use tamago::resnext50;
-use tamago::rewrites::*;
-use tamago::testnet;
-use tamago::inceptionv3;
-use tamago::mobilenetv2;
-use tamago::vgg;
-use tamago::squeezenet;
-use tamago::{parse::*, verify::*};
+use tensat::benchnet;
+use tensat::bert;
+use tensat::model::*;
+use tensat::nasneta;
+use tensat::nasrnn;
+use tensat::optimize::*;
+use tensat::resnet50;
+use tensat::resnext50;
+use tensat::rewrites::*;
+use tensat::testnet;
+use tensat::inceptionv3;
+use tensat::mobilenetv2;
+use tensat::vgg;
+use tensat::squeezenet;
+use tensat::{parse::*, verify::*};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -359,7 +359,7 @@ fn optimize(matches: clap::ArgMatches) {
     // Save egraph
     let (egraph, root) = (runner.egraph, runner.roots[0]);
     if save_graph == "all" {
-        egraph.dot().to_svg("target/tamago.svg").unwrap();
+        egraph.dot().to_svg("target/tensat.svg").unwrap();
     }
 
     if matches.is_present("saturation_only") {
@@ -617,10 +617,10 @@ fn get_full_graph_runtime(runner: &Runner<Mdl, TensorAnalysis, ()>, process: boo
         // about inference time, such ops can be pre-computed
         if process {
             let processed_g = g.preprocess_weights();
-            // (*processed_g).export_to_file_raw(CString::new("/usr/tamago/optimized.onnx").unwrap().into_raw());
+            // (*processed_g).export_to_file_raw(CString::new("/usr/tensat/optimized.onnx").unwrap().into_raw());
             (*processed_g).run()
         } else {
-            //(*g).export_to_file_raw(CString::new("/usr/tamago/orig.onnx").unwrap().into_raw());
+            //(*g).export_to_file_raw(CString::new("/usr/tensat/orig.onnx").unwrap().into_raw());
             (*g).run()
         }
     }
