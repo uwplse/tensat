@@ -1,5 +1,5 @@
 [package]
-name = "tamago"
+name = "tensat"
 version = "0.1.0"
 authors = ["Remy Wang <remywang@uw.edu>"]
 edition = "2018"

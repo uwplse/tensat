@@ -47,7 +47,7 @@ ENV LD_LIBRARY_PATH /opt/conda/lib:/usr/local/lib
 
 RUN mkdir /usr/egg
 
-RUN mkdir /usr/tamago
+RUN mkdir /usr/tensat
 
 RUN mkdir /usr/TASO
 
@@ -60,4 +60,4 @@ RUN python -m pip install -U ortools
 RUN apt update
 RUN apt install -y vim
 
-WORKDIR /usr/tamago
+WORKDIR /usr/tensat

@@ -1,4 +1,4 @@
-use tamago::parse::*;
+use tensat::parse::*;
 
 // parse_model takes a string which is the serialized model from taso
 // here the string is the content of bts.model.
