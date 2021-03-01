@@ -1,11 +1,11 @@
 Re-implementation of the [TASO compiler](https://github.com/jiazhihao/TASO)
-using [equality saturation](https://mwillsey.com/papers/egg/). Tamago implements
+using [equality saturation](https://mwillsey.com/papers/egg/). Tensat implements
 both the graph transformation verifier and the optimizer; the former is complete while
 the latter is in progress.
 
 ## development
 
-Tamago builds on TASO, so it has the same hardware requirement as TASO. This essentially
+Tensat builds on TASO, so it has the same hardware requirement as TASO. This essentially
 means you need GPUs and drivers for [nvidia-docker](https://github.com/NVIDIA/nvidia-docker/)
 (if you just want to run the verifier, you don't need GPUs and the regular docker works).
 You need the TASO runtime (with its dependencies), rust and
