@@ -35,6 +35,8 @@ def get_args():
     parser.add_argument('--mode', type=str, default='runtime',
         help='Mode of analysis')
 
+    parser.add_argument('--single', action='store_true', default=False, help='Plot single trajectory')
+
     return parser.parse_args()
 
 def speedup_bar(benchmark):
@@ -128,7 +130,7 @@ def speedup_bar_result(benchmark):
         taso_benchmark_name = 'inceptionv3'
     elif benchmark == 'vgg':
         taso_benchmark_name = 'vgg19-7'
-    taso_runtime_file = os.path.join(taso_root, "examples/{}_time_05.txt".format(taso_benchmark_name))
+    taso_runtime_file = os.path.join(taso_root, "examples/{}_time.txt".format(taso_benchmark_name))
 
     with open(egg_stats_file, 'r') as egg_f:
         egg_results = egg_f.readlines()
@@ -317,11 +319,6 @@ def optimizer_time_result(benchmark, post_fix=''):
         taso_totals.append(float(elements[3][:-1]))
         taso_bests.append(float(elements[1][:-1]))
 
-    sat_time_mean = np.mean(egg_sat_times)
-    ext_time_mean = np.mean(egg_ext_times)
-
-    #print("{}, sat time {}, ext time {}".format(benchmark, sat_time_mean, ext_time_mean))
-
     egg_time = np.mean(egg_times)
     taso_total = np.mean(taso_totals)
     taso_best = np.mean(taso_bests)
@@ -335,7 +332,7 @@ def optimizer_time_result(benchmark, post_fix=''):
     result['speedup_ratio'] = speedup_ratio
 
     egg_sat_time = np.mean(egg_sat_times)
-    egg_ext_time = np.mean(egg_ext_time)
+    egg_ext_time = np.mean(egg_ext_times)
     result['egg_sat_time'] = egg_sat_time
     result['egg_ext_time'] = egg_ext_time
 
@@ -584,7 +581,7 @@ def plot_speedup(args):
         speedup_bar(benchmark)
 
 def plot_speedup_together(args):
-    plt.rcParams.update({'font.size': 18})
+    plt.rcParams.update({'font.size': 24})
     results = {}
     for benchmark in BENCHMARKS:
         results[benchmark] = speedup_bar_result(benchmark)
@@ -609,9 +606,10 @@ def plot_speedup_together(args):
         #ax1.text(rect.get_x() + rect.get_width()/2.0, height+0.5, "{:0.1f}x".format(result['speedup_ratio']), ha='center', va='bottom', weight='heavy')
 
     #ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
-    ax1.legend((bar_0, bar_1), ("TASO", "Tensat"), loc='upper center', ncol=2, fancybox=True, shadow=True, prop={'size': 18})
+    ax1.legend((bar_0, bar_1), ("TASO", "Tensat"), loc='upper center', ncol=2, fancybox=True, shadow=True, prop={'size': 24})
     tick_locs = [x + width/2 + 0.5 for x in x_locs]
     plt.xticks(tick_locs, BENCHMARK_NAMES)
+    ax1.tick_params(axis='x', labelrotation = 20)
     ax1.set_ylabel('Speed up percentage')
 
     fig = plt.gcf()
@@ -651,7 +649,7 @@ def time_breakdown(args):
         optimizer_time_breakdown(benchmark)
 
 def optimizer_time_together(args):
-    plt.rcParams.update({'font.size': 18})
+    plt.rcParams.update({'font.size': 24})
     results = {}
     for benchmark in BENCHMARKS:
         results[benchmark] = optimizer_time_result(benchmark)
@@ -682,9 +680,10 @@ def optimizer_time_together(args):
 
 
     #ax1.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2, fancybox=True, shadow=True, prop={'size': 14})
-    ax1.legend((bar_0, bar_1, bar_2), ("TASO total", "TASO best", "Tensat"), loc='upper center', ncol=3, fancybox=True, shadow=True, prop={'size': 18})
+    ax1.legend((bar_0, bar_1, bar_2), ("TASO total", "TASO best", "Tensat"), loc='upper center', ncol=3, fancybox=True, shadow=True, prop={'size': 24})
     tick_locs = [x + width/2 + 0.5 for x in x_locs]
     plt.xticks(tick_locs, BENCHMARK_NAMES)
+    ax1.tick_params(axis='x', labelrotation = 20)
 
     fig = plt.gcf()
     fig.set_size_inches(1.8*len(BENCHMARKS), 12)
@@ -715,7 +714,7 @@ def plot_multi_trend(args):
     for benchmark in BENCHMARKS:
         multi_trend(benchmark)
 
-def traj_results(benchmark):
+def traj_results(benchmark, single=False):
     """This function gets the trajectory of how speedup varies with optimization time. For Tensat, it is when the number of iterations of
     multi-pattern rewrites varies; for TASO, it is varying number of iterations.
 
@@ -733,7 +732,10 @@ def traj_results(benchmark):
     elif benchmark == 'vgg':
         taso_benchmark_name = 'vgg19-7'
 
-    taso_iters = [10, 30, 100]
+    if single:
+        taso_iters = [1,2,3,8,10,30,100]
+    else:
+        taso_iters = [10, 30, 100]
     orig_times = []
     speedups = []
     optimizer_times = []
@@ -796,49 +798,73 @@ def trajectories(args):
     # Single plot with legend. Each benchmark has a color, Tensat and TASO uses different line styles
     plt.rcParams.update({'font.size': 18})
     results = {}
+
+    if args.single:
+        BENCHMARKS_TREND = ['inceptionv3']
     for benchmark in BENCHMARKS_TREND:
-        results[benchmark] = traj_results(benchmark)
+        results[benchmark] = traj_results(benchmark, single=args.single)
 
     colors = ['b', 'g', 'tab:orange', 'm', 'r', 'c', 'k']
 
     # Plot optimizer time
     fig, ax = plt.subplots()
 
-    for (i, benchmark) in enumerate(BENCHMARKS_TREND):
-        # TASO
-        taso_speedups = results[benchmark]['taso']['speedup']
-        taso_times = results[benchmark]['taso']['time']
-        lns = ax.plot(taso_times, taso_speedups, marker='x', color=colors[i], label=BENCHMARK_NAMES_TREND[i])
+    if args.single:
+        for (i, benchmark) in enumerate(BENCHMARKS_TREND):
+            # TASO
+            taso_speedups = results[benchmark]['taso']['speedup']
+            taso_times = results[benchmark]['taso']['time']
+            lns = ax.plot(taso_times, taso_speedups, marker='x', color=colors[i], label='TASO')
 
-        # tensat
-        tensat_speedups = results[benchmark]['tensat']['speedup']
-        tensat_times = results[benchmark]['tensat']['time']
-        lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i])
+            # tensat
+            tensat_speedups = results[benchmark]['tensat']['speedup']
+            tensat_times = results[benchmark]['tensat']['time']
+            lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i], label="Tensat")
 
-    ax.set_xscale('log')
-    fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
-    ax.set_xlabel('Optimizer time (seconds)')
+        ax.set_xscale('log')
+        fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
+        ax.set_xlabel('Optimizer time (seconds)')
+        ax.legend()
 
-    fig.savefig("traj.pdf", bbox_inches='tight')
+        fig.savefig("traj.pdf", bbox_inches='tight')
 
-    handles, labels = ax.get_legend_handles_labels()
-    for handle in handles:
-        handle.set_marker("")
+    else:
 
-    # Plot legend
-    figlegend = plt.figure(figsize=(2.0,2.5))
-    figlegend.legend(handles, labels, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
-    figlegend.savefig("legend_traj.pdf")
+        for (i, benchmark) in enumerate(BENCHMARKS_TREND):
+            # TASO
+            taso_speedups = results[benchmark]['taso']['speedup']
+            taso_times = results[benchmark]['taso']['time']
+            lns = ax.plot(taso_times, taso_speedups, marker='x', color=colors[i], label=BENCHMARK_NAMES_TREND[i])
 
-    marker_legend = plt.figure(figsize=(2.0, 0.7))
-    handles_marker = [handles[0], handles[1]]
-    handles_marker[0].set_marker("x")
-    handles_marker[0].set_color("k")
-    handles_marker[1].set_marker("s")
-    handles_marker[1].set_color("k")
-    labels_marker = ["TASO", "Tensat"]
-    marker_legend.legend(handles_marker, labels_marker, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
-    marker_legend.savefig("legend_traj_marker.pdf")
+            # tensat
+            tensat_speedups = results[benchmark]['tensat']['speedup']
+            tensat_times = results[benchmark]['tensat']['time']
+            lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i])
+
+        ax.set_xscale('log')
+        fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
+        ax.set_xlabel('Optimizer time (seconds)')
+
+        fig.savefig("traj.pdf", bbox_inches='tight')
+
+        handles, labels = ax.get_legend_handles_labels()
+        for handle in handles:
+            handle.set_marker("")
+
+        # Plot legend
+        figlegend = plt.figure(figsize=(2.0,2.5))
+        figlegend.legend(handles, labels, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
+        figlegend.savefig("legend_traj.pdf")
+
+        marker_legend = plt.figure(figsize=(2.0, 0.7))
+        handles_marker = [handles[0], handles[1]]
+        handles_marker[0].set_marker("x")
+        handles_marker[1].set_marker("s")
+        handles_marker[0].set_color("k")
+        handles_marker[1].set_color("k")
+        labels_marker = ["TASO", "Tensat"]
+        marker_legend.legend(handles_marker, labels_marker, 'center', ncol=1, fancybox=True, shadow=True, prop={'size': 14})
+        marker_legend.savefig("legend_traj_marker.pdf")
 
     plt.close()
 
