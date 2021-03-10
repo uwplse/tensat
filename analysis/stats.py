@@ -357,7 +357,7 @@ def plot_speedup_together(args):
     tick_locs = [x + width/2 + 0.5 for x in x_locs]
     plt.xticks(tick_locs, BENCHMARK_NAMES)
     ax1.tick_params(axis='x', labelrotation = 20)
-    ax1.set_ylabel('Speed up percentage')
+    ax1.set_ylabel('Speedup percentage')
 
     fig = plt.gcf()
     fig.set_size_inches(1.8*len(BENCHMARKS), 12)
@@ -477,7 +477,6 @@ def traj_results(benchmark, single=False):
     speedups = []
     optimizer_times = []
     for iter in taso_iters:
-
         taso_runtime_file = os.path.join(taso_root, "examples/{}_time_{}.txt".format(taso_benchmark_name, iter))
 
         with open(taso_runtime_file, 'r') as f:
@@ -544,21 +543,27 @@ def trajectories(args):
     colors = ['b', 'g', 'tab:orange', 'm', 'r', 'c', 'k']
 
     # Plot optimizer time
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5,7))
 
     if args.single:
         for (i, benchmark) in enumerate(BENCHMARKS_TREND):
             # TASO
             taso_speedups = results[benchmark]['taso']['speedup']
             taso_times = results[benchmark]['taso']['time']
+            # Timeout at 60 sec, so represents the final part with flat line
+            taso_speedups[-1] = taso_speedups[-2]
             lns = ax.plot(taso_times, taso_speedups, marker='x', color=colors[i], label='TASO')
 
             # tensat
             tensat_speedups = results[benchmark]['tensat']['speedup']
             tensat_times = results[benchmark]['tensat']['time']
-            lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i], label="Tensat")
+            # Timeout at 60 sec, so represents the final part with flat line
+            tensat_times.append(taso_times[-1])
+            tensat_speedups.append(tensat_speedups[-1])
+            lns2 = ax.plot(tensat_times, tensat_speedups, marker='s', color=colors[i+4], label="Tensat")
 
-        ax.set_xscale('log')
+        #ax.set_xscale('log')
+        ax.set_xlim(right=60)
         fig.text(0.0, 0.5, 'Speedup percentage', va='center', rotation='vertical')
         ax.set_xlabel('Optimizer time (seconds)')
         ax.legend()
