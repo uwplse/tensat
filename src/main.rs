@@ -5,7 +5,6 @@ use std::env::*;
 use std::fs::*;
 use std::time::*;
 use std::time::{Duration, Instant};
-use tensat::benchnet;
 use tensat::bert;
 use tensat::model::*;
 use tensat::nasneta;
@@ -14,7 +13,6 @@ use tensat::optimize::*;
 use tensat::resnet50;
 use tensat::resnext50;
 use tensat::rewrites::*;
-use tensat::testnet;
 use tensat::inceptionv3;
 use tensat::mobilenetv2;
 use tensat::vgg;
@@ -251,8 +249,6 @@ fn optimize(matches: clap::ArgMatches) {
 
     let start = match matches.value_of("model") {
         Some("resnet50") => resnet50::get_resnet50(),
-        Some("testnet") => testnet::get_testnet(),
-        Some("benchnet") => benchnet::get_benchnet(),
         Some("nasrnn") => nasrnn::get_nasrnn(),
         Some("resnext50") => resnext50::get_resnext50(),
         Some("bert") => bert::get_bert(),

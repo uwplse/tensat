@@ -1,4 +1,3 @@
-pub mod benchnet;
 pub mod bert;
 pub mod input;
 pub mod model;
@@ -9,7 +8,6 @@ pub mod parse;
 pub mod resnet50;
 pub mod resnext50;
 pub mod rewrites;
-pub mod testnet;
 pub mod inceptionv3;
 pub mod mobilenetv2;
 pub mod vgg;
