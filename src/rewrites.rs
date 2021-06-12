@@ -108,12 +108,10 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
 struct MultiConv;
 
 impl <A: Analysis<Mdl>>Searcher<Mdl, A> for MultiConv {
-    fn search_eclass(
-    &self,
-    egraph: &EGraph<Mdl, A>,
-    eclass: Id
-    ) -> Option<SearchMatches> {
-        "(conv2d 1 1 0 0 ?a ?b)".parse::<Pattern<Mdl>>().unwrap().search_eclass(&egraph, eclass)
+    fn search_eclass(&self, egraph: &EGraph<Mdl, A>, eclass: Id) -> Option<SearchMatches> {
+        "(conv2d 1 1 0 0 ?a ?b)".parse::<Pattern<Mdl>>()
+            .unwrap()
+            .search_eclass(&egraph, eclass)
     }
 
     fn vars(&self) -> Vec<Var> {
@@ -125,23 +123,26 @@ impl <A: Analysis<Mdl>>Searcher<Mdl, A> for MultiConv {
     }
 
     fn search(&self, egraph: &EGraph<Mdl, A>) -> Vec<SearchMatches> {
-        let i = Id::default();
+
         let mut conv_x_c_y: HashMap<Id, Vec<(Id,Id)>> = HashMap::new();
         let mut conv_x_z: HashMap<Id, Vec<Id>> = HashMap::new();
         let mut matches: HashMap<Id, Vec<Subst>> = HashMap::new();
-        if let Some(cs) = egraph.classes_by_op.get(&std::mem::discriminant(&Mdl::Conv2d([i,i,i,i,i,i]))) {
+
+        let i = Id::default();
+        if let Some(cs) = egraph.classes_by_op
+                                .get(&std::mem::discriminant(&Mdl::Conv2d([i,i,i,i,i,i]))) {
+
             for c in cs {
                 if let Some(m) = self.search_eclass(egraph, *c) {
                     for subst in m.substs {
                         let a = subst.get("?a".parse().unwrap()).unwrap();
                         let b = subst.get("?b".parse().unwrap()).unwrap();
-                        let mut cys = conv_x_c_y.entry(*a).or_insert(vec![]);
-                        cys.push((*c,*b));
-                        let mut zs = conv_x_z.entry(*a).or_default();
-                        zs.push(*b);
+                        conv_x_c_y.entry(*a).or_default().push((*c,*b));
+                        conv_x_z.entry(*a).or_default().push(*b);
                     }
                 }
             }
+
             for (x,zs) in conv_x_z.iter() {
                 if let Some(cys) = conv_x_c_y.get(x) {
                     for (c,y) in cys {
@@ -155,7 +156,11 @@ impl <A: Analysis<Mdl>>Searcher<Mdl, A> for MultiConv {
                     }
                 }
             }
-            matches.into_iter().map(|(eclass, substs)| SearchMatches{ eclass, substs }).collect()
+
+            matches.into_iter()
+                   .map(|(eclass, substs)| SearchMatches{ eclass, substs })
+                   .collect()
+
         } else {
             vec![]
         }
