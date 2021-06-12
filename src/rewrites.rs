@@ -101,7 +101,66 @@ pub fn rules<A: Analysis<Mdl>>() -> Vec<Rewrite<Mdl, A>> { vec![
         rw!("-concatenation-and-pooling-0"     ;"(poolavg ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolavg ?kx ?ky ?sx ?sy ?p ?x) (poolavg ?kx ?ky ?sx ?sy ?p ?y)) "               ),
         rw!("-concatenation-and-pooling-1"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 0 ?x ?y))"                                     => "(concat 0 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
         rw!("-concatenation-and-pooling-2"     ;"(poolmax ?kx ?ky ?sx ?sy ?p (concat 1 ?x ?y))"                                     => "(concat 1 (poolmax ?kx ?ky ?sx ?sy ?p ?x) (poolmax ?kx ?ky ?sx ?sy ?p ?y)) "               ),
+        rw!("multi-conv"; MultiConv => "(split_0 (split 1 (conv2d 1 1 0 0 ?x (concat 0 4 (enlarge ?y ?z) ?z))))"),
 ]}
+
+// Multi-pattern for (conv2d 1 1 0 0 ?x ?y), (conv2d 1 1 0 0 ?x ?z)
+struct MultiConv;
+
+impl <A: Analysis<Mdl>>Searcher<Mdl, A> for MultiConv {
+    fn search_eclass(
+    &self,
+    egraph: &EGraph<Mdl, A>,
+    eclass: Id
+    ) -> Option<SearchMatches> {
+        "(conv2d 1 1 0 0 ?a ?b)".parse::<Pattern<Mdl>>().unwrap().search_eclass(&egraph, eclass)
+    }
+
+    fn vars(&self) -> Vec<Var> {
+        vec![
+            "?x".parse().unwrap(),
+            "?y".parse().unwrap(),
+            "?z".parse().unwrap(),
+        ]
+    }
+
+    fn search(&self, egraph: &EGraph<Mdl, A>) -> Vec<SearchMatches> {
+        let i = Id::default();
+        let mut conv_x_c_y: HashMap<Id, Vec<(Id,Id)>> = HashMap::new();
+        let mut conv_x_z: HashMap<Id, Vec<Id>> = HashMap::new();
+        let mut matches: HashMap<Id, Vec<Subst>> = HashMap::new();
+        if let Some(cs) = egraph.classes_by_op.get(&std::mem::discriminant(&Mdl::Conv2d([i,i,i,i,i,i]))) {
+            for c in cs {
+                if let Some(m) = self.search_eclass(egraph, *c) {
+                    for subst in m.substs {
+                        let a = subst.get("?a".parse().unwrap()).unwrap();
+                        let b = subst.get("?b".parse().unwrap()).unwrap();
+                        let mut cys = conv_x_c_y.entry(*a).or_insert(vec![]);
+                        cys.push((*c,*b));
+                        let mut zs = conv_x_z.entry(*a).or_default();
+                        zs.push(*b);
+                    }
+                }
+            }
+            for (x,zs) in conv_x_z.iter() {
+                if let Some(cys) = conv_x_c_y.get(x) {
+                    for (c,y) in cys {
+                        for z in zs {
+                            let mut subst = Subst::with_capacity(3);
+                            subst.insert("x".parse().unwrap(), *x);
+                            subst.insert("y".parse().unwrap(), *y);
+                            subst.insert("z".parse().unwrap(), *z);
+                            matches.entry(*c).or_default().push(subst);
+                        }
+                    }
+                }
+            }
+            matches.into_iter().map(|(eclass, substs)| SearchMatches{ eclass, substs }).collect()
+        } else {
+            vec![]
+        }
+    }
+}
 
 pub fn rules_from_str(rs: Vec<&str>, filter_after: bool) -> Vec<Rewrite<Mdl, TensorAnalysis>> {
     let mut rule_vec = Vec::new();
