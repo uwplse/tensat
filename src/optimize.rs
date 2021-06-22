@@ -770,7 +770,7 @@ pub fn construct_best_rec(
 pub fn get_init_solution(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     root: Id,
-    costs: &HashMap<Id, (f32, Mdl)>,
+    costs: &Extractor<TensorCost, Mdl, TensorAnalysis>,
     g_i: &[usize],
     nodes_to_i: &HashMap<Mdl, usize>,
 ) -> (Vec<usize>, Vec<usize>) {
@@ -802,16 +802,13 @@ fn get_init_rec(
     egraph: &EGraph<Mdl, TensorAnalysis>,
     eclass: Id,
     added_memo: &mut HashSet<Id>,
-    costs: &HashMap<Id, (f32, Mdl)>,
+    costs: &Extractor<TensorCost, Mdl, TensorAnalysis>,
     nodes: &mut Vec<Mdl>,
 ) {
     let id = egraph.find(eclass);
 
     if !added_memo.contains(&id) {
-        let (_, best_node) = match costs.get(&id) {
-            Some(result) => result.clone(),
-            None => panic!("Failed to extract from eclass {}", id),
-        };
+        let best_node = costs.find_best_node(id).clone();
         best_node.for_each(|child| get_init_rec(egraph, child, added_memo, costs, nodes));
         nodes.push(best_node);
         added_memo.insert(id);

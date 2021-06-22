@@ -18,9 +18,9 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 
 [dependencies.egg]
-path = "../egg"
-
-#git = "https://github.com/mwillsey/egg"
+# path = "../egg"
+git = "https://github.com/mwillsey/egg"
+rev = "ad1f08895e6f6ea54f9463da29fa397ac41a7292"
 #rev = "986bff5c7d2e050e9aa980671c4c7d971c07da6f"
 
 [build-dependencies]

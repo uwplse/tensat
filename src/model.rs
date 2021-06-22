@@ -138,13 +138,12 @@ impl Analysis<Mdl> for TensorAnalysis {
     type Data = ValTnsr;
 
     /// Merges two metadata when two eclasses are merged.
-    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> bool {
+    fn merge(&self, to: &mut Self::Data, from: Self::Data) -> Option<std::cmp::Ordering> {
+        let ord = to.all_weights.partial_cmp(&from.all_weights);
         if from.all_weights && (!to.all_weights) {
-            to.all_weights = from.all_weights;
-            true
-        } else {
-            false
+            to.all_weights = from.all_weights
         }
+        ord
     }
 
     // Constructs metadata for a new enode, using TASO side functions for tensors.
@@ -304,7 +303,7 @@ impl Analysis<Mdl> for TensorAnalysis {
                     all_weights: all_weights,
                 }
             }
- 
+
             Mdl::Relu(a) => {
                 assert!(x(a).dtype == DataKind::Tnsr);
                 let t_a = x(a).meta;

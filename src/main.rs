@@ -506,7 +506,7 @@ fn extract_by_ilp(
             cost_model: cost_model,
         };
         let mut extractor = Extractor::new(egraph, tnsr_cost);
-        let (i_list, m_list) = get_init_solution(egraph, root, &extractor.costs, &g_i, &node_to_i);
+        let (i_list, m_list) = get_init_solution(egraph, root, &extractor, &g_i, &node_to_i);
 
         // Store initial solution
         let solution_data = json!({
@@ -562,8 +562,8 @@ fn extract_by_ilp(
                 let eclass_id = m_id_map[g_i[i]];
                 if node_picked.contains_key(&eclass_id) {
                     println!("Duplicate node in eclass");
-                    println!("{}", node_picked.get(&eclass_id).unwrap().display_op());
-                    println!("{}", i_to_nodes[i].display_op());
+                    println!("{}", node_picked.get(&eclass_id).unwrap());
+                    println!("{}", i_to_nodes[i]);
                     continue;
                 }
                 //assert!(!node_picked.contains_key(&eclass_id));
