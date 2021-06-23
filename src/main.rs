@@ -502,10 +502,10 @@ fn extract_by_ilp(
             .collect();
 
         let tnsr_cost = TensorCost {
-            egraph: egraph,
-            cost_model: cost_model,
+            egraph,
+            cost_model,
         };
-        let mut extractor = Extractor::new(egraph, tnsr_cost);
+        let extractor = Extractor::new(egraph, tnsr_cost);
         let (i_list, m_list) = get_init_solution(egraph, root, &extractor, &g_i, &node_to_i);
 
         // Store initial solution

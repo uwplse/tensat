@@ -24,7 +24,6 @@ RUN /opt/conda/bin/conda install -c conda-forge protobuf=3.9 numpy onnx
 RUN /opt/conda/bin/conda install -c anaconda cython
 
 ENV PATH /opt/conda/bin:$PATH
-ENV TASO_HOME /usr/TASO/
 
 # Update default packages
 RUN apt-get update
@@ -45,11 +44,7 @@ RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
 
 ENV LD_LIBRARY_PATH /opt/conda/lib:/usr/local/lib
 
-RUN mkdir /usr/egg
-
 RUN mkdir /usr/tensat
-
-RUN mkdir /usr/TASO
 
 RUN cd /usr && wget https://www2.graphviz.org/Packages/stable/portable_source/graphviz-2.44.0.tar.gz && tar -xvf graphviz-2.44.0.tar.gz && cd graphviz-2.44.0 && ./configure && make && make install
 
