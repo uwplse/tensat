@@ -4,11 +4,14 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    let dst = cmake::build("taso");
+    println!("cargo:rustc-link-search=native={}/build", dst.display());
+    println!("cargo:rustc-link-lib=taso_runtime");
+
     // Tell cargo to tell rustc to link the libraries.
     println!("cargo:rustc-link-search=/opt/conda/lib");
     println!("cargo:rustc-link-lib=protobuf");
     println!("cargo:rustc-link-search=/usr/local/lib");
-    println!("cargo:rustc-link-lib=taso_runtime");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");

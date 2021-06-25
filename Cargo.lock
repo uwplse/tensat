@@ -158,6 +158,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb6210b637171dfba4cda12e579ac6dc73f5165ad56133e5d72ef3131f320855"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "digest"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -169,7 +178,7 @@ dependencies = [
 [[package]]
 name = "egg"
 version = "0.6.1-dev"
-source = "git+https://github.com/mwillsey/egg?rev=ad1f08895e6f6ea54f9463da29fa397ac41a7292#ad1f08895e6f6ea54f9463da29fa397ac41a7292"
+source = "git+https://github.com/egraphs-good/egg?rev=665926938d11f72f16e41dba8d53c307965d838c#665926938d11f72f16e41dba8d53c307965d838c"
 dependencies = [
  "fxhash",
  "hashbrown 0.11.2",
@@ -177,6 +186,7 @@ dependencies = [
  "instant",
  "log",
  "once_cell",
+ "qry",
  "smallvec",
  "symbolic_expressions",
  "thiserror",
@@ -442,6 +452,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "qry"
+version = "0.1.0"
+source = "git+https://github.com/mwillsey/qry?rev=1bd8dee7cf3b0388ceb23031b03db4362f06f850#1bd8dee7cf3b0388ceb23031b03db4362f06f850"
+dependencies = [
+ "log",
+ "rustc-hash",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -611,6 +630,7 @@ dependencies = [
  "arrayvec",
  "bindgen",
  "clap",
+ "cmake",
  "egg",
  "env_logger",
  "itertools",
