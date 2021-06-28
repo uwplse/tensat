@@ -24,7 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 [dependencies.egg]
 # path = "../egg"
 git = "https://github.com/egraphs-good/egg"
-rev = "665926938d11f72f16e41dba8d53c307965d838c"
+rev = "665926938d11f72f16e41dba8d53c307965d838c" # relational
 
 [build-dependencies]
 bindgen = "0.54.0"

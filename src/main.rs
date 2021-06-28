@@ -54,6 +54,7 @@ fn main() {
                 .takes_value(true)
                 .help("Provide a file with rewrite rules"),
         )
+        .arg(Arg::with_name("gj").long("gj"))
         .arg(
             Arg::with_name("out_file")
                 .short("o")
@@ -313,7 +314,7 @@ fn optimize(matches: clap::ArgMatches) {
         .parse::<usize>()
         .unwrap();
 
-    let runner = if use_multi {
+    let mut runner = if use_multi {
         // This hook function (which applies the multi-pattern rules) will be called at the
         // beginning of each iteration in equality saturation
         Runner::<Mdl, TensorAnalysis, ()>::default()
@@ -329,6 +330,12 @@ fn optimize(matches: clap::ArgMatches) {
             .with_iter_limit(iter_limit)
             .with_expr(&start)
     };
+
+    if matches.is_present("gj") {
+        runner.egraph.strategy = egg::Strategy::GenericJoin;
+    } else {
+        runner.egraph.strategy = egg::Strategy::EMatch;
+    }
 
     let start_time = Instant::now();
     let mut runner = runner.run(&rules[..]);

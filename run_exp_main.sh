@@ -15,6 +15,10 @@ models=(
     vgg
 )
 
+export TASO_GPU_WARMUP=0
+
+set -e
+
 for pass in $(seq 0 $(expr $num_passes - 1)); do
     for iter_multi in 0 1 2; do
         for model in "${models[@]}"; do
